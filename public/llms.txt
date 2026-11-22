@@ -1,0 +1,9 @@
+# संRACHNA - GEC Godda
+> The Official Annual College Magazine of Government Engineering College, Godda.
+
+This website showcases the official college magazine "संRACHNA". It features student achievements, technical articles, cultural events, and institutional innovations from GEC Godda.
+
+Key Details:
+- Institution: Government Engineering College (GEC), Godda
+- Topic: Annual College Magazine
+- Features: 3D animations, interactive reading experience

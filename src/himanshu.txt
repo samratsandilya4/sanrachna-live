@@ -1,0 +1,16 @@
+from PIL import Image
+
+img = Image.open('public/sanrachna-text.png').convert('RGBA')
+datas = img.getdata()
+
+new_data = []
+for item in datas:
+    # Agar pixel white ya uske kareeb hai, toh usko transparent (alpha = 0) kar do
+    if item[0] > 180 and item[1] > 180 and item[2] > 180:
+        new_data.append((255, 255, 255, 0))
+    else:
+        new_data.append(item)
+
+img.putdata(new_data)
+img.save('public/sanrachna-text.png', 'PNG')
+print("Background successfully removed!")
