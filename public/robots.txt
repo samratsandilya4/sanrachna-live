@@ -1,2 +1,5 @@
 User-agent: *
 Allow: /
+Disallow: /studio
+
+Sitemap: https://sanrachna-live.vercel.app/sitemap.xml
