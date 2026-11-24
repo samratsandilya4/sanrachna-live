@@ -1669,7 +1669,7 @@ const is404Route =
         minHeight: '100vh',
         fontFamily: "'Plus Jakarta Sans', -apple-system, sans-serif",
         position: 'relative',
-        overflowX: 'hidden',
+        overflowX: 'clip',
         transition: 'background-color 0.4s ease, color 0.4s ease' ,
         display: openSubmissionPortal ? 'none' : 'block'
       }}
