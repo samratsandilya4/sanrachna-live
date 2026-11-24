@@ -1683,7 +1683,7 @@ const is404Route =
           padding: 0 !important; 
           width: 100% !important; 
           max-width: none !important; 
-          overflow-x: hidden !important; 
+          overflow-x: clip !important; 
         }
 
         @keyframes continuousGradientFlow {
