@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useRef } from 'react';
-import SubmissionForm from './components/ui/SubmissionForm';
-import ReviewDashboard from './components/ReviewDashboard';
+import React, { useEffect, useState, useRef, lazy, Suspense } from 'react';
+const SubmissionForm = lazy(() => import('./components/ui/SubmissionForm'));
+const ReviewDashboard = lazy(() => import('./components/ReviewDashboard'));
 import { supabase } from './lib/supabase';
 
 // ===========================================================================
@@ -2963,17 +2963,19 @@ const is404Route =
         </div>
       )}
     </div>
-      {openSubmissionPortal && (
-        <SubmissionForm onBack={() => setOpenSubmissionPortal(false)} />
-      )}
-      {openReviewDesk && (
-  <ReviewDashboard
-    onExit={() => {
-      window.history.replaceState(null, '', '/');
-      setOpenReviewDesk(false);
-    }}
-  />
-)}
+      <Suspense fallback={null}>
+        {openSubmissionPortal && (
+          <SubmissionForm onBack={() => setOpenSubmissionPortal(false)} />
+        )}
+        {openReviewDesk && (
+          <ReviewDashboard
+            onExit={() => {
+              window.history.replaceState(null, '', '/');
+              setOpenReviewDesk(false);
+            }}
+          />
+        )}
+      </Suspense>
     </>
   );
 }
