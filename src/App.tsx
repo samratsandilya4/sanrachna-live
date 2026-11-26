@@ -1,8 +1,7 @@
-import React, { useEffect, useState, useRef, lazy, Suspense } from 'react';
-const SubmissionForm = lazy(() => import('./components/ui/SubmissionForm'));
-const ReviewDashboard = lazy(() => import('./components/ReviewDashboard'));
+import React, { useEffect, useState, useRef } from 'react';
+import SubmissionForm from './components/ui/SubmissionForm';
+import ReviewDashboard from './components/ReviewDashboard';
 import { supabase } from './lib/supabase';
-const GuidelinesPage = lazy(() => import('./GuidelinesPage'));
 
 // ===========================================================================
 // 1. FLOATING 3D PARTICLES ENGINE
@@ -239,7 +238,6 @@ const AnimatedThemeIcon = ({ isDark }: { isDark: boolean }) => {
         </mask>
       </defs>
       
-      {/* Center Circle (Sun body -> Moon crescent) */}
       <circle 
         cx="12" 
         cy="12" 
@@ -249,7 +247,6 @@ const AnimatedThemeIcon = ({ isDark }: { isDark: boolean }) => {
         style={{ transition: 'all 0.6s cubic-bezier(0.16, 1, 0.3, 1)' }} 
       />
       
-      {/* Sun Rays */}
       <g 
         stroke="currentColor" 
         style={{ 
@@ -317,7 +314,7 @@ const Reveal = ({
         transform: inView ? 'translateY(0px) scale(1)' : 'translateY(36px) scale(0.96)',
         transition: `opacity 0.85s cubic-bezier(0.16, 1, 0.3, 1) ${delay}ms, filter 0.85s cubic-bezier(0.16, 1, 0.3, 1) ${delay}ms, transform 0.85s cubic-bezier(0.16, 1, 0.3, 1) ${delay}ms`,
         willChange: 'opacity, filter, transform',
-        height: '100%',
+        height: 'auto',
         width: '100%',
       }}
     >
@@ -337,8 +334,8 @@ const ScrollInkThread = ({ active }: { active: boolean }) => {
   const nibOuterRef = useRef<SVGCircleElement>(null);
   const nibInnerRef = useRef<SVGCircleElement>(null);
 
-  const [docHeight, setDocHeight] = useState(3200);
-  const [docWidth, setDocWidth] = useState(1440);
+  const [docHeight, setDocHeight] = useState(0);
+  const [docWidth, setDocWidth] = useState(0);
   const [paths, setPaths] = useState({ main: '', gold: '', navy: '' });
 
   useEffect(() => {
@@ -346,7 +343,9 @@ const ScrollInkThread = ({ active }: { active: boolean }) => {
 
     const generateSmoothSilkPaths = () => {
       const w = document.documentElement.clientWidth || window.innerWidth;
-      const h = Math.max(document.documentElement.scrollHeight, document.body.scrollHeight, 2400);
+      const h = Math.max(document.documentElement.scrollHeight, document.body.scrollHeight);
+
+      if (h < 200) return;
 
       setDocWidth(w);
       setDocHeight(h);
@@ -357,9 +356,9 @@ const ScrollInkThread = ({ active }: { active: boolean }) => {
 
       const buildRibbon = (ox: number, oy: number) => {
         const sx = rightMargin + ox;
-        const sy = 40 + oy;
+        const sy = Math.min(40 + oy, h * 0.02);
         let d = `M ${sx} ${sy} `;
-        const usableHeight = h - 120;
+        const usableHeight = Math.max(120, h - sy - 40);
         const waves = 6;
         const stepY = usableHeight / waves;
         let currX = sx;
@@ -387,11 +386,18 @@ const ScrollInkThread = ({ active }: { active: boolean }) => {
       });
     };
 
-    const timer = setTimeout(generateSmoothSilkPaths, 120);
+    const timer = setTimeout(generateSmoothSilkPaths, 150);
     window.addEventListener('resize', generateSmoothSilkPaths);
+
+    const ro = typeof ResizeObserver !== 'undefined'
+      ? new ResizeObserver(() => generateSmoothSilkPaths())
+      : null;
+    if (ro && document.body) ro.observe(document.body);
+
     return () => {
       clearTimeout(timer);
       window.removeEventListener('resize', generateSmoothSilkPaths);
+      ro?.disconnect();
     };
   }, [active]);
 
@@ -473,7 +479,7 @@ const ScrollInkThread = ({ active }: { active: boolean }) => {
     };
   }, [active, paths]);
 
-  if (!active || !paths.main) return null;
+  if (!active || !paths.main || docHeight <= 0) return null;
 
   return (
     <svg
@@ -547,7 +553,7 @@ const SectionHeading = ({
     const node = ref.current;
     if (!node) return;
 
-    if (typeof IntersectionObserver === 'undefined') {
+    if (typeof IntersectionObserver === "undefined") {
       setInView(true);
       return;
     }
@@ -645,24 +651,6 @@ interface ObjectiveItem {
 const Objectives3DCarousel = ({ items }: { items: ObjectiveItem[] }) => {
   const [position, setPosition] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
-  const carouselRef = useRef<HTMLDivElement>(null);
-  const isVisibleRef = useRef<boolean>(false);
-
-  useEffect(() => {
-    const node = carouselRef.current;
-    if (!node || typeof IntersectionObserver === 'undefined') {
-      isVisibleRef.current = true;
-      return;
-    }
-    const obs = new IntersectionObserver(
-      ([entry]) => {
-        isVisibleRef.current = entry.isIntersecting;
-      },
-      { threshold: 0.05 }
-    );
-    obs.observe(node);
-    return () => obs.disconnect();
-  }, []);
   const rafRef = useRef<number | null>(null);
   const lastTimeRef = useRef<number | null>(null);
   const lastScrollYRef = useRef<number>(typeof window !== 'undefined' ? window.scrollY : 0);
@@ -687,19 +675,9 @@ const Objectives3DCarousel = ({ items }: { items: ObjectiveItem[] }) => {
     window.addEventListener('scroll', handleWindowScroll, { passive: true });
 
     const animate = (now: number) => {
-      if (!isVisibleRef.current || document.hidden) {
-        lastTimeRef.current = now;
-        rafRef.current = requestAnimationFrame(animate);
-        return;
-      }
       if (lastTimeRef.current === null) lastTimeRef.current = now;
       const delta = Math.min(0.1, (now - lastTimeRef.current) / 1000);
       lastTimeRef.current = now;
-      if (!isVisibleRef.current || document.hidden) {
-        lastTimeRef.current = now;
-        rafRef.current = requestAnimationFrame(animate);
-        return;
-      }
 
       const boostStep = scrollBoostRef.current * 0.12;
       scrollBoostRef.current *= 0.88;
@@ -723,7 +701,7 @@ const Objectives3DCarousel = ({ items }: { items: ObjectiveItem[] }) => {
   const jumpToCard = (targetIdx: number) => setPosition(targetIdx);
 
   return (
-    <div ref={carouselRef} style={{ position: 'relative', width: '100%', padding: '16px 0 24px 0', userSelect: 'none' }}>
+    <div style={{ position: 'relative', width: '100%', padding: '16px 0 24px 0', userSelect: 'none' }}>
       <div style={{ position: 'relative', height: isMobile ? '350px' : '420px', width: '100%', perspective: '1400px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'visible' }}>
         {items.map((item, idx) => {
           let diff = idx - position;
@@ -1439,28 +1417,12 @@ export default function App() {
   const [scrollY, setScrollY] = useState(0);
   const [hasEntered, setHasEntered] = useState(false);
   const [showFloatingActions, setShowFloatingActions] = useState(false);
-const [openSubmissionPortal, setOpenSubmissionPortal] = useState(false);
-  const [openGuidelines, setOpenGuidelines] = useState(
-  () => window.location.pathname.toLowerCase().replace(/\/$/, '') === '/guidelines'
-);
-
-const navigateToGuidelines = () => {
-  window.history.pushState({}, '', '/guidelines');
-  setCurrentPath('/guidelines');
-  setOpenGuidelines(true);
-  setMenuOpen(false);
-};
-
-const closeGuidelines = () => {
-  window.history.pushState({}, '', '/');
-  setCurrentPath('/');
-  setOpenGuidelines(false);
-};
-const [openReviewDesk, setOpenReviewDesk] = useState(
+  const [openSubmissionPortal, setOpenSubmissionPortal] = useState(false);
+  const [openReviewDesk, setOpenReviewDesk] = useState(
     () =>
       window.location.hash.toLowerCase() === '#review' ||
       window.location.pathname.toLowerCase() === '/review' ||
-      window.location.pathname.toLowerCase() === '/studio'  ||
+      window.location.pathname.toLowerCase() === '/studio' ||
       window.location.pathname.toLowerCase() === '/studio/'
   );
 
@@ -1469,8 +1431,8 @@ const [openReviewDesk, setOpenReviewDesk] = useState(
       const isStudio =
         window.location.hash.toLowerCase() === '#review' ||
         window.location.pathname.toLowerCase() === '/review' ||
-        window.location.pathname.toLowerCase() === '/studio';
-        window.location.pathname.toLowerCase() === '/studio/'
+        window.location.pathname.toLowerCase() === '/studio' ||
+        window.location.pathname.toLowerCase() === '/studio/';
       if (isStudio) setOpenReviewDesk(true);
     };
     window.addEventListener('hashchange', syncReviewRoute);
@@ -1480,6 +1442,7 @@ const [openReviewDesk, setOpenReviewDesk] = useState(
       window.removeEventListener('popstate', syncReviewRoute);
     };
   }, []);
+
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     try {
       return localStorage.getItem('sanrachna_theme') !== 'light';
@@ -1487,25 +1450,27 @@ const [openReviewDesk, setOpenReviewDesk] = useState(
       return true;
     }
   });
+
   const logoTapCountRef = useRef(0);
-const logoTapTimerRef = useRef<number | null>(null);
+  const logoTapTimerRef = useRef<number | null>(null);
 
-const handleSecretLogoTap = () => {
-  logoTapCountRef.current += 1;
-  if (logoTapTimerRef.current) window.clearTimeout(logoTapTimerRef.current);
+  const handleSecretLogoTap = () => {
+    logoTapCountRef.current += 1;
+    if (logoTapTimerRef.current) window.clearTimeout(logoTapTimerRef.current);
 
-  if (logoTapCountRef.current >= 5) {
-    logoTapCountRef.current = 0;
-    window.history.replaceState(null, '', '/studio');
-    setOpenReviewDesk(true);
-    return;
-  }
+    if (logoTapCountRef.current >= 5) {
+      logoTapCountRef.current = 0;
+      window.history.replaceState(null, '', '/studio');
+      setOpenReviewDesk(true);
+      return;
+    }
 
-  logoTapTimerRef.current = window.setTimeout(() => {
-    logoTapCountRef.current = 0;
-  }, 2500);
-};
-const [liveNotices, setLiveNotices] = useState<
+    logoTapTimerRef.current = window.setTimeout(() => {
+      logoTapCountRef.current = 0;
+    }, 2500);
+  };
+
+  const [liveNotices, setLiveNotices] = useState<
     { id: string; title: string; message: string; tag: string; display_type: string }[]
   >([]);
 
@@ -1525,7 +1490,7 @@ const [liveNotices, setLiveNotices] = useState<
     };
   }, [openReviewDesk]);
 
- const liveTickerText = liveNotices
+  const liveTickerText = liveNotices
     .filter((n) => n.display_type === 'ticker' || n.display_type === 'both')
     .map((n) => `${n.title.toUpperCase()} • ${n.message.toUpperCase()}`)
     .join('  ✦  ');
@@ -1533,6 +1498,7 @@ const [liveNotices, setLiveNotices] = useState<
   const liveBoardNotices = liveNotices.filter(
     (n) => n.display_type === 'notice' || n.display_type === 'both' || !n.display_type
   );
+
   useEffect(() => {
     localStorage.setItem('sanrachna_theme', isDarkMode ? 'dark' : 'light');
   }, [isDarkMode]);
@@ -1540,11 +1506,7 @@ const [liveNotices, setLiveNotices] = useState<
   const zoomThreshold = 500;
 
   useEffect(() => {
-    const handlePopState = () => {
-  const path = window.location.pathname;
-  setCurrentPath(path);
-  setOpenGuidelines(path.toLowerCase().replace(/\/$/, '') === '/guidelines');
-};
+    const handlePopState = () => setCurrentPath(window.location.pathname);
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
@@ -1591,15 +1553,13 @@ const [liveNotices, setLiveNotices] = useState<
   };
 
   const isStudioRoute = currentPath === '/studio' || currentPath === '/studio/';
-const isGuidelinesRoute = currentPath === '/guidelines' || currentPath === '/guidelines/';
-const is404Route =
-  currentPath !== '/' &&
-  currentPath !== '' &&
-  !currentPath.includes('index.html') &&
-  !isStudioRoute &&
-  !isGuidelinesRoute &&
-  !openReviewDesk &&
-  !openGuidelines;
+  const is404Route =
+    currentPath !== '/' &&
+    currentPath !== '' &&
+    !currentPath.includes('index.html') &&
+    !isStudioRoute &&
+    !openReviewDesk;
+
   if (is404Route) {
     return (
       <Error404View onBackHome={() => {
@@ -1711,931 +1671,912 @@ const is404Route =
 
   return (
     <>
-    <div
-      style={{
-        margin: 0,
-        padding: 0,
-        width: '100%',
-        backgroundColor: themeBg,
-        color: themeText,
-        minHeight: '100vh',
-        fontFamily: "'Plus Jakarta Sans', -apple-system, sans-serif",
-        position: 'relative',
-        overflowX: 'clip',
-        transition: 'background-color 0.4s ease, color 0.4s ease' ,
-        display: openSubmissionPortal || openGuidelines ? 'none' : 'block'
-      }}
-    >
-      <style>{`
-        
-        
-        * { box-sizing: border-box; }
-        html, body, #root { 
-          margin: 0 !important; 
-          padding: 0 !important; 
-          width: 100% !important; 
-          max-width: none !important; 
-          overflow-x: clip !important; 
-        }
-
-        @keyframes continuousGradientFlow {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-          100% { background-position: 0% 50%; }
-        }
-
-        @keyframes premiumSweep {
-          0% { background-position: 0% center; }
-          100% { background-position: -200% center; }
-        }
-
-        .continuous-heading {
-          font-family: "'Playfair Display', serif";
-          background: linear-gradient(135deg, #8B1E24 0%, #D4AF37 35%, #1E3A5F 70%, #8B1E24 100%);
-          background-size: 250% 250%;
-          -webkit-background-clip: text;
-          background-clip: text;
-          color: transparent;
-          display: inline-block;
-          padding: 10px 0;
-          margin: 0;
-          animation: continuousGradientFlow 5s ease infinite;
-          filter: drop-shadow(0 4px 10px rgba(139, 30, 36, 0.22));
-        }
-
-        @keyframes marquee { 0% { transform: translateX(0%); } 100% { transform: translateX(-50%); } }
-        .marquee-bar {
-          overflow: hidden; white-space: nowrap; width: 100%;
-          background: linear-gradient(90deg, #8B1E24 0%, #D4AF37 50%, #1E3A5F 100%);
-          background-size: 250% 250%;
-          animation: continuousGradientFlow 6s ease infinite;
-          padding: 10px 0; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.25);
-          box-shadow: 0 10px 30px rgba(139,30,36,0.35), inset 0 1px 3px rgba(255,255,255,0.4);
-          position: relative; z-index: 45;
-        }
-        .marquee-track {
-          display: inline-block; animation: marquee 30s linear infinite;
-          font-size: 11px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: #ffffff;
-        }
-
-        .editorial-header {
-          position: relative; background: ${isDarkMode ? 'rgba(7, 11, 25, 0.9)' : 'rgba(250, 249, 245, 0.92)'};
-          backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-          border-bottom: 2px solid transparent;
-          border-image: linear-gradient(90deg, #8B1E24, #D4AF37, #1E3A5F, #8B1E24) 1;
-          box-shadow: 0 4px 20px rgba(0,0,0,0.03); z-index: 40;
-          display: flex; align-items: center; justify-content: space-between;
-          padding: 12px 40px; width: 100%; gap: 15px;
-          flex-wrap: nowrap;
-        }
-
-        .header-content-wrapper {
-          display: flex; align-items: center; gap: clamp(10px, 1.5vw, 20px);
-          flex: 1 1 auto; min-width: 0; 
-        }
-        
-        .header-logos { display: flex; align-items: center; flex-shrink: 0; }
-        .header-logo-img { height: clamp(45px, 6vw, 65px); width: auto; object-fit: contain; mix-blend-mode: multiply; }
-        .header-separator { width: 2px; height: clamp(35px, 5vw, 55px); background: rgba(139, 30, 36, 0.4); margin: 0 clamp(8px, 1.5vw, 16px); border-radius: 2px; }
-
-        .sanrachna-logo-wrapper {
-           width: clamp(60px, 8vw, 85px);
-           height: clamp(45px, 6vw, 65px);
-           display: flex; align-items: center; justify-content: center;
-           overflow: hidden; mix-blend-mode: multiply; background: transparent;
-        }
-        .sanrachna-header-logo {
-           width: 100%; height: 100%; object-fit: contain; transform: scale(2.2); background: transparent;
-        }
-
-        .header-text {
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
-          min-width: 0;
-        }
-
-        .desktop-header-grid {
-          display: grid;
-          grid-template-columns: max-content max-content;
-          column-gap: 10px;
-          row-gap: 4px;
-          align-items: center;
-        }
-
-        .header-title {
-          margin: 0;
-          font-size: clamp(16px, 1.8vw, 23px);
-          font-weight: 800;
-          font-family: 'Playfair Display', serif;
-          color: ${isDarkMode ? '#FAF9F5' : '#1E3A5F'};
-          line-height: 1.15;
-          white-space: nowrap;
-        }
-
-        .desktop-sanrachna-cell {
-          display: inline-flex;
-          align-items: center;
-          gap: 10px;
-          white-space: nowrap;
-          line-height: 1.15;
-        }
-
-        .desktop-v-divider {
-          color: rgba(139, 30, 36, 0.45);
-          font-weight: 400;
-          font-size: clamp(16px, 1.8vw, 23px);
-        }
-
-        .sanrachna-brown-brand {
-          font-family: 'Rozha One', 'Playfair Display', serif;
-          font-weight: 800;
-          font-size: clamp(16px, 1.8vw, 23px);
-          background: linear-gradient(90deg, #8B1E24 0%, #5A1216 30%, #D4AF37 50%, #8B1E24 75%, #5A1216 100%);
-          background-size: 200% auto;
-          color: transparent;
-          -webkit-background-clip: text;
-          background-clip: text;
-          animation: premiumThemeShine 5s linear infinite;
-          display: inline-block;
-        }
-
-        .header-subtitle {
-          margin: 0;
-          font-size: clamp(7.2px, 0.8vw, 10.3px);
-          color: ${isDarkMode ? '#A1A1AA' : '#52525B'};
-          letter-spacing: 0.18px;
-          text-transform: uppercase;
-          font-weight: 600;
-          line-height: 1.3;
-          white-space: nowrap;
-          width: 100%;
-          text-align: justify;
-          text-align-last: justify;
-        }
-
-        .desktop-slogan-cell {
-          display: inline-flex;
-          align-items: center;
-          gap: 10px;
-          white-space: nowrap;
-          line-height: 1.3;
-        }
-
-        .desktop-v-divider-sub {
-          color: rgba(139, 30, 36, 0.45);
-          font-weight: 600;
-          font-size: clamp(10px, 1vw, 13px);
-        }
-
-        .header-slogan-text {
-          margin: 0;
-          font-size: clamp(10px, 1vw, 13px);
-          color: #8B1E24;
-          letter-spacing: 0.8px;
-          font-weight: 700;
-          font-family: 'Plus Jakarta Sans', sans-serif;
-          white-space: nowrap;
-        }
-
-        .mobile-header-stack {
-          display: none;
-        }
-
-        @keyframes mobileLineFlow {
-          0% { background-position: 0% 50%; }
-          100% { background-position: 200% 50%; }
-        }
-
-        .nav-container { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-
-        @keyframes strokeDrawLoop {
-          0% { stroke-dashoffset: 70; opacity: 0.4; }
-          50% { stroke-dashoffset: 0; opacity: 1; }
-          100% { stroke-dashoffset: -70; opacity: 0.4; }
-        }
-
-        @keyframes lineGrowShrink {
-          0%, 100% { width: 14px; opacity: 0.6; }
-          50% { width: 22px; opacity: 1; }
-        }
-
-        .animated-draw-path {
-          stroke-dasharray: 70;
-          animation: strokeDrawLoop 4s ease-in-out infinite;
-        }
-
-        .glass-icon-btn {
-          background: ${isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.7)'}; backdrop-filter: blur(12px); border: 1.5px solid rgba(212, 175, 55, 0.45);
-          cursor: pointer; width: 44px; height: 44px; display: flex; flex-direction: column; justify-content: center;
-          align-items: center; gap: 5px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05), inset 0 2px 4px rgba(255,255,255,0.9);
-          transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1); outline: none; flex-shrink: 0;
-        }
-        .glass-icon-btn:hover {
-          border-color: #8B1E24; background: ${isDarkMode ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 0.95)'};
-          box-shadow: 0 8px 22px rgba(139,30,36,0.2), inset 0 2px 4px rgba(255,255,255,1); transform: translateY(-3px) scale(1.05);
-        }
-        
-        .hamburger-line { 
-          height: 2px; background: linear-gradient(90deg, #8B1E24, #D4AF37); border-radius: 2px; display: block; 
-          transition: all 0.3s ease; animation: lineGrowShrink 3s ease-in-out infinite;
-        }
-        .hamburger-line:nth-child(2) { animation-delay: 0.4s; }
-        .hamburger-line:nth-child(3) { animation-delay: 0.8s; }
-
-        .announcements-btn, .theme-toggle-btn {
-          background: ${isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.7)'}; border: 1.5px solid rgba(212, 175, 55, 0.45); cursor: pointer; color: ${isDarkMode ? '#D4AF37' : '#1E3A5F'}; 
-          transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1); display: flex; align-items: center; justify-content: center;
-          width: 44px; height: 44px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-        }
-        .announcements-btn:hover, .theme-toggle-btn:hover { 
-          background: rgba(139,30,36,0.1); border-color: #8B1E24; color: #8B1E24; transform: translateY(-3px) scale(1.05);
-        }
-
-        .floating-action-dock {
-          position: fixed;
-          top: 18px;
-          right: 24px;
-          z-index: 120;
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          padding: 8px 14px;
-          border-radius: 999px;
-          background: ${isDarkMode ? 'rgba(7, 11, 25, 0.85)' : 'linear-gradient(135deg, rgba(250, 249, 245, 0.85) 0%, rgba(255, 255, 255, 0.6) 100%)'};
-          backdrop-filter: blur(20px) saturate(180%);
-          -webkit-backdrop-filter: blur(20px) saturate(180%);
-          border: 1px solid rgba(212, 175, 55, 0.5);
-          box-shadow: 0 14px 35px rgba(17, 24, 39, 0.12), inset 0 1px 2px rgba(255, 255, 255, 0.9);
-          transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-
-        .page-section {
-          padding: 80px 40px;
-          border-top: 1px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(229, 228, 223, 0.7)'};
-          max-width: 1320px;
-          margin: 0 auto;
-        }
-
-        .about-body-wrap {
-          font-size: clamp(17px, 2vw, 22px);
-          line-height: 1.8;
-          color: ${isDarkMode ? '#D4D4D8' : '#3F3F46'};
-          max-width: 980px;
-          text-align: left;
-        }
-
-        .guidelines-intro-text {
-          font-size: clamp(16.5px, 1.9vw, 21px);
-          color: ${isDarkMode ? '#D4D4D8' : '#3F3F46'};
-          max-width: 900px;
-          line-height: 1.7;
-          margin: 0 0 32px 0;
-          text-align: left;
-        }
-
-        .guidelines-btn-group {
-          display: flex;
-          gap: 20px;
-          justify-content: flex-start;
-          flex-wrap: wrap;
-          margin-bottom: 40px;
-        }
-
-        .guideline-row {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 32px;
-          padding: 36px 0;
-          text-align: left;
-        }
-
-        .portal-section-wrap {
-          text-align: right;
-        }
-
-        .portal-intro-text {
-          font-size: clamp(16.5px, 1.9vw, 21px);
-          color: ${isDarkMode ? '#D4D4D8' : '#3F3F46'};
-          max-width: 850px;
-          line-height: 1.7;
-          margin: 0 0 36px auto;
-        }
-
-        .portal-btn-row {
-          display: flex;
-          justify-content: flex-end;
-        }
-
-        /* ---------------------------------------------------- */
-        /* MOBILE VIEW FIX FOR OVERLAP & SIDE ALIGNMENT         */
-        /* ---------------------------------------------------- */
-        @media (max-width: 768px) {
-          .editorial-header { padding: 12px 16px; gap: 12px; }
-          .header-content-wrapper { gap: 10px; flex: 1; min-width: 0; }
-          .desktop-header-grid { display: none !important; }
+      <div
+        style={{
+          margin: 0,
+          padding: 0,
+          width: '100%',
+          backgroundColor: themeBg,
+          color: themeText,
+          minHeight: '100dvh',
+          fontFamily: "'Plus Jakarta Sans', -apple-system, sans-serif",
+          position: 'relative',
+          overflowX: 'clip',
+          transition: 'background-color 0.4s ease, color 0.4s ease',
+          display: openSubmissionPortal ? 'none' : 'block'
+        }}
+      >
+        <style>{`
+          @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;0,800;1,400&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Rozha+One&display=swap');
           
-          .mobile-header-stack {
+          * { box-sizing: border-box; }
+          html, body, #root { 
+            margin: 0 !important; 
+            padding: 0 !important; 
+            width: 100% !important; 
+            max-width: none !important; 
+            overflow-x: clip !important; 
+          }
+
+          @keyframes continuousGradientFlow {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+          }
+
+          @keyframes premiumSweep {
+            0% { background-position: 0% center; }
+            100% { background-position: -200% center; }
+          }
+
+          .continuous-heading {
+            font-family: "'Playfair Display', serif";
+            background: linear-gradient(135deg, #8B1E24 0%, #D4AF37 35%, #1E3A5F 70%, #8B1E24 100%);
+            background-size: 250% 250%;
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            display: inline-block;
+            padding: 10px 0;
+            margin: 0;
+            animation: continuousGradientFlow 5s ease infinite;
+            filter: drop-shadow(0 4px 10px rgba(139, 30, 36, 0.22));
+          }
+
+          @keyframes marquee { 0% { transform: translateX(0%); } 100% { transform: translateX(-50%); } }
+          .marquee-bar {
+            overflow: hidden; white-space: nowrap; width: 100%;
+            background: linear-gradient(90deg, #8B1E24 0%, #D4AF37 50%, #1E3A5F 100%);
+            background-size: 250% 250%;
+            animation: continuousGradientFlow 6s ease infinite;
+            padding: 10px 0; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.25);
+            box-shadow: 0 10px 30px rgba(139,30,36,0.35), inset 0 1px 3px rgba(255,255,255,0.4);
+            position: relative; z-index: 45;
+          }
+          .marquee-track {
+            display: inline-block; animation: marquee 30s linear infinite;
+            font-size: 11px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: #ffffff;
+          }
+
+          .editorial-header {
+            position: relative; background: ${isDarkMode ? 'rgba(7, 11, 25, 0.9)' : 'rgba(250, 249, 245, 0.92)'};
+            backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+            border-bottom: 2px solid transparent;
+            border-image: linear-gradient(90deg, #8B1E24, #D4AF37, #1E3A5F, #8B1E24) 1;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.03); z-index: 40;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 40px; width: 100%; gap: 15px;
+            flex-wrap: nowrap;
+          }
+
+          .header-content-wrapper {
+            display: flex; align-items: center; gap: clamp(10px, 1.5vw, 20px);
+            flex: 1 1 auto; min-width: 0; 
+          }
+          
+          .header-logos { display: flex; align-items: center; flex-shrink: 0; }
+          .header-logo-img { height: clamp(45px, 6vw, 65px); width: auto; object-fit: contain; mix-blend-mode: multiply; }
+          .header-separator { width: 2px; height: clamp(35px, 5vw, 55px); background: rgba(139, 30, 36, 0.4); margin: 0 clamp(8px, 1.5vw, 16px); border-radius: 2px; }
+
+          .sanrachna-logo-wrapper {
+             width: clamp(60px, 8vw, 85px);
+             height: clamp(45px, 6vw, 65px);
+             display: flex; align-items: center; justify-content: center;
+             overflow: hidden; mix-blend-mode: multiply; background: transparent;
+          }
+
+          .header-text {
             display: flex;
             flex-direction: column;
-            align-items: flex-start; /* Aligned left to avoid overlap */
             justify-content: center;
-            width: 100%;
-            text-align: left; /* Text shifted to side */
-            padding-right: 5px;
+            min-width: 0;
           }
-          .mobile-college-title {
+
+          .desktop-header-grid {
+            display: grid;
+            grid-template-columns: max-content max-content;
+            column-gap: 10px;
+            row-gap: 4px;
+            align-items: center;
+          }
+
+          .header-title {
             margin: 0;
-            font-size: clamp(10px, 2.8vw, 13px); /* Shrunk slightly */
+            font-size: clamp(16px, 1.8vw, 23px);
             font-weight: 800;
             font-family: 'Playfair Display', serif;
             color: ${isDarkMode ? '#FAF9F5' : '#1E3A5F'};
-            line-height: 1.25;
-            white-space: normal; /* Allows text to wrap instead of colliding */
+            line-height: 1.15;
+            white-space: nowrap;
           }
-          .mobile-animated-line {
-            width: 80%;
-            max-width: 140px;
-            height: 1.5px;
-            margin: 5px 0 4px 0;
-            border-radius: 2px;
-            background: linear-gradient(90deg, #8B1E24 0%, #D4AF37 50%, #8B1E24 100%);
-            background-size: 200% 100%;
-            animation: mobileLineFlow 2.5s linear infinite;
+
+          .desktop-sanrachna-cell {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            white-space: nowrap;
+            line-height: 1.15;
           }
-          .mobile-sanrachna-brown {
+
+          .desktop-v-divider {
+            color: rgba(139, 30, 36, 0.45);
+            font-weight: 400;
+            font-size: clamp(16px, 1.8vw, 23px);
+          }
+
+          .sanrachna-brown-brand {
             font-family: 'Rozha One', 'Playfair Display', serif;
             font-weight: 800;
-            font-size: clamp(12.5px, 3.5vw, 15px);
-            letter-spacing: 0.5px;
+            font-size: clamp(16px, 1.8vw, 23px);
             background: linear-gradient(90deg, #8B1E24 0%, #5A1216 30%, #D4AF37 50%, #8B1E24 75%, #5A1216 100%);
             background-size: 200% auto;
             color: transparent;
             -webkit-background-clip: text;
             background-clip: text;
             animation: premiumThemeShine 5s linear infinite;
-            line-height: 1.15;
+            display: inline-block;
           }
-          .header-logo-img { height: 32px; }
-          .header-separator { height: 26px; margin: 0 4px; }
-          .sanrachna-logo-wrapper { height: 32px; width: 42px; }
+
+          .header-subtitle {
+            margin: 0;
+            font-size: clamp(7.2px, 0.8vw, 10.3px);
+            color: ${isDarkMode ? '#A1A1AA' : '#52525B'};
+            letter-spacing: 0.18px;
+            text-transform: uppercase;
+            font-weight: 600;
+            line-height: 1.3;
+            white-space: nowrap;
+            width: 100%;
+            text-align: justify;
+            text-align-last: justify;
+          }
+
+          .desktop-slogan-cell {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            white-space: nowrap;
+            line-height: 1.3;
+          }
+
+          .desktop-v-divider-sub {
+            color: rgba(139, 30, 36, 0.45);
+            font-weight: 600;
+            font-size: clamp(10px, 1vw, 13px);
+          }
+
+          .header-slogan-text {
+            margin: 0;
+            font-size: clamp(10px, 1vw, 13px);
+            color: #8B1E24;
+            letter-spacing: 0.8px;
+            font-weight: 700;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            white-space: nowrap;
+          }
+
+          .mobile-header-stack {
+            display: none;
+          }
+
+          @keyframes mobileLineFlow {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 200% 50%; }
+          }
+
+          .nav-container { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+
+          @keyframes strokeDrawLoop {
+            0% { stroke-dashoffset: 70; opacity: 0.4; }
+            50% { stroke-dashoffset: 0; opacity: 1; }
+            100% { stroke-dashoffset: -70; opacity: 0.4; }
+          }
+
+          @keyframes lineGrowShrink {
+            0%, 100% { width: 14px; opacity: 0.6; }
+            50% { width: 22px; opacity: 1; }
+          }
+
+          .animated-draw-path {
+            stroke-dasharray: 70;
+            animation: strokeDrawLoop 4s ease-in-out infinite;
+          }
+
+          .glass-icon-btn {
+            background: ${isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.7)'}; backdrop-filter: blur(12px); border: 1.5px solid rgba(212, 175, 55, 0.45);
+            cursor: pointer; width: 44px; height: 44px; display: flex; flex-direction: column; justify-content: center;
+            align-items: center; gap: 5px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05), inset 0 2px 4px rgba(255,255,255,0.9);
+            transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1); outline: none; flex-shrink: 0;
+          }
+          .glass-icon-btn:hover {
+            border-color: #8B1E24; background: ${isDarkMode ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 0.95)'};
+            box-shadow: 0 8px 22px rgba(139,30,36,0.2), inset 0 2px 4px rgba(255,255,255,1); transform: translateY(-3px) scale(1.05);
+          }
           
-          .nav-container { gap: 8px; flex-shrink: 0; }
-          /* Buttons sized down to create more breathing room */
-          .glass-icon-btn, .announcements-btn, .theme-toggle-btn { width: 34px; height: 34px; }
+          .hamburger-line { 
+            height: 2px; background: linear-gradient(90deg, #8B1E24, #D4AF37); border-radius: 2px; display: block; 
+            transition: all 0.3s ease; animation: lineGrowShrink 3s ease-in-out infinite;
+          }
+          .hamburger-line:nth-child(2) { animation-delay: 0.4s; }
+          .hamburger-line:nth-child(3) { animation-delay: 0.8s; }
+
+          .announcements-btn, .theme-toggle-btn {
+            background: ${isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.7)'}; border: 1.5px solid rgba(212, 175, 55, 0.45); cursor: pointer; color: ${isDarkMode ? '#D4AF37' : '#1E3A5F'}; 
+            transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1); display: flex; align-items: center; justify-content: center;
+            width: 44px; height: 44px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+          }
+          .announcements-btn:hover, .theme-toggle-btn:hover { 
+            background: rgba(139,30,36,0.1); border-color: #8B1E24; color: #8B1E24; transform: translateY(-3px) scale(1.05);
+          }
+
+          .floating-action-dock {
+            position: fixed;
+            top: 18px;
+            right: 24px;
+            z-index: 120;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 14px;
+            border-radius: 999px;
+            background: ${isDarkMode ? 'rgba(7, 11, 25, 0.85)' : 'linear-gradient(135deg, rgba(250, 249, 245, 0.85) 0%, rgba(255, 255, 255, 0.6) 100%)'};
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border: 1px solid rgba(212, 175, 55, 0.5);
+            box-shadow: 0 14px 35px rgba(17, 24, 39, 0.12), inset 0 1px 2px rgba(255, 255, 255, 0.9);
+            transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+          }
+
+          .page-section {
+            padding: 72px 40px;
+            border-top: 1px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(229, 228, 223, 0.7)'};
+            max-width: 1320px;
+            margin: 0 auto;
+          }
+
+          .about-body-wrap {
+            font-size: clamp(17px, 2vw, 22px);
+            line-height: 1.8;
+            color: ${isDarkMode ? '#D4D4D8' : '#3F3F46'};
+            max-width: 980px;
+            text-align: left;
+          }
+
+          .guidelines-intro-text {
+            font-size: clamp(16.5px, 1.9vw, 21px);
+            color: ${isDarkMode ? '#D4D4D8' : '#3F3F46'};
+            max-width: 900px;
+            line-height: 1.7;
+            margin: 0 0 32px 0;
+            text-align: left;
+          }
+
+          .guidelines-btn-group {
+            display: flex;
+            gap: 20px;
+            justify-content: flex-start;
+            flex-wrap: wrap;
+            margin-bottom: 40px;
+          }
+
+          .guideline-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 32px;
+            padding: 36px 0;
+            text-align: left;
+          }
+
+          .portal-section-wrap {
+            text-align: right;
+          }
+
+          .portal-intro-text {
+            font-size: clamp(16.5px, 1.9vw, 21px);
+            color: ${isDarkMode ? '#D4D4D8' : '#3F3F46'};
+            max-width: 850px;
+            line-height: 1.7;
+            margin: 0 0 36px auto;
+          }
+
+          .portal-btn-row {
+            display: flex;
+            justify-content: flex-end;
+          }
+
+          @media (max-width: 768px) {
+            .editorial-header { padding: 12px 16px; gap: 12px; }
+            .header-content-wrapper { gap: 10px; flex: 1; min-width: 0; }
+            .desktop-header-grid { display: none !important; }
+            
+            .mobile-header-stack {
+              display: flex;
+              flex-direction: column;
+              align-items: flex-start;
+              justify-content: center;
+              width: 100%;
+              text-align: left;
+              padding-right: 5px;
+            }
+            .mobile-college-title {
+              margin: 0;
+              font-size: clamp(10px, 2.8vw, 13px);
+              font-weight: 800;
+              font-family: 'Playfair Display', serif;
+              color: ${isDarkMode ? '#FAF9F5' : '#1E3A5F'};
+              line-height: 1.25;
+              white-space: normal;
+            }
+            .mobile-animated-line {
+              width: 80%;
+              max-width: 140px;
+              height: 1.5px;
+              margin: 5px 0 4px 0;
+              border-radius: 2px;
+              background: linear-gradient(90deg, #8B1E24 0%, #D4AF37 50%, #8B1E24 100%);
+              background-size: 200% 100%;
+              animation: mobileLineFlow 2.5s linear infinite;
+            }
+            .mobile-sanrachna-brown {
+              font-family: 'Rozha One', 'Playfair Display', serif;
+              font-weight: 800;
+              font-size: clamp(12.5px, 3.5vw, 15px);
+              letter-spacing: 0.5px;
+              background: linear-gradient(90deg, #8B1E24 0%, #5A1216 30%, #D4AF37 50%, #8B1E24 75%, #5A1216 100%);
+              background-size: 200% auto;
+              color: transparent;
+              -webkit-background-clip: text;
+              background-clip: text;
+              animation: premiumThemeShine 5s linear infinite;
+              line-height: 1.15;
+            }
+            .header-logo-img { height: 32px; }
+            .header-separator { height: 26px; margin: 0 4px; }
+            .sanrachna-logo-wrapper { height: 32px; width: 42px; }
+            
+            .nav-container { gap: 8px; flex-shrink: 0; }
+            .glass-icon-btn, .announcements-btn, .theme-toggle-btn { width: 34px; height: 34px; }
+            .floating-action-dock { top: 16px; right: 16px; padding: 6px 10px; gap: 8px; }
+            
+            .page-section { padding: 52px 20px; }
+            .about-body-wrap { text-align: center; }
+            .guidelines-intro-text { text-align: center; margin: 0 auto 28px auto; }
+            .guidelines-btn-group { justify-content: center; }
+            .guideline-row { gap: 16px; padding: 28px 0; }
+            .portal-section-wrap { text-align: center; }
+            .portal-intro-text { text-align: center; margin: 0 auto 28px auto; }
+            .portal-btn-row { justify-content: center; }
+          }
+
+          @keyframes portalShine { 0% { background-position: -200% center; } 100% { background-position: 200% center; } }
+          .portal-top-text { font-family: 'Rozha One', 'Playfair Display', serif; background: linear-gradient(90deg, rgba(255,255,255,0.8) 0%, #D4AF37 50%, rgba(255,255,255,0.8) 100%); background-size: 200% auto; color: transparent; -webkit-background-clip: text; background-clip: text; animation: portalShine 3s linear infinite; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.6)); }
+          .portal-subtitle { background: linear-gradient(90deg, rgba(255,255,255,0.7) 0%, #ffffff 50%, rgba(255,255,255,0.7) 100%); background-size: 200% auto; color: transparent; -webkit-background-clip: text; background-clip: text; animation: portalShine 4s linear infinite; filter: drop-shadow(0 2px 6px rgba(0,0,0,0.6)); }
+          .portal-scroll-text { background: linear-gradient(90deg, #ffffff 0%, #D4AF37 50%, #ffffff 100%); background-size: 200% auto; color: transparent; -webkit-background-clip: text; background-clip: text; animation: portalShine 2s linear infinite; filter: drop-shadow(0 0 8px rgba(255,255,255,0.8)); }
+          .portal-main-title { font-family: 'Rozha One', 'Playfair Display', serif; background: linear-gradient(90deg, #ffffff 0%, #D4AF37 30%, #ffffff 50%, #D4AF37 70%, #ffffff 100%); background-size: 200% auto; color: transparent; -webkit-background-clip: text; background-clip: text; animation: portalShine 4s linear infinite; filter: drop-shadow(0 0 20px rgba(255,255,255,0.4)); padding-bottom: 10px; }
+          @keyframes scrollBounceGlow { 0%, 100% { transform: translateY(0); filter: drop-shadow(0 0 10px rgba(255,255,255,0.8)); } 50% { transform: translateY(8px); filter: drop-shadow(0 0 25px #ffffff) drop-shadow(0 0 10px #D4AF37); } }
+          .portal-scroll-arrow { color: #ffffff; animation: scrollBounceGlow 2s infinite ease-in-out; }
+
+          @keyframes premiumThemeShine { 0% { background-position: 0% center; } 100% { background-position: -200% center; } }
+          .theme-welcome-text {
+            font-family: 'Rozha One', 'Playfair Display', serif;
+            background: linear-gradient(90deg, #8B1E24 0%, #1E3A5F 25%, #D4AF37 50%, #1E3A5F 75%, #8B1E24 100%);
+            background-size: 200% auto; color: transparent; -webkit-background-clip: text; background-clip: text;
+            animation: premiumThemeShine 6s linear infinite; padding-bottom: 8px; display: inline-block;
+          }
+
+          .liquid-glass-btn {
+             position: relative; overflow: hidden; background: ${isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(250, 249, 245, 0.65)'};
+             backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+             border: 1px solid rgba(212, 175, 55, 0.45); border-radius: 30px; 
+             padding: 14px 28px; font-size: 13px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+             color: ${isDarkMode ? '#FAF9F5' : '#1E3A5F'}; cursor: pointer; z-index: 1; transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+             box-shadow: 0 8px 25px rgba(30, 58, 95, 0.08), inset 0 2px 4px rgba(255, 255, 255, 0.95);
+             text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-align: center;
+          }
           
-          /* Floating Dock pushed away from edges to avoid UI clutter */
-          .floating-action-dock { top: 16px; right: 16px; padding: 6px 10px; gap: 8px; }
+          .liquid-glass-btn::after {
+             content: ''; position: absolute; top: 0; left: -150%; width: 50%; height: 100%;
+             background: linear-gradient(90deg, transparent, rgba(255,255,255,0.85), transparent);
+             transform: skewX(-25deg); transition: none; z-index: -1;
+          }
           
-          .page-section { padding: 56px 20px; }
-          .about-body-wrap { text-align: center; }
-          .guidelines-intro-text { text-align: center; margin: 0 auto 28px auto; }
-          .guidelines-btn-group { justify-content: center; }
-          .guideline-row { gap: 16px; padding: 28px 0; }
-          .portal-section-wrap { text-align: center; }
-          .portal-intro-text { text-align: center; margin: 0 auto 28px auto; }
-          .portal-btn-row { justify-content: center; }
-        }
+          .liquid-glass-btn:hover {
+             background: rgba(139, 30, 36, 0.95); color: #ffffff; border-color: #8B1E24;
+             transform: translateY(-5px); box-shadow: 0 15px 30px rgba(139, 30, 36, 0.35), inset 0 2px 4px rgba(255, 255, 255, 0.3);
+          }
+          
+          .liquid-glass-btn:hover::after { left: 200%; transition: left 0.8s ease-in-out; }
 
-        @keyframes portalShine { 0% { background-position: -200% center; } 100% { background-position: 200% center; } }
-        .portal-top-text { font-family: 'Rozha One', 'Playfair Display', serif; background: linear-gradient(90deg, rgba(255,255,255,0.8) 0%, #D4AF37 50%, rgba(255,255,255,0.8) 100%); background-size: 200% auto; color: transparent; -webkit-background-clip: text; background-clip: text; animation: portalShine 3s linear infinite; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.6)); }
-        .portal-subtitle { background: linear-gradient(90deg, rgba(255,255,255,0.7) 0%, #ffffff 50%, rgba(255,255,255,0.7) 100%); background-size: 200% auto; color: transparent; -webkit-background-clip: text; background-clip: text; animation: portalShine 4s linear infinite; filter: drop-shadow(0 2px 6px rgba(0,0,0,0.6)); }
-        .portal-scroll-text { background: linear-gradient(90deg, #ffffff 0%, #D4AF37 50%, #ffffff 100%); background-size: 200% auto; color: transparent; -webkit-background-clip: text; background-clip: text; animation: portalShine 2s linear infinite; filter: drop-shadow(0 0 8px rgba(255,255,255,0.8)); }
-        .portal-main-title { font-family: 'Rozha One', 'Playfair Display', serif; background: linear-gradient(90deg, #ffffff 0%, #D4AF37 30%, #ffffff 50%, #D4AF37 70%, #ffffff 100%); background-size: 200% auto; color: transparent; -webkit-background-clip: text; background-clip: text; animation: portalShine 4s linear infinite; filter: drop-shadow(0 0 20px rgba(255,255,255,0.4)); padding-bottom: 10px; }
-        @keyframes scrollBounceGlow { 0%, 100% { transform: translateY(0); filter: drop-shadow(0 0 10px rgba(255,255,255,0.8)); } 50% { transform: translateY(8px); filter: drop-shadow(0 0 25px #ffffff) drop-shadow(0 0 10px #D4AF37); } }
-        .portal-scroll-arrow { color: #ffffff; animation: scrollBounceGlow 2s infinite ease-in-out; }
+          .btn-green-tint { background: rgba(47, 133, 90, 0.15); border-color: rgba(47, 133, 90, 0.4); color: #2F855A; }
+          .btn-green-tint:hover { background: rgba(47, 133, 90, 0.95); color: #fff; border-color: rgba(47, 133, 90, 1); box-shadow: 0 15px 30px rgba(47, 133, 90, 0.4); }
 
-        @keyframes premiumThemeShine { 0% { background-position: 0% center; } 100% { background-position: -200% center; } }
-        .theme-welcome-text {
-          font-family: 'Rozha One', 'Playfair Display', serif;
-          background: linear-gradient(90deg, #8B1E24 0%, #1E3A5F 25%, #D4AF37 50%, #1E3A5F 75%, #8B1E24 100%);
-          background-size: 200% auto; color: transparent; -webkit-background-clip: text; background-clip: text;
-          animation: premiumThemeShine 6s linear infinite; padding-bottom: 8px; display: inline-block;
-        }
+          .animated-close-btn { transition: all 0.3s ease; font-size: 24px; color: ${isDarkMode ? '#FAF9F5' : '#111827'}; background: transparent; border: none; cursor: pointer; outline: none; }
+          .animated-close-btn:hover { transform: rotate(90deg) scale(1.1); color: #8B1E24; }
 
-        .liquid-glass-btn {
-           position: relative; overflow: hidden; background: ${isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(250, 249, 245, 0.65)'};
-           backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
-           border: 1px solid rgba(212, 175, 55, 0.45); border-radius: 30px; 
-           padding: 14px 28px; font-size: 13px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
-           color: ${isDarkMode ? '#FAF9F5' : '#1E3A5F'}; cursor: pointer; z-index: 1; transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-           box-shadow: 0 8px 25px rgba(30, 58, 95, 0.08), inset 0 2px 4px rgba(255, 255, 255, 0.95);
-           text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-align: center;
-        }
-        
-        .liquid-glass-btn::after {
-           content: ''; position: absolute; top: 0; left: -150%; width: 50%; height: 100%;
-           background: linear-gradient(90deg, transparent, rgba(255,255,255,0.85), transparent);
-           transform: skewX(-25deg); transition: none; z-index: -1;
-        }
-        
-        .liquid-glass-btn:hover {
-           background: rgba(139, 30, 36, 0.95); color: #ffffff; border-color: #8B1E24;
-           transform: translateY(-5px); box-shadow: 0 15px 30px rgba(139, 30, 36, 0.35), inset 0 2px 4px rgba(255, 255, 255, 0.3);
-        }
-        
-        .liquid-glass-btn:hover::after { left: 200%; transition: left 0.8s ease-in-out; }
+          .glass-modal {
+            background: ${isDarkMode ? 'rgba(7, 11, 25, 0.95)' : 'rgba(250, 249, 245, 0.92)'}; backdrop-filter: blur(28px); border: 1px solid rgba(255, 255, 255, 0.95);
+            box-shadow: 0 25px 60px rgba(0,0,0,0.18), inset 0 2px 6px rgba(255,255,255,1); border-radius: 24px; color: ${isDarkMode ? '#FAF9F5' : '#111827'};
+          }
 
-        .btn-green-tint { background: rgba(47, 133, 90, 0.15); border-color: rgba(47, 133, 90, 0.4); color: #2F855A; }
-        .btn-green-tint:hover { background: rgba(47, 133, 90, 0.95); color: #fff; border-color: rgba(47, 133, 90, 1); box-shadow: 0 15px 30px rgba(47, 133, 90, 0.4); }
+          .explore-text-shine {
+             background: linear-gradient(90deg, #8B1E24, #D4AF37, #1E3A5F, #8B1E24);
+             background-size: 300% auto; -webkit-background-clip: text; color: transparent;
+             animation: premiumSweep 4s linear infinite; font-size: 13px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase;
+          }
 
-        .animated-close-btn { transition: all 0.3s ease; font-size: 24px; color: ${isDarkMode ? '#FAF9F5' : '#111827'}; background: transparent; border: none; cursor: pointer; outline: none; }
-        .animated-close-btn:hover { transform: rotate(90deg) scale(1.1); color: #8B1E24; }
+          .sidebar-item {
+             padding: 16px 20px; border-radius: 12px; cursor: pointer; transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+             border-left: 4px solid transparent; text-align: left; background: transparent;
+          }
+          
+          .sidebar-item:hover {
+             transform: translateX(12px); background: rgba(139, 30, 36, 0.04);
+             border-left: 4px solid #8B1E24; box-shadow: 2px 4px 12px rgba(0,0,0,0.03);
+          }
 
-        .glass-modal {
-          background: ${isDarkMode ? 'rgba(7, 11, 25, 0.95)' : 'rgba(250, 249, 245, 0.92)'}; backdrop-filter: blur(28px); border: 1px solid rgba(255, 255, 255, 0.95);
-          box-shadow: 0 25px 60px rgba(0,0,0,0.18), inset 0 2px 6px rgba(255,255,255,1); border-radius: 24px; color: ${isDarkMode ? '#FAF9F5' : '#111827'};
-        }
+          .sidebar-panel.open .sidebar-item { opacity: 0; }
+          .sidebar-panel.open .sidebar-item:nth-child(1) { animation: slideInRight 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards 0.1s; }
+          .sidebar-panel.open .sidebar-item:nth-child(2) { animation: slideInRight 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards 0.15s; }
+          .sidebar-panel.open .sidebar-item:nth-child(3) { animation: slideInRight 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards 0.2s; }
+          .sidebar-panel.open .sidebar-item:nth-child(4) { animation: slideInRight 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards 0.25s; }
+          .sidebar-panel.open .sidebar-item:nth-child(5) { animation: slideInRight 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards 0.3s; }
 
-        .explore-text-shine {
-           background: linear-gradient(90deg, #8B1E24, #D4AF37, #1E3A5F, #8B1E24);
-           background-size: 300% auto; -webkit-background-clip: text; color: transparent;
-           animation: premiumSweep 4s linear infinite; font-size: 13px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase;
-        }
+          @keyframes slideInRight {
+            from { opacity: 0; filter: blur(8px); transform: translateX(40px); }
+            to { opacity: 1; filter: blur(0px); transform: translateX(0); }
+          }
 
-        .sidebar-item {
-           padding: 16px 20px; border-radius: 12px; cursor: pointer; transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-           border-left: 4px solid transparent; text-align: left; background: transparent;
-        }
-        
-        .sidebar-item:hover {
-           transform: translateX(12px); background: rgba(139, 30, 36, 0.04);
-           border-left: 4px solid #8B1E24; box-shadow: 2px 4px 12px rgba(0,0,0,0.03);
-        }
+          .social-card-container {
+            background: ${isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.85)'};
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(229, 228, 223, 0.9); border-radius: 24px; padding: 22px 26px;
+            width: 100%; max-width: 450px; margin: 0 auto;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.05), inset 0 2px 4px rgba(255,255,255,1);
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            text-align: left; text-decoration: none; color: ${isDarkMode ? '#FAF9F5' : '#111827'};
+          }
+          .social-card-container:hover {
+            transform: translateY(-5px) scale(1.02) !important;
+            box-shadow: 0 20px 40px rgba(139, 30, 36, 0.1), inset 0 2px 4px rgba(255,255,255,1);
+            border-color: rgba(139, 30, 36, 0.3);
+          }
 
-        .sidebar-panel.open .sidebar-item { opacity: 0; }
-        .sidebar-panel.open .sidebar-item:nth-child(1) { animation: slideInRight 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards 0.1s; }
-        .sidebar-panel.open .sidebar-item:nth-child(2) { animation: slideInRight 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards 0.15s; }
-        .sidebar-panel.open .sidebar-item:nth-child(3) { animation: slideInRight 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards 0.2s; }
-        .sidebar-panel.open .sidebar-item:nth-child(4) { animation: slideInRight 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards 0.25s; }
-        .sidebar-panel.open .sidebar-item:nth-child(5) { animation: slideInRight 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards 0.3s; }
+          .liquid-social-btn {
+            width: 58px; height: 58px; border-radius: 18px;
+            background: ${isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.7)'};
+            backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+            border: 1.5px solid rgba(212, 175, 55, 0.5);
+            display: flex; align-items: center; justify-content: center;
+            color: ${isDarkMode ? '#D4AF37' : '#1E3A5F'}; cursor: pointer; outline: none;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.06), inset 0 2px 4px rgba(255,255,255,0.9);
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            transform: perspective(600px) translateZ(0);
+          }
+          .liquid-social-btn:hover {
+            transform: perspective(600px) translateZ(25px) translateY(-6px);
+            color: #FAF9F5; background: linear-gradient(135deg, #8B1E24 0%, #D4AF37 100%);
+            border-color: #D4AF37;
+            box-shadow: 0 16px 35px rgba(139, 30, 36, 0.35), inset 0 2px 4px rgba(255,255,255,0.6);
+          }
+          .liquid-social-btn.active {
+            color: #FAF9F5; background: #8B1E24; border-color: #D4AF37;
+            transform: perspective(600px) translateZ(15px) translateY(-3px);
+            box-shadow: 0 12px 28px rgba(139, 30, 36, 0.3);
+          }
 
-        @keyframes slideInRight {
-          from { opacity: 0; filter: blur(8px); transform: translateX(40px); }
-          to { opacity: 1; filter: blur(0px); transform: translateX(0); }
-        }
+          .social-fade-content { animation: slideFadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; width: 100%; }
+          @keyframes slideFadeIn {
+            from { opacity: 0; filter: blur(6px); transform: translateY(10px); }
+            to { opacity: 1; filter: blur(0px); transform: translateY(0); }
+          }
 
-        .social-card-container {
-          background: ${isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.85)'};
-          backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-          border: 1px solid rgba(229, 228, 223, 0.9); border-radius: 24px; padding: 22px 26px;
-          width: 100%; max-width: 450px; margin: 0 auto;
-          box-shadow: 0 15px 35px rgba(0,0,0,0.05), inset 0 2px 4px rgba(255,255,255,1);
-          transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-          text-align: left; text-decoration: none; color: ${isDarkMode ? '#FAF9F5' : '#111827'};
-        }
-        .social-card-container:hover {
-          transform: translateY(-5px) scale(1.02) !important;
-          box-shadow: 0 20px 40px rgba(139, 30, 36, 0.1), inset 0 2px 4px rgba(255,255,255,1);
-          border-color: rgba(139, 30, 36, 0.3);
-        }
+          .team-filter-pill {
+            border: 1px solid rgba(139, 30, 36, 0.2);
+            background: rgba(255, 255, 255, 0.75);
+            color: #3F3F46;
+            padding: 8px 16px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.6px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            outline: none;
+          }
+          .team-filter-pill:hover { border-color: #8B1E24; color: #8B1E24; transform: translateY(-2px); }
+          .team-filter-pill.active {
+            background: linear-gradient(135deg, #8B1E24 0%, #5A1216 100%);
+            color: #FFFFFF; border-color: rgba(212, 175, 55, 0.5);
+            box-shadow: 0 8px 20px rgba(139, 30, 36, 0.25);
+          }
+        `}</style>
 
-        /* 3D LIQUID GLASS SOCIAL BUTTONS */
-        .liquid-social-btn {
-          width: 58px; height: 58px; border-radius: 18px;
-          background: ${isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.7)'};
-          backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
-          border: 1.5px solid rgba(212, 175, 55, 0.5);
-          display: flex; align-items: center; justify-content: center;
-          color: ${isDarkMode ? '#D4AF37' : '#1E3A5F'}; cursor: pointer; outline: none;
-          box-shadow: 0 8px 20px rgba(0,0,0,0.06), inset 0 2px 4px rgba(255,255,255,0.9);
-          transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-          transform: perspective(600px) translateZ(0);
-        }
-        .liquid-social-btn:hover {
-          transform: perspective(600px) translateZ(25px) translateY(-6px);
-          color: #FAF9F5; background: linear-gradient(135deg, #8B1E24 0%, #D4AF37 100%);
-          border-color: #D4AF37;
-          box-shadow: 0 16px 35px rgba(139, 30, 36, 0.35), inset 0 2px 4px rgba(255,255,255,0.6);
-        }
-        .liquid-social-btn.active {
-          color: #FAF9F5; background: #8B1E24; border-color: #D4AF37;
-          transform: perspective(600px) translateZ(15px) translateY(-3px);
-          box-shadow: 0 12px 28px rgba(139, 30, 36, 0.3);
-        }
-
-        .social-fade-content { animation: slideFadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; width: 100%; }
-        @keyframes slideFadeIn {
-          from { opacity: 0; filter: blur(6px); transform: translateY(10px); }
-          to { opacity: 1; filter: blur(0px); transform: translateY(0); }
-        }
-
-        .team-filter-pill {
-          border: 1px solid rgba(139, 30, 36, 0.2);
-          background: rgba(255, 255, 255, 0.75);
-          color: #3F3F46;
-          padding: 8px 16px;
-          border-radius: 999px;
-          font-size: 12px;
-          font-weight: 700;
-          letter-spacing: 0.6px;
-          cursor: pointer;
-          transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-          outline: none;
-        }
-        .team-filter-pill:hover { border-color: #8B1E24; color: #8B1E24; transform: translateY(-2px); }
-        .team-filter-pill.active {
-          background: linear-gradient(135deg, #8B1E24 0%, #5A1216 100%);
-          color: #FFFFFF; border-color: rgba(212, 175, 55, 0.5);
-          box-shadow: 0 8px 20px rgba(139, 30, 36, 0.25);
-        }
-      `}</style>
-
-      {!hasEntered && (
-        <>
-          <div
-            style={{
-              position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
-              backgroundColor: '#0B132B', overflow: 'hidden', zIndex: 50, opacity: portalOpacity,
-            }}
-          >
-            <video
-  src="/sanrachna-intro.mp4"
-  poster="/intro-poster.webp"
-  preload="metadata"
-  autoPlay
-  loop
-  muted
-  playsInline
-  aria-hidden="true"
-  style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', zIndex: 1, filter: 'brightness(0.65)' }}
-/>
-            <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at center, rgba(11,19,43,0.3) 0%, rgba(11,19,43,0.85) 100%)', zIndex: 2 }} />
-
+        {!hasEntered && (
+          <>
             <div
               style={{
-                position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', zIndex: 3,
-                transform: `perspective(1200px) scale(${portalScale}) rotateX(${rotateX}deg) rotateZ(${rotateZ}deg)`,
-                filter: `blur(${blurAmount}px)`, transformOrigin: 'center center', willChange: 'transform, filter', backfaceVisibility: 'hidden',
+                position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+                backgroundColor: '#0B132B', overflow: 'hidden', zIndex: 50, opacity: portalOpacity,
               }}
             >
-              <div className="cinematic-reveal-1" style={{ position: 'absolute', top: '36px', left: '24px', right: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', fontWeight: 700, letterSpacing: '2.5px', textTransform: 'uppercase', opacity: Math.max(0, 1 - progress * 2.5) }}>
-                <span className="portal-top-text">GEC GODDA</span>
-                <span className="portal-top-text">|| सृजन से निर्माण तक ||</span>
-              </div>
+              <video
+                src="/sanrachna-intro.mp4" autoPlay loop muted playsInline aria-hidden="true"
+                style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', zIndex: 1, filter: 'brightness(0.65)' }}
+              />
+              <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at center, rgba(11,19,43,0.3) 0%, rgba(11,19,43,0.85) 100%)', zIndex: 2 }} />
 
-              <div className="cinematic-reveal-2" style={{ textAlign: 'center', padding: '0 20px', userSelect: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <div style={{ filter: 'drop-shadow(0 10px 30px rgba(0,0,0,0.7))' }}>
-                  <h1 className="portal-main-title" style={{ fontSize: 'clamp(52px, 13vw, 160px)', fontWeight: 800, letterSpacing: '-2px', margin: 0, lineHeight: 1.1 }}>
-                    संRACHNA
-                  </h1>
+              <div
+                style={{
+                  position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', zIndex: 3,
+                  transform: `perspective(1200px) scale(${portalScale}) rotateX(${rotateX}deg) rotateZ(${rotateZ}deg)`,
+                  filter: `blur(${blurAmount}px)`, transformOrigin: 'center center', willChange: 'transform, filter', backfaceVisibility: 'hidden',
+                }}
+              >
+                <div className="cinematic-reveal-1" style={{ position: 'absolute', top: '36px', left: '24px', right: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', fontWeight: 700, letterSpacing: '2.5px', textTransform: 'uppercase', opacity: Math.max(0, 1 - progress * 2.5) }}>
+                  <span className="portal-top-text">GEC GODDA</span>
+                  <span className="portal-top-text">|| सृजन से निर्माण तक ||</span>
                 </div>
-                <p className="portal-subtitle" style={{ margin: '15px 0 0 0', fontSize: 'clamp(14px, 2vw, 20px)', fontWeight: 500, letterSpacing: '1.5px', opacity: Math.max(0, 1 - progress * 3) }}>
-                  The Official Annual College Magazine
-                </p>
-              </div>
 
-              <div className="cinematic-reveal-3" style={{ position: 'absolute', bottom: '36px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 700, letterSpacing: '2.5px', textTransform: 'uppercase', opacity: Math.max(0, 1 - progress * 3) }}>
-                <span className="portal-scroll-text">Scroll to enter</span>
-                <span className="portal-scroll-arrow" style={{ fontSize: '22px' }}>↓</span>
+                <div className="cinematic-reveal-2" style={{ textAlign: 'center', padding: '0 20px', userSelect: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <div style={{ filter: 'drop-shadow(0 10px 30px rgba(0,0,0,0.7))' }}>
+                    <h1 className="portal-main-title" style={{ fontSize: 'clamp(52px, 13vw, 160px)', fontWeight: 800, letterSpacing: '-2px', margin: 0, lineHeight: 1.1 }}>
+                      संRACHNA
+                    </h1>
+                  </div>
+                  <p className="portal-subtitle" style={{ margin: '15px 0 0 0', fontSize: 'clamp(14px, 2vw, 20px)', fontWeight: 500, letterSpacing: '1.5px', opacity: Math.max(0, 1 - progress * 3) }}>
+                    The Official Annual College Magazine
+                  </p>
+                </div>
+
+                <div className="cinematic-reveal-3" style={{ position: 'absolute', bottom: '36px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 700, letterSpacing: '2.5px', textTransform: 'uppercase', opacity: Math.max(0, 1 - progress * 3) }}>
+                  <span className="portal-scroll-text">Scroll to enter</span>
+                  <span className="portal-scroll-arrow" style={{ fontSize: '22px' }}>↓</span>
+                </div>
               </div>
             </div>
-          </div>
-          <div style={{ height: `${zoomThreshold}px`, width: '100%', pointerEvents: 'none' }} />
-        </>
-      )}
-
-      {hasEntered && (
-        <div
-          className="floating-action-dock"
-          style={{
-            opacity: showFloatingActions ? 1 : 0,
-            transform: showFloatingActions ? 'translate3d(0, 0, 0) scale(1)' : 'translate3d(0, -24px, 0) scale(0.9)',
-            filter: showFloatingActions ? 'blur(0px)' : 'blur(8px)',
-            pointerEvents: showFloatingActions ? 'auto' : 'none',
-          }}
-        >
-          <button
-            aria-label={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
-            onClick={() => setIsDarkMode(!isDarkMode)}
-            className="theme-toggle-btn"
-            title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
-          >
-            <AnimatedThemeIcon isDark={isDarkMode} />
-          </button>
-
-          <button
-            aria-label="Open Announcements"
-            onClick={() => setAnnouncementsOpen(true)}
-            className="announcements-btn"
-            title="Official Announcements"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ overflow: 'visible' }}>
-              <path className="animated-draw-path" d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-              <path className="animated-draw-path" d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-              <circle cx="18" cy="6" r="3" fill="#8B1E24" stroke="#FAF9F5" strokeWidth="1"></circle>
-            </svg>
-          </button>
-
-          <button
-            aria-label="Toggle Navigation Menu"
-            onClick={() => setMenuOpen(!menuOpen)}
-            className="glass-icon-btn"
-            title="Toggle Navigation Menu"
-          >
-            <span className="hamburger-line" style={{ transform: menuOpen ? 'translateY(7px) rotate(45deg)' : 'none' }} />
-            <span className="hamburger-line" style={{ opacity: menuOpen ? 0 : 1 }} />
-            <span className="hamburger-line" style={{ transform: menuOpen ? 'translateY(-7px) rotate(-45deg)' : 'none' }} />
-          </button>
-        </div>
-      )}
-
-      <div style={{ opacity: contentOpacity, position: 'relative', zIndex: 10 }}>
-        
-        {hasEntered && (
-          <Floating3DParticles 
-            color="#8B1E24" quantity={150} size={4} opacity={0.3} drift={0.6} depth={0.7} 
-            style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: -1 }} 
-          />
+            <div style={{ height: `${zoomThreshold}px`, width: '100%', pointerEvents: 'none' }} />
+          </>
         )}
 
-        <ScrollInkThread active={hasEntered} />
-
-        <div className="marquee-bar" onClick={() => setAnnouncementsOpen(true)} title="Click to view all announcements">
-          <div className="marquee-track">
-            <span>
-  📢{' '}
-  {liveTickerText ||
-    'OFFICIAL ANNOUNCEMENT: Submissions Open for Inaugural Edition 2026 • Theme: The Zero (शून्य) • Send your original articles, poetry, and artwork to sanrachna.gecgodda@gmail.com • Click here for complete details & guidelines'}{' '}
-  &nbsp;&bull;&nbsp;{' '}
-</span>
-<span>
-  📢{' '}
-  {liveTickerText ||
-    'OFFICIAL ANNOUNCEMENT: Submissions Open for Inaugural Edition 2026 • Theme: The Zero (शून्य) • Send your original articles, poetry, and artwork to sanrachna.gecgodda@gmail.com • Click here for complete details & guidelines'}{' '}
-  &nbsp;&bull;&nbsp;{' '}
-</span>
-          </div>
-        </div>
-
-        <header className="editorial-header">
-          <div className="header-content-wrapper">
-            <div className="header-logos">
-              <img decoding="async" src="/gec-logo.png" alt="GEC Godda Logo" className="header-logo-img" />
-              <div className="header-separator" />
-              <div className="sanrachna-logo-wrapper">
-                <img
-  src="/sanrachna-official-logo.png"
-  alt="Sanrachna Logo"
-  onClick={handleSecretLogoTap}
-  style={{ height: '95px', width: 'auto', objectFit: 'contain', cursor: 'pointer' }}
-/>
-              </div>
-            </div>
-            
-            <div className="header-text">
-              <div className="desktop-header-grid">
-                <h2 className="header-title" style={{ color: isDarkMode ? '#FAF9F5' : '#1E3A5F' }}>Government Engineering College, Godda</h2>
-                <div className="desktop-sanrachna-cell">
-                  <span className="desktop-v-divider">|</span>
-                  <span className="sanrachna-brown-brand">संRACHNA</span>
-                </div>
-
-                <p className="header-subtitle" style={{ color: isDarkMode ? '#A1A1AA' : '#52525B' }}>Department of Higher, Technical Education and Skill Development</p>
-                <div className="desktop-slogan-cell">
-                  <span className="desktop-v-divider-sub">|</span>
-                  <span className="header-slogan-text">सृजन से निर्माण तक</span>
-                </div>
-              </div>
-
-              <div className="mobile-header-stack">
-                <h2 className="mobile-college-title" style={{ color: isDarkMode ? '#FAF9F5' : '#1E3A5F' }}>Government Engineering College, Godda</h2>
-                <div className="mobile-animated-line" />
-                <span className="mobile-sanrachna-brown">संRACHNA</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="nav-container">
-            {/* Theme Toggle Sun / Moon Button in Header */}
-            <button aria-label={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"} onClick={() => setIsDarkMode(!isDarkMode)} className="theme-toggle-btn" title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}>
+        {hasEntered && (
+          <div
+            className="floating-action-dock"
+            style={{
+              opacity: showFloatingActions ? 1 : 0,
+              transform: showFloatingActions ? 'translate3d(0, 0, 0) scale(1)' : 'translate3d(0, -24px, 0) scale(0.9)',
+              filter: showFloatingActions ? 'blur(0px)' : 'blur(8px)',
+              pointerEvents: showFloatingActions ? 'auto' : 'none',
+            }}
+          >
+            <button
+              aria-label={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+              onClick={() => setIsDarkMode(!isDarkMode)}
+              className="theme-toggle-btn"
+              title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+            >
               <AnimatedThemeIcon isDark={isDarkMode} />
             </button>
 
-            <button aria-label="Open Announcements" onClick={() => setAnnouncementsOpen(true)} className="announcements-btn" title="Announcements">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ overflow: 'visible' }}>
+            <button
+              aria-label="Open Announcements"
+              onClick={() => setAnnouncementsOpen(true)}
+              className="announcements-btn"
+              title="Official Announcements"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ overflow: 'visible' }}>
                 <path className="animated-draw-path" d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
                 <path className="animated-draw-path" d="M13.73 21a2 2 0 0 1-3.46 0"></path>
                 <circle cx="18" cy="6" r="3" fill="#8B1E24" stroke="#FAF9F5" strokeWidth="1"></circle>
               </svg>
             </button>
-            
-            <button aria-label="Toggle Navigation Menu" onClick={() => setMenuOpen(!menuOpen)} className="glass-icon-btn" title="Toggle Menu">
+
+            <button
+              aria-label="Toggle Navigation Menu"
+              onClick={() => setMenuOpen(!menuOpen)}
+              className="glass-icon-btn"
+              title="Toggle Navigation Menu"
+            >
               <span className="hamburger-line" style={{ transform: menuOpen ? 'translateY(7px) rotate(45deg)' : 'none' }} />
               <span className="hamburger-line" style={{ opacity: menuOpen ? 0 : 1 }} />
               <span className="hamburger-line" style={{ transform: menuOpen ? 'translateY(-7px) rotate(-45deg)' : 'none' }} />
             </button>
           </div>
-        </header>
+        )}
 
-        <main style={{ maxWidth: '1440px', width: '100%', margin: '0 auto', boxSizing: 'border-box', position: 'relative', zIndex: 10 }}>
+        <div style={{ opacity: contentOpacity, position: 'relative', zIndex: 10 }}>
           
-          <section id="home" className="page-section" style={{ borderTop: 'none', textAlign: 'center', maxWidth: '1100px' }}>
-            <Reveal delay={0} margin="0px 0px -40px 0px">
-              <h1 style={{ fontSize: 'clamp(34px, 5vw, 64px)', fontWeight: 700, lineHeight: 1.2, margin: '0 0 24px 0', color: themeText }}>
-                Welcome to <span className="theme-welcome-text">संRACHNA !</span>
-              </h1>
-            </Reveal>
+          {hasEntered && (
+            <Floating3DParticles 
+              color="#8B1E24" quantity={150} size={4} opacity={0.3} drift={0.6} depth={0.7} 
+              style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: -1 }} 
+            />
+          )}
 
-            <Reveal delay={120} margin="0px 0px -40px 0px">
-              <p style={{ fontSize: 'clamp(17px, 2.2vw, 24px)', fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 500, lineHeight: 1.7, margin: '0 0 28px 0', color: themeSubText }}>
-                Sanrachna is the official college magazine of Government Engineering College, Godda. Preserving academic achievements, creative writing, and institutional milestones across physical and digital editions.
-              </p>
-            </Reveal>
+          <ScrollInkThread active={hasEntered} />
 
-            <Reveal delay={240} margin="0px 0px -40px 0px">
-              <p style={{ fontSize: 'clamp(15.5px, 2vw, 21px)', lineHeight: 1.85, color: themeSubText, margin: '0', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-                Before these pages unfold into technical notes, cultural chronicles, and artistic expressions, take a moment to breathe it in. This digital canvas exists to capture the unspoken thoughts, midnight musings, and raw creativity shaping our campus life. You are holding a piece of our collective identity—turn the page and see what your peers have dreamed up !
-              </p>
-            </Reveal>
-          </section>
+          <div className="marquee-bar" onClick={() => setAnnouncementsOpen(true)} title="Click to view all announcements">
+            <div className="marquee-track">
+              <span>
+                📢{' '}
+                {liveTickerText ||
+                  'OFFICIAL ANNOUNCEMENT: Submissions Open for Inaugural Edition 2026 • Theme: The Zero (शून्य) • Send your original articles, poetry, and artwork to sanrachna.gecgodda@gmail.com • Click here for complete details & guidelines'}{' '}
+                &nbsp;&bull;&nbsp;{' '}
+              </span>
+              <span>
+                📢{' '}
+                {liveTickerText ||
+                  'OFFICIAL ANNOUNCEMENT: Submissions Open for Inaugural Edition 2026 • Theme: The Zero (शून्य) • Send your original articles, poetry, and artwork to sanrachna.gecgodda@gmail.com • Click here for complete details & guidelines'}{' '}
+                &nbsp;&bull;&nbsp;{' '}
+              </span>
+            </div>
+          </div>
 
-          <section id="about" className="page-section">
-            <SectionHeading kicker="Institutional Identity" title="About संRACHNA" align="left" isDark={isDarkMode} />
-            <div className="about-body-wrap">
+          <header className="editorial-header">
+            <div className="header-content-wrapper">
+              <div className="header-logos">
+                <img src="/gec-logo.png" alt="GEC Godda Logo" className="header-logo-img" />
+                <div className="header-separator" />
+                <div className="sanrachna-logo-wrapper">
+                  <img
+                    src="/sanrachna-official-logo.png"
+                    alt="Sanrachna Logo"
+                    onClick={handleSecretLogoTap}
+                    style={{ height: '95px', width: 'auto', objectFit: 'contain', cursor: 'pointer' }}
+                  />
+                </div>
+              </div>
+              
+              <div className="header-text">
+                <div className="desktop-header-grid">
+                  <h2 className="header-title" style={{ color: isDarkMode ? '#FAF9F5' : '#1E3A5F' }}>Government Engineering College, Godda</h2>
+                  <div className="desktop-sanrachna-cell">
+                    <span className="desktop-v-divider">|</span>
+                    <span className="sanrachna-brown-brand">संRACHNA</span>
+                  </div>
+
+                  <p className="header-subtitle" style={{ color: isDarkMode ? '#A1A1AA' : '#52525B' }}>Department of Higher, Technical Education and Skill Development</p>
+                  <div className="desktop-slogan-cell">
+                    <span className="desktop-v-divider-sub">|</span>
+                    <span className="header-slogan-text">सृजन से निर्माण तक</span>
+                  </div>
+                </div>
+
+                <div className="mobile-header-stack">
+                  <h2 className="mobile-college-title" style={{ color: isDarkMode ? '#FAF9F5' : '#1E3A5F' }}>Government Engineering College, Godda</h2>
+                  <div className="mobile-animated-line" />
+                  <span className="mobile-sanrachna-brown">संRACHNA</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="nav-container">
+              <button aria-label={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"} onClick={() => setIsDarkMode(!isDarkMode)} className="theme-toggle-btn" title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}>
+                <AnimatedThemeIcon isDark={isDarkMode} />
+              </button>
+
+              <button aria-label="Open Announcements" onClick={() => setAnnouncementsOpen(true)} className="announcements-btn" title="Announcements">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ overflow: 'visible' }}>
+                  <path className="animated-draw-path" d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                  <path className="animated-draw-path" d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                  <circle cx="18" cy="6" r="3" fill="#8B1E24" stroke="#FAF9F5" strokeWidth="1"></circle>
+                </svg>
+              </button>
+              
+              <button aria-label="Toggle Navigation Menu" onClick={() => setMenuOpen(!menuOpen)} className="glass-icon-btn" title="Toggle Menu">
+                <span className="hamburger-line" style={{ transform: menuOpen ? 'translateY(7px) rotate(45deg)' : 'none' }} />
+                <span className="hamburger-line" style={{ opacity: menuOpen ? 0 : 1 }} />
+                <span className="hamburger-line" style={{ transform: menuOpen ? 'translateY(-7px) rotate(-45deg)' : 'none' }} />
+              </button>
+            </div>
+          </header>
+
+          <main style={{ maxWidth: '1440px', width: '100%', margin: '0 auto', boxSizing: 'border-box', position: 'relative', zIndex: 10 }}>
+            
+            <section id="home" className="page-section" style={{ borderTop: 'none', textAlign: 'center', maxWidth: '1100px' }}>
+              <Reveal delay={0} margin="0px 0px -40px 0px">
+                <h1 style={{ fontSize: 'clamp(34px, 5vw, 64px)', fontWeight: 700, lineHeight: 1.2, margin: '0 0 24px 0', color: themeText }}>
+                  Welcome to <span className="theme-welcome-text">संRACHNA !</span>
+                </h1>
+              </Reveal>
+
+              <Reveal delay={120} margin="0px 0px -40px 0px">
+                <p style={{ fontSize: 'clamp(17px, 2.2vw, 24px)', fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 500, lineHeight: 1.7, margin: '0 0 28px 0', color: themeSubText }}>
+                  Sanrachna is the official college magazine of Government Engineering College, Godda. Preserving academic achievements, creative writing, and institutional milestones across physical and digital editions.
+                </p>
+              </Reveal>
+
+              <Reveal delay={240} margin="0px 0px -40px 0px">
+                <p style={{ fontSize: 'clamp(15.5px, 2vw, 21px)', lineHeight: 1.85, color: themeSubText, margin: '0', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+                  Before these pages unfold into technical notes, cultural chronicles, and artistic expressions, take a moment to breathe it in. This digital canvas exists to capture the unspoken thoughts, midnight musings, and raw creativity shaping our campus life. You are holding a piece of our collective identity—turn the page and see what your peers have dreamed up !
+                </p>
+              </Reveal>
+            </section>
+
+            <section id="about" className="page-section">
+              <SectionHeading kicker="Institutional Identity" title="About संRACHNA" align="left" isDark={isDarkMode} />
+              <div className="about-body-wrap">
+                <Reveal delay={100}>
+                  <p style={{ marginBottom: '22px', color: themeSubText }}>
+                    संRACHNA seamlessly brings together the vibrant voices of our students, faculties, staffs, and alumnies into one unified platform.
+                  </p>
+                </Reveal>
+                <Reveal delay={200}>
+                  <p style={{ marginBottom: '22px', color: themeSubText }}>
+                    We proudly showcase every face of campus life highlighting <strong style={{ color: themeText }}>Academic</strong> excellence, <strong style={{ color: themeText }}>Cultural</strong> vibrancy, <strong style={{ color: themeText }}>Sports</strong>, <strong style={{ color: themeText }}>Creative</strong> and <strong style={{ color: themeText }}>Technical</strong> innovations, deeply personal <strong style={{ color: themeText }}>Experiences</strong>, and significant <strong style={{ color: themeText }}>Community achievements</strong>.
+                  </p>
+                </Reveal>
+                <Reveal delay={300}>
+                  <p style={{ fontWeight: 600, color: '#D4AF37', fontSize: 'clamp(18px, 2.2vw, 24px)', margin: 0 }}>
+                    Ultimately, it preserves the memory as a lasting institutional record.
+                  </p>
+                </Reveal>
+              </div>
+            </section>
+
+            <section id="objectives" className="page-section" style={{ overflow: 'hidden' }}>
+              <SectionHeading kicker="Our Core Pillars" title="Objectives & Visions" align="right" isDark={isDarkMode} />
               <Reveal delay={100}>
-                <p style={{ marginBottom: '22px', color: themeSubText }}>
-                  संRACHNA seamlessly brings together the vibrant voices of our students, faculties, staffs, and alumnies into one unified platform.
+                <Objectives3DCarousel items={objectivesList} />
+              </Reveal>
+            </section>
+
+            <section id="submissions" className="page-section">
+              <SectionHeading kicker="Publication Standards" title="Guidelines & Ethics" align="left" isDark={isDarkMode} />
+              <Reveal>
+                <div style={{ marginBottom: '44px' }}>
+                  <p className="guidelines-intro-text" style={{ color: themeSubText }}>
+                    Please review the complete guidelines, category word limits, formatting rules, and submission template below before submitting your work through our official portal.
+                  </p>
+
+                  <div className="guidelines-btn-group">
+                    <a href="/Guidelines.pdf" download="Sanrachna_Guidelines_2026.pdf" className="liquid-glass-btn">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                      Download Official Guidelines
+                    </a>
+                    <a href="/Template for Submission.pdf" download="Sanrachna_Template_2026.pdf" className="liquid-glass-btn">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                      Download Template (PDF)
+                    </a>
+                  </div>
+                </div>
+              </Reveal>
+
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <Reveal delay={40}>
+                  <div className="guideline-row" style={{ borderTop: '1px solid rgba(139, 30, 36, 0.2)' }}>
+                    <div style={{ flex: '1 1 280px' }}>
+                      <h3 style={{ margin: 0, fontSize: 'clamp(22px, 2.5vw, 26px)', fontFamily: "'Playfair Display', serif", color: '#8B1E24', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px' }}>Formatting Rules</h3>
+                    </div>
+                    <div style={{ flex: '2 1 540px' }}>
+                      <ul style={{ margin: 0, padding: 0, listStyleType: 'none', color: themeSubText, lineHeight: 2, fontSize: 'clamp(15.5px, 1.8vw, 19px)' }}>
+                        <li>• <strong style={{ color: themeText }}>Language:</strong> हिन्दी / English.</li>
+                        <li>• <strong style={{ color: themeText }}>Fonts:</strong> KrutiDev or Mangal (Hindi) / Bookman Old Style (English).</li>
+                        <li>• <strong style={{ color: themeText }}>Font Sizes:</strong> Text: 14pt (Hindi) / 11pt (English). Heading: 16pt (Hindi) / 14pt Bold (English).</li>
+                        <li>• <strong style={{ color: themeText }}>Page Specs:</strong> A4 Size, 1.5 Line Spacing, 6pt spacing after each paragraph.</li>
+                        <li>• <strong style={{ color: themeText }}>Images:</strong> Resolution 300 dpi (.jpg, .png). Do not embed images inside word documents.</li>
+                      </ul>
+                    </div>
+                  </div>
+                </Reveal>
+
+                <Reveal delay={80}>
+                  <div className="guideline-row" style={{ borderTop: '1px solid rgba(139, 30, 36, 0.2)' }}>
+                    <div style={{ flex: '1 1 280px' }}>
+                      <h3 style={{ margin: 0, fontSize: 'clamp(22px, 2.5vw, 26px)', fontFamily: "'Playfair Display', serif", color: '#8B1E24', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px' }}>Eligibility</h3>
+                    </div>
+                    <div style={{ flex: '2 1 540px' }}>
+                      <ul style={{ margin: 0, padding: 0, listStyleType: 'none', color: themeSubText, lineHeight: 2, fontSize: 'clamp(15.5px, 1.8vw, 19px)' }}>
+                        <li>• Enrolled students at GEC Godda.</li>
+                        <li>• Faculty & their wards.</li>
+                        <li>• Administrative staff & their wards.</li>
+                        <li>• Alumnies.</li>
+                      </ul>
+                    </div>
+                  </div>
+                </Reveal>
+
+                <Reveal delay={120}>
+                  <div className="guideline-row" style={{ borderTop: '1px solid rgba(30, 58, 95, 0.2)' }}>
+                    <div style={{ flex: '1 1 280px' }}>
+                      <h3 style={{ margin: 0, fontSize: 'clamp(22px, 2.5vw, 26px)', fontFamily: "'Playfair Display', serif", color: '#1E3A5F', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px' }}>Accepted Contributions</h3>
+                    </div>
+                    <div style={{ flex: '2 1 540px', display: 'flex', flexWrap: 'wrap', gap: '16px' }}>
+                      <ul style={{ margin: 0, padding: 0, listStyleType: 'none', color: themeSubText, lineHeight: 2, fontSize: 'clamp(15.5px, 1.8vw, 19px)', flex: '1 1 240px' }}>
+                        <li>• Articles (700-900 words)</li>
+                        <li>• Journalism (250-500 words)</li>
+                        <li>• Mass Communication (400-600 words)</li>
+                        <li>• Biography (250-500 words)</li>
+                        <li>• Poem (25-50 lines)</li>
+                        <li>• Essay/Short Story (300-600 words)</li>
+                      </ul>
+                      <ul style={{ margin: 0, padding: 0, listStyleType: 'none', color: themeSubText, lineHeight: 2, fontSize: 'clamp(15.5px, 1.8vw, 19px)', flex: '1 1 240px' }}>
+                        <li>• Campus News (500-700 words)</li>
+                        <li>• Career & Entrepreneurship (150-250)</li>
+                        <li>• Drawing/Painting/Artworks (1-2 nos)</li>
+                        <li>• Photography (1-2 nos)</li>
+                        <li>• Remembrance/Observance (500-700)</li>
+                        <li>• Alumni Corner (250-500 words)</li>
+                      </ul>
+                    </div>
+                  </div>
+                </Reveal>
+
+                <Reveal delay={160}>
+                  <div className="guideline-row" style={{ borderTop: '1px solid rgba(47, 133, 90, 0.2)' }}>
+                    <div style={{ flex: '1 1 280px' }}>
+                      <h3 style={{ margin: 0, fontSize: 'clamp(22px, 2.5vw, 26px)', fontFamily: "'Playfair Display', serif", color: '#2F855A', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px' }}>Submission Rules</h3>
+                    </div>
+                    <div style={{ flex: '2 1 540px' }}>
+                      <ul style={{ margin: 0, padding: 0, listStyleType: 'none', color: themeSubText, lineHeight: 2, fontSize: 'clamp(15.5px, 1.8vw, 19px)' }}>
+                        <li>• Original & unpublished work only.</li>
+                        <li>• Submissions through the official Google Form portal only.</li>
+                        <li>• Maximum of two (02) entries per author.</li>
+                        <li style={{ marginTop: '10px', color: themeText, fontWeight: 600 }}>DISCLOSURE: Editorial Board decision regarding edits and publication will be final.</li>
+                      </ul>
+                    </div>
+                  </div>
+                </Reveal>
+
+                <Reveal delay={200}>
+                  <div className="guideline-row" style={{ borderTop: '1px solid rgba(214, 158, 46, 0.3)', borderBottom: '1px solid rgba(214, 158, 46, 0.3)' }}>
+                    <div style={{ flex: '1 1 280px' }}>
+                      <h3 style={{ margin: 0, fontSize: 'clamp(22px, 2.5vw, 26px)', fontFamily: "'Playfair Display', serif", color: '#D69E2E', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px' }}>Originality & Ethics</h3>
+                    </div>
+                    <div style={{ flex: '2 1 540px' }}>
+                      <ul style={{ margin: 0, padding: 0, listStyleType: 'none', color: themeSubText, lineHeight: 2, fontSize: 'clamp(15.5px, 1.8vw, 19px)' }}>
+                        <li>• Zero tolerance for plagiarism. Artificial Intelligence (AI) works are strictly prohibited.</li>
+                        <li>• Religious, mythological, and self-promotional contents are strictly forbidden.</li>
+                        <li>• Authors own the responsibility of accuracy, citations, and permissions.</li>
+                      </ul>
+                    </div>
+                  </div>
+                </Reveal>
+              </div>
+            </section>
+
+            <section id="submission-portal" className="page-section portal-section-wrap">
+              <SectionHeading kicker="Send Your Work" title="Submission Portal" align="right" isDark={isDarkMode} />
+              <Reveal delay={100}>
+                <p className="portal-intro-text" style={{ color: themeSubText }}>
+                  Ready to showcase your talent? Once you have formatted your work according to the official guidelines and template, upload your entries securely through our official submission portal.
                 </p>
               </Reveal>
               <Reveal delay={200}>
-                <p style={{ marginBottom: '22px', color: themeSubText }}>
-                  We proudly showcase every face of campus life highlighting <strong style={{ color: themeText }}>Academic</strong> excellence, <strong style={{ color: themeText }}>Cultural</strong> vibrancy, <strong style={{ color: themeText }}>Sports</strong>, <strong style={{ color: themeText }}>Creative</strong> and <strong style={{ color: themeText }}>Technical</strong> innovations, deeply personal <strong style={{ color: themeText }}>Experiences</strong>, and significant <strong style={{ color: themeText }}>Community achievements</strong>.
-                </p>
-              </Reveal>
-              <Reveal delay={300}>
-                <p style={{ fontWeight: 600, color: '#D4AF37', fontSize: 'clamp(18px, 2.2vw, 24px)', margin: 0 }}>
-                  Ultimately, it preserves the memory as a lasting institutional record.
-                </p>
-              </Reveal>
-            </div>
-          </section>
-
-          <section id="objectives" className="page-section" style={{ overflow: 'hidden' }}>
-            <SectionHeading kicker="Our Core Pillars" title="Objectives & Visions" align="right" isDark={isDarkMode} />
-            <Reveal delay={100}>
-              <Objectives3DCarousel items={objectivesList} />
-            </Reveal>
-          </section>
-
-          <section id="submissions" className="page-section">
-            <SectionHeading kicker="Publication Standards" title="Guidelines & Ethics" align="left" isDark={isDarkMode} />
-            <Reveal>
-              <div style={{ marginBottom: '44px' }}>
-                <p className="guidelines-intro-text" style={{ color: themeSubText }}>
-                  Please review the complete guidelines, category word limits, formatting rules, and submission template below before submitting your work through our official portal.
-                </p>
-
-                <div className="guidelines-btn-group">
-                  <a href="/Guidelines.pdf" download="Sanrachna_Guidelines_2026.pdf" className="liquid-glass-btn">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                    Download Official Guidelines
-                  </a>
-                  <a href="/Template for Submission.pdf" download="Sanrachna_Template_2026.pdf" className="liquid-glass-btn">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                    Download Template (PDF)
-                  </a>
-                </div>
-              </div>
-            </Reveal>
-
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <Reveal delay={40}>
-                <div className="guideline-row" style={{ borderTop: '1px solid rgba(139, 30, 36, 0.2)' }}>
-                  <div style={{ flex: '1 1 280px' }}>
-                    <h3 style={{ margin: 0, fontSize: 'clamp(22px, 2.5vw, 26px)', fontFamily: "'Playfair Display', serif", color: '#8B1E24', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px' }}>Formatting Rules</h3>
-                  </div>
-                  <div style={{ flex: '2 1 540px' }}>
-                    <ul style={{ margin: 0, padding: 0, listStyleType: 'none', color: themeSubText, lineHeight: 2, fontSize: 'clamp(15.5px, 1.8vw, 19px)' }}>
-                      <li>• <strong style={{ color: themeText }}>Language:</strong> हिन्दी / English.</li>
-                      <li>• <strong style={{ color: themeText }}>Fonts:</strong> KrutiDev or Mangal (Hindi) / Bookman Old Style (English).</li>
-                      <li>• <strong style={{ color: themeText }}>Font Sizes:</strong> Text: 14pt (Hindi) / 11pt (English). Heading: 16pt (Hindi) / 14pt Bold (English).</li>
-                      <li>• <strong style={{ color: themeText }}>Page Specs:</strong> A4 Size, 1.5 Line Spacing, 6pt spacing after each paragraph.</li>
-                      <li>• <strong style={{ color: themeText }}>Images:</strong> Resolution 300 dpi (.jpg, .png). Do not embed images inside word documents.</li>
-                    </ul>
-                  </div>
+                <div className="portal-btn-row">
+                  <button
+                    type="button"
+                    onClick={() => setOpenSubmissionPortal(true)}
+                    className="liquid-glass-btn btn-green-tint"
+                    style={{ fontSize: '15px', padding: '16px 36px' }}
+                  >
+                    Open Submission Portal →
+                  </button>
                 </div>
               </Reveal>
+            </section>
 
-              <Reveal delay={80}>
-                <div className="guideline-row" style={{ borderTop: '1px solid rgba(139, 30, 36, 0.2)' }}>
-                  <div style={{ flex: '1 1 280px' }}>
-                    <h3 style={{ margin: 0, fontSize: 'clamp(22px, 2.5vw, 26px)', fontFamily: "'Playfair Display', serif", color: '#8B1E24', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px' }}>Eligibility</h3>
-                  </div>
-                  <div style={{ flex: '2 1 540px' }}>
-                    <ul style={{ margin: 0, padding: 0, listStyleType: 'none', color: themeSubText, lineHeight: 2, fontSize: 'clamp(15.5px, 1.8vw, 19px)' }}>
-                      <li>• Enrolled students at GEC Godda.</li>
-                      <li>• Faculty & their wards.</li>
-                      <li>• Administrative staff & their wards.</li>
-                      <li>• Alumnies.</li>
-                    </ul>
-                  </div>
-                </div>
-              </Reveal>
+            <section id="faq" className="page-section">
+              <SectionHeading kicker="Common Queries" title="Frequently Asked Questions" align="left" isDark={isDarkMode} />
+              <FAQAccordion faqs={faqs} />
+            </section>
 
+            <section id="contact" className="page-section" style={{ paddingBottom: '56px' }}>
+              <SectionHeading kicker="Connect & Collaborate" title="Get in Touch with Us!" align="right" isDark={isDarkMode} />
               <Reveal delay={120}>
-                <div className="guideline-row" style={{ borderTop: '1px solid rgba(30, 58, 95, 0.2)' }}>
-                  <div style={{ flex: '1 1 280px' }}>
-                    <h3 style={{ margin: 0, fontSize: 'clamp(22px, 2.5vw, 26px)', fontFamily: "'Playfair Display', serif", color: '#1E3A5F', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px' }}>Accepted Contributions</h3>
-                  </div>
-                  <div style={{ flex: '2 1 540px', display: 'flex', flexWrap: 'wrap', gap: '16px' }}>
-                    <ul style={{ margin: 0, padding: 0, listStyleType: 'none', color: themeSubText, lineHeight: 2, fontSize: 'clamp(15.5px, 1.8vw, 19px)', flex: '1 1 240px' }}>
-                      <li>• Articles (700-900 words)</li>
-                      <li>• Journalism (250-500 words)</li>
-                      <li>• Mass Communication (400-600 words)</li>
-                      <li>• Biography (250-500 words)</li>
-                      <li>• Poem (25-50 lines)</li>
-                      <li>• Essay/Short Story (300-600 words)</li>
-                    </ul>
-                    <ul style={{ margin: 0, padding: 0, listStyleType: 'none', color: themeSubText, lineHeight: 2, fontSize: 'clamp(15.5px, 1.8vw, 19px)', flex: '1 1 240px' }}>
-                      <li>• Campus News (500-700 words)</li>
-                      <li>• Career & Entrepreneurship (150-250)</li>
-                      <li>• Drawing/Painting/Artworks (1-2 nos)</li>
-                      <li>• Photography (1-2 nos)</li>
-                      <li>• Remembrance/Observance (500-700)</li>
-                      <li>• Alumni Corner (250-500 words)</li>
-                    </ul>
-                  </div>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+                  <p style={{ fontSize: 'clamp(16px, 1.8vw, 20px)', color: themeSubText, maxWidth: '700px', textAlign: 'center', lineHeight: '1.7', margin: '0 0 24px 0' }}>
+                    Have inquiries about manuscript guidelines, publication timelines, or editorial collaborations? Connect with our editorial team through any of the channels below.
+                  </p>
+                  <SocialMorphCard />
                 </div>
               </Reveal>
+            </section>
 
-              <Reveal delay={160}>
-                <div className="guideline-row" style={{ borderTop: '1px solid rgba(47, 133, 90, 0.2)' }}>
-                  <div style={{ flex: '1 1 280px' }}>
-                    <h3 style={{ margin: 0, fontSize: 'clamp(22px, 2.5vw, 26px)', fontFamily: "'Playfair Display', serif", color: '#2F855A', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px' }}>Submission Rules</h3>
-                  </div>
-                  <div style={{ flex: '2 1 540px' }}>
-                    <ul style={{ margin: 0, padding: 0, listStyleType: 'none', color: themeSubText, lineHeight: 2, fontSize: 'clamp(15.5px, 1.8vw, 19px)' }}>
-                      <li>• Original & unpublished work only.</li>
-                      <li>• Submissions through the official Google Form portal only.</li>
-                      <li>• Maximum of two (02) entries per author.</li>
-                      <li style={{ marginTop: '10px', color: themeText, fontWeight: 600 }}>DISCLOSURE: Editorial Board decision regarding edits and publication will be final.</li>
-                    </ul>
-                  </div>
-                </div>
-              </Reveal>
+          </main>
 
-              <Reveal delay={200}>
-                <div className="guideline-row" style={{ borderTop: '1px solid rgba(214, 158, 46, 0.3)', borderBottom: '1px solid rgba(214, 158, 46, 0.3)' }}>
-                  <div style={{ flex: '1 1 280px' }}>
-                    <h3 style={{ margin: 0, fontSize: 'clamp(22px, 2.5vw, 26px)', fontFamily: "'Playfair Display', serif", color: '#D69E2E', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px' }}>Originality & Ethics</h3>
-                  </div>
-                  <div style={{ flex: '2 1 540px' }}>
-                    <ul style={{ margin: 0, padding: 0, listStyleType: 'none', color: themeSubText, lineHeight: 2, fontSize: 'clamp(15.5px, 1.8vw, 19px)' }}>
-                      <li>• Zero tolerance for plagiarism. Artificial Intelligence (AI) works are strictly prohibited.</li>
-                      <li>• Religious, mythological, and self-promotional contents are strictly forbidden.</li>
-                      <li>• Authors own the responsibility of accuracy, citations, and permissions.</li>
-                    </ul>
-                  </div>
-                </div>
-              </Reveal>
-            </div>
-          </section>
-
-          <section id="submission-portal" className="page-section portal-section-wrap">
-            <SectionHeading kicker="Send Your Work" title="Submission Portal" align="right" isDark={isDarkMode} />
-            <Reveal delay={100}>
-              <p className="portal-intro-text" style={{ color: themeSubText }}>
-                Ready to showcase your talent? Once you have formatted your work according to the official guidelines and template, upload your entries securely through our official submission portal.
-              </p>
-            </Reveal>
-            <Reveal delay={200}>
-              <div className="portal-btn-row">
-               <button
-  type="button"
-  onClick={() => setOpenSubmissionPortal(true)}
-  className="liquid-glass-btn btn-green-tint"
-  style={{ fontSize: '15px', padding: '16px 36px' }}
->
-  Open Submission Portal →
-</button>
-              </div>
-            </Reveal>
-          </section>
-
-          <section id="faq" className="page-section">
-            <SectionHeading kicker="Common Queries" title="Frequently Asked Questions" align="left" isDark={isDarkMode} />
-            <FAQAccordion faqs={faqs} />
-          </section>
-
-          <section id="contact" className="page-section" style={{ paddingBottom: '90px' }}>
-            <SectionHeading kicker="Connect & Collaborate" title="Get in Touch with Us!" align="right" isDark={isDarkMode} />
-            <Reveal delay={120}>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
-                <p style={{ fontSize: 'clamp(16px, 1.8vw, 20px)', color: themeSubText, maxWidth: '700px', textAlign: 'center', lineHeight: '1.7', margin: '0 0 24px 0' }}>
-                  Have inquiries about manuscript guidelines, publication timelines, or editorial collaborations? Connect with our editorial team through any of the channels below.
-                </p>
-                <SocialMorphCard />
-              </div>
-            </Reveal>
-          </section>
-
-        </main>
-
-        {/* =========================================================================== */}
-        {/* PREMIUM THEME-ALIGNED EDITORIAL FOOTER (NO WHITE BOX, 3 HINDI LINES)       */}
-        {/* =========================================================================== */}
-        <Reveal margin="0px">
+          {/* =========================================================================== */}
+          {/* PREMIUM THEME-ALIGNED EDITORIAL FOOTER                                      */}
+          {/* =========================================================================== */}
           <footer
             style={{
               position: 'relative',
@@ -2643,7 +2584,8 @@ const is404Route =
               background: isDarkMode ? '#050814' : 'linear-gradient(180deg, #FAF9F5 0%, #F5EFE6 45%, #EBE0D0 100%)',
               borderTop: '2px solid transparent',
               borderImage: 'linear-gradient(90deg, #8B1E24, #D4AF37, #1E3A5F, #8B1E24) 1',
-              padding: '90px 0 0 0',
+              padding: '64px 0 0 0',
+              margin: 0,
               zIndex: 10,
             }}
           >
@@ -2651,12 +2593,12 @@ const is404Route =
               .theme-footer-grid {
                 max-width: 1280px;
                 margin: 0 auto;
-                padding: 0 40px 60px 40px;
+                padding: 0 40px 44px 40px;
                 display: flex;
                 justify-content: space-between;
                 align-items: flex-start;
                 flex-wrap: wrap;
-                gap: 48px;
+                gap: 40px;
                 position: relative;
                 z-index: 5;
               }
@@ -2698,11 +2640,11 @@ const is404Route =
 
               @media (max-width: 768px) {
                 .theme-footer-grid {
-                  padding: 0 20px 48px 20px;
+                  padding: 0 20px 32px 20px;
                   flex-direction: column;
                   align-items: center;
                   text-align: center;
-                  gap: 36px;
+                  gap: 28px;
                 }
                 .theme-footer-left {
                   align-items: center;
@@ -2736,19 +2678,20 @@ const is404Route =
                     }}
                   >
                     <img
-  src="/sanrachna-official-logo.png"
-  alt="Sanrachna Official Logo"
-  onClick={handleSecretLogoTap}
-  style={{ 
-    width: '56px', 
-    height: '56px', 
-    objectFit: 'contain', 
-    borderRadius: '50%',
-    backgroundColor: '#ffffff', /* Badge ka white background */
-    padding: '6px',             /* JADOO: Yeh logo ko katne se bachayega */
-    boxShadow: '0 2px 4px rgba(0,0,0,0.15)' /* Ek premium 3D effect ke liye */
-  }}
-/>
+                      src="/sanrachna-official-logo.png"
+                      alt="Sanrachna Official Logo"
+                      onClick={handleSecretLogoTap}
+                      style={{ 
+                        width: '56px', 
+                        height: '56px', 
+                        objectFit: 'contain', 
+                        borderRadius: '50%',
+                        backgroundColor: '#ffffff',
+                        padding: '6px',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.15)',
+                        cursor: 'pointer'
+                      }}
+                    />
                   </div>
                   <div style={{ width: '2px', height: '44px', background: 'rgba(212, 175, 55, 0.4)' }} />
                   <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', textAlign: 'left' }}>
@@ -2759,20 +2702,19 @@ const is404Route =
                   </div>
                 </div>
 
-                {/* 3 Hindi Lines */}
                 <h3 style={{ margin: '8px 0 20px 0', fontSize: 'clamp(23px, 3.2vw, 34px)', fontFamily: "'Rozha One', 'Playfair Display', serif", fontWeight: 500, lineHeight: 1.4, color: isDarkMode ? '#FAF9F5' : '#1E3A5F' }}>
                   सृजन से विचार, विचारों से सपने,<br />
                   <span style={{ color: '#8B1E24' }}>सपनों से निर्माण</span> <span style={{ color: '#D4AF37' }}>।</span>
                 </h3>
 
                 <button
-  type="button"
-  onClick={() => setOpenSubmissionPortal(true)}
-  className="liquid-glass-btn footer-cta-pulse"
-  style={{ background: '#D4AF37', color: '#070B19', borderColor: '#D4AF37' }}
->
-  <span>Submit Your Creation →</span>
-</button>
+                  type="button"
+                  onClick={() => setOpenSubmissionPortal(true)}
+                  className="liquid-glass-btn footer-cta-pulse"
+                  style={{ background: '#D4AF37', color: '#070B19', borderColor: '#D4AF37' }}
+                >
+                  <span>Submit Your Creation →</span>
+                </button>
               </div>
 
               <div className="theme-footer-right">
@@ -2783,7 +2725,7 @@ const is404Route =
                 <button onClick={() => setTeamOpen(true)} className="theme-footer-link">Editorial Board & Teams</button>
                 <button onClick={() => setAnnouncementsOpen(true)} className="theme-footer-link">Official Announcements</button>
 
-                <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: '1px solid rgba(212, 175, 55, 0.2)', fontSize: '13px', color: isDarkMode ? '#A1A1AA' : '#52525B', lineHeight: 1.7 }}>
+                <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px solid rgba(212, 175, 55, 0.2)', fontSize: '13px', color: isDarkMode ? '#A1A1AA' : '#52525B', lineHeight: 1.7 }}>
                   <div><strong style={{ color: isDarkMode ? '#FAF9F5' : '#111827' }}>Edition I (2026):</strong> Theme — The Zero (शून्य)</div>
                   <div><strong style={{ color: isDarkMode ? '#FAF9F5' : '#111827' }}>Contributions:</strong> Open for all Students & Faculty</div>
                   <div style={{ marginTop: '8px', display: 'flex', gap: '14px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
@@ -2798,12 +2740,11 @@ const is404Route =
               </div>
             </div>
 
-            {/* Bottom Bar */}
             <div
               style={{
                 background: isDarkMode ? '#03050B' : 'rgba(235, 224, 208, 0.95)',
                 borderTop: '1px solid rgba(212, 175, 55, 0.25)',
-                padding: '20px 40px',
+                padding: '16px 24px',
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
@@ -2829,223 +2770,210 @@ const is404Route =
               </div>
             </div>
           </footer>
-        </Reveal>
 
-      </div>
-
-      {/* SIDEBAR OVERLAY & PANEL */}
-      <div 
-        className="sidebar-overlay" 
-        onClick={() => setMenuOpen(false)} 
-        style={{ 
-          position: 'fixed', inset: 0, backgroundColor: 'rgba(17, 24, 39, 0.4)', backdropFilter: 'blur(4px)',
-          zIndex: 190, opacity: menuOpen ? 1 : 0, visibility: menuOpen ? 'visible' : 'hidden', transition: 'all 0.4s ease'
-        }}
-      />
-      
-      <div 
-        className={`sidebar-panel ${menuOpen ? 'open' : ''}`}
-        style={{ 
-          position: 'fixed', top: 0, right: 0, height: '100vh', width: '100%', maxWidth: '420px',
-          backgroundColor: isDarkMode ? 'rgba(7, 11, 25, 0.98)' : 'rgba(250, 249, 245, 0.95)', backdropFilter: 'blur(25px)', zIndex: 200,
-          borderLeft: '1px solid rgba(229, 228, 223, 0.8)', boxShadow: '-10px 0 50px rgba(0,0,0,0.1)',
-          transform: menuOpen ? 'translateX(0)' : 'translateX(100%)', transition: 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
-          display: 'flex', flexDirection: 'column', padding: '40px', overflowY: 'auto', color: themeText
-        }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px' }}>
-          <span className="explore-text-shine">Explore संRACHNA</span>
-          <button aria-label="Close Sidebar" onClick={() => setMenuOpen(false)} className="animated-close-btn">✕</button>
-        </div>
-        
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div className="sidebar-item" onClick={navigateToGuidelines}>
-            <h4 style={{ margin: '0 0 4px 0', fontSize: '18px', fontWeight: 700, color: themeText, fontFamily: "'Playfair Display', serif" }}>Guidelines & Rules</h4>
-            <p style={{ margin: 0, fontSize: '13px', color: themeSubText }}>Review submission criteria, fonts, and ethics.</p>
-          </div>
-          
-          <div className="sidebar-item" onClick={() => { setTeamOpen(true); setMenuOpen(false); }}>
-            <h4 style={{ margin: '0 0 4px 0', fontSize: '18px', fontWeight: 700, color: themeText, fontFamily: "'Playfair Display', serif" }}>Editorial Board</h4>
-            <p style={{ margin: 0, fontSize: '13px', color: themeSubText }}>Meet the faculty and student team.</p>
-          </div>
-          
-          <div
-  className="sidebar-item"
-  onClick={() => {
-    setOpenSubmissionPortal(true);
-    setMenuOpen(false);
-  }}
->
-  <h4 style={{ margin: '0 0 4px 0', fontSize: '18px', fontWeight: 700, color: themeText, fontFamily: "'Playfair Display', serif" }}>
-    Submit Contribution
-  </h4>
-  <p style={{ margin: 0, fontSize: '13px', color: themeSubText }}>
-    Upload your entries directly via portal.
-  </p>
-</div>
-
-          <div className="sidebar-item" onClick={() => { setComingSoonOpen(true); setMenuOpen(false); }}>
-            <h4 style={{ margin: '0 0 4px 0', fontSize: '18px', fontWeight: 700, color: '#D4AF37', fontFamily: "'Playfair Display', serif" }}>Download Digital Edition</h4>
-            <p style={{ margin: 0, fontSize: '13px', color: themeSubText }}>Get the official 2026 digital magazine.</p>
-          </div>
-          
-          <div className="sidebar-item" onClick={() => scrollToSection('contact')}>
-            <h4 style={{ margin: '0 0 4px 0', fontSize: '18px', fontWeight: 700, color: themeText, fontFamily: "'Playfair Display', serif" }}>Contact Us</h4>
-            <p style={{ margin: 0, fontSize: '13px', color: themeSubText }}>Get in touch with the editorial team.</p>
-          </div>
         </div>
 
-        <div style={{ marginTop: 'auto', paddingTop: '40px' }}>
-          <div style={{ padding: '20px', background: 'linear-gradient(135deg, rgba(139,30,36,0.1), rgba(212,175,55,0.1))', borderRadius: '12px', border: '1px solid rgba(229, 228, 223, 0.8)' }}>
-            <strong style={{ display: 'block', fontSize: '14px', color: themeText, marginBottom: '4px' }}>Edition I • 2026</strong>
-            <span style={{ fontSize: '12px', color: '#D4AF37', fontWeight: 600 }}>Theme: The Zero (शून्य)</span>
-          </div>
-        </div>
-      </div>
-
-      {/* EDITORIAL BOARD MODAL */}
-      {teamOpen && (
-        <div
-          style={{
-            position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
-            backgroundColor: 'rgba(30, 15, 18, 0.55)', backdropFilter: 'blur(12px)',
-            zIndex: 150, display: 'flex', justifyContent: 'center', alignItems: 'center',
-            padding: '20px', boxSizing: 'border-box'
+        {/* SIDEBAR OVERLAY & PANEL */}
+        <div 
+          className="sidebar-overlay" 
+          onClick={() => setMenuOpen(false)} 
+          style={{ 
+            position: 'fixed', inset: 0, backgroundColor: 'rgba(17, 24, 39, 0.4)', backdropFilter: 'blur(4px)',
+            zIndex: 190, opacity: menuOpen ? 1 : 0, visibility: menuOpen ? 'visible' : 'hidden', transition: 'all 0.4s ease'
           }}
-          onClick={() => setTeamOpen(false)}
+        />
+        
+        <div 
+          className={`sidebar-panel ${menuOpen ? 'open' : ''}`}
+          style={{ 
+            position: 'fixed', top: 0, right: 0, height: '100vh', width: '100%', maxWidth: '420px',
+            backgroundColor: isDarkMode ? 'rgba(7, 11, 25, 0.98)' : 'rgba(250, 249, 245, 0.95)', backdropFilter: 'blur(25px)', zIndex: 200,
+            borderLeft: '1px solid rgba(229, 228, 223, 0.8)', boxShadow: '-10px 0 50px rgba(0,0,0,0.1)',
+            transform: menuOpen ? 'translateX(0)' : 'translateX(100%)', transition: 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
+            display: 'flex', flexDirection: 'column', padding: '40px', overflowY: 'auto', color: themeText
+          }}
         >
-          <div
-            className="glass-modal"
-            style={{ width: '100%', maxWidth: '1120px', maxHeight: '92vh', padding: 'clamp(24px, 4vw, 48px)', boxSizing: 'border-box', overflowY: 'auto', position: 'relative' }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button aria-label="Close Team Modal" onClick={() => setTeamOpen(false)} className="animated-close-btn" style={{ position: 'absolute', top: '24px', right: '24px', background: 'transparent', border: 'none', cursor: 'pointer' }}>
-              ✕
-            </button>
-            <div style={{ textAlign: 'center', marginBottom: '28px' }}>
-              <div style={{ fontSize: '11px', fontWeight: 700, color: '#D4AF37', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '6px' }}>
-                The Faces Behind The Pages
-              </div>
-              <h2 className="elegant-heading" style={{ fontSize: 'clamp(28px, 4vw, 38px)', margin: '0 0 12px 0' }}>
-                Editorial Board & Committees
-              </h2>
-              <p style={{ margin: '0 auto', maxWidth: '640px', fontSize: '14.5px', color: themeSubText, lineHeight: 1.6 }}>
-                Official Student & Faculty Committee of Sanrachna at Government Engineering College, Godda. Hover or tap on any team stack below to fan out the cards.
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px' }}>
+            <span className="explore-text-shine">Explore संRACHNA</span>
+            <button aria-label="Close Sidebar" onClick={() => setMenuOpen(false)} className="animated-close-btn">✕</button>
+          </div>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div className="sidebar-item" onClick={() => scrollToSection('submissions')}>
+              <h4 style={{ margin: '0 0 4px 0', fontSize: '18px', fontWeight: 700, color: themeText, fontFamily: "'Playfair Display', serif" }}>Guidelines & Rules</h4>
+              <p style={{ margin: 0, fontSize: '13px', color: themeSubText }}>Review submission criteria, fonts, and ethics.</p>
+            </div>
+            
+            <div className="sidebar-item" onClick={() => { setTeamOpen(true); setMenuOpen(false); }}>
+              <h4 style={{ margin: '0 0 4px 0', fontSize: '18px', fontWeight: 700, color: themeText, fontFamily: "'Playfair Display', serif" }}>Editorial Board</h4>
+              <p style={{ margin: 0, fontSize: '13px', color: themeSubText }}>Meet the faculty and student team.</p>
+            </div>
+            
+            <div
+              className="sidebar-item"
+              onClick={() => {
+                setOpenSubmissionPortal(true);
+                setMenuOpen(false);
+              }}
+            >
+              <h4 style={{ margin: '0 0 4px 0', fontSize: '18px', fontWeight: 700, color: themeText, fontFamily: "'Playfair Display', serif" }}>
+                Submit Contribution
+              </h4>
+              <p style={{ margin: 0, fontSize: '13px', color: themeSubText }}>
+                Upload your entries directly via portal.
               </p>
             </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '8px', marginBottom: '32px' }}>
-              {[
-                { id: 'all', label: 'All Teams' },
-                { id: 'faculty', label: 'Faculty In-Charge' },
-                { id: 'editor', label: 'Chief Editor' },
-                { id: 'review', label: 'Review Team' },
-                { id: 'photography', label: 'Photography Team' },
-                { id: 'fine-arts', label: 'Fine Arts Team' },
-                { id: 'graphic-content', label: 'Graphic Content Team' },
-                { id: 'public-relations', label: 'Public Relations Team' },
-              ].map((tab) => (
-                <button key={tab.id} aria-label={`Filter by ${tab.label}`} onClick={() => setSelectedTeamFilter(tab.id)} className={`team-filter-pill ${selectedTeamFilter === tab.id ? 'active' : ''}`}>
-                  {tab.label}
-                </button>
-              ))}
+
+            <div className="sidebar-item" onClick={() => { setComingSoonOpen(true); setMenuOpen(false); }}>
+              <h4 style={{ margin: '0 0 4px 0', fontSize: '18px', fontWeight: 700, color: '#D4AF37', fontFamily: "'Playfair Display', serif" }}>Download Digital Edition</h4>
+              <p style={{ margin: 0, fontSize: '13px', color: themeSubText }}>Get the official 2026 digital magazine.</p>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
-              {filteredTeamGroups.map((group) => (
-                <TeamFanStack key={group.id} group={group} />
-              ))}
+            
+            <div className="sidebar-item" onClick={() => scrollToSection('contact')}>
+              <h4 style={{ margin: '0 0 4px 0', fontSize: '18px', fontWeight: 700, color: themeText, fontFamily: "'Playfair Display', serif" }}>Contact Us</h4>
+              <p style={{ margin: 0, fontSize: '13px', color: themeSubText }}>Get in touch with the editorial team.</p>
+            </div>
+          </div>
+
+          <div style={{ marginTop: 'auto', paddingTop: '40px' }}>
+            <div style={{ padding: '20px', background: 'linear-gradient(135deg, rgba(139,30,36,0.1), rgba(212,175,55,0.1))', borderRadius: '12px', border: '1px solid rgba(229, 228, 223, 0.8)' }}>
+              <strong style={{ display: 'block', fontSize: '14px', color: themeText, marginBottom: '4px' }}>Edition I • 2026</strong>
+              <span style={{ fontSize: '12px', color: '#D4AF37', fontWeight: 600 }}>Theme: The Zero (शून्य)</span>
             </div>
           </div>
         </div>
-      )}
 
-      {/* ANNOUNCEMENTS MODAL */}
-      {announcementsOpen && (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(17, 24, 39, 0.5)', backdropFilter: 'blur(8px)', zIndex: 150, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px', boxSizing: 'border-box' }} onClick={() => setAnnouncementsOpen(false)}>
-          <div className="glass-modal" style={{ width: '100%', maxWidth: '800px', maxHeight: '85vh', padding: 'clamp(28px, 4vw, 48px)', boxSizing: 'border-box', overflowY: 'auto', position: 'relative' }} onClick={(e) => e.stopPropagation()}>
-            <button aria-label="Close Announcements Modal" onClick={() => setAnnouncementsOpen(false)} className="animated-close-btn" style={{ position: 'absolute', top: '24px', right: '24px', background: 'transparent', border: 'none', cursor: 'pointer' }}>✕</button>
-            <div style={{ fontSize: '11px', fontWeight: 700, color: '#D4AF37', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '8px' }}>Official Notice Board</div>
-            <h2 className="elegant-heading" style={{ fontSize: '28px', margin: '0 0 24px 0' }}>Announcements & Updates</h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', fontSize: '15px', color: themeSubText, lineHeight: 1.7 }}>
-              {liveBoardNotices.length > 0 ? (
-  liveBoardNotices.map((item) => (
-    <div
-      key={item.id}
-      style={{
-        padding: '24px',
-        background: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(255, 255, 255, 0.8)',
-        border: '1px solid rgba(229, 228, 223, 0.8)',
-        borderRadius: '16px',
-      }}
-    >
-      <div style={{ fontSize: '10px', fontWeight: 800, letterSpacing: '1.5px', textTransform: 'uppercase', color: '#D4AF37', marginBottom: '4px' }}>
-        {item.tag}
+        {/* EDITORIAL BOARD MODAL */}
+        {teamOpen && (
+          <div
+            style={{
+              position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+              backgroundColor: 'rgba(30, 15, 18, 0.55)', backdropFilter: 'blur(12px)',
+              zIndex: 150, display: 'flex', justifyContent: 'center', alignItems: 'center',
+              padding: '20px', boxSizing: 'border-box'
+            }}
+            onClick={() => setTeamOpen(false)}
+          >
+            <div
+              className="glass-modal"
+              style={{ width: '100%', maxWidth: '1120px', maxHeight: '92vh', padding: 'clamp(24px, 4vw, 48px)', boxSizing: 'border-box', overflowY: 'auto', position: 'relative' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button aria-label="Close Team Modal" onClick={() => setTeamOpen(false)} className="animated-close-btn" style={{ position: 'absolute', top: '24px', right: '24px', background: 'transparent', border: 'none', cursor: 'pointer' }}>
+                ✕
+              </button>
+              <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+                <div style={{ fontSize: '11px', fontWeight: 700, color: '#D4AF37', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '6px' }}>
+                  The Faces Behind The Pages
+                </div>
+                <h2 className="elegant-heading" style={{ fontSize: 'clamp(28px, 4vw, 38px)', margin: '0 0 12px 0' }}>
+                  Editorial Board & Committees
+                </h2>
+                <p style={{ margin: '0 auto', maxWidth: '640px', fontSize: '14.5px', color: themeSubText, lineHeight: 1.6 }}>
+                  Official Student & Faculty Committee of Sanrachna at Government Engineering College, Godda. Hover or tap on any team stack below to fan out the cards.
+                </p>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '8px', marginBottom: '32px' }}>
+                {[
+                  { id: 'all', label: 'All Teams' },
+                  { id: 'faculty', label: 'Faculty In-Charge' },
+                  { id: 'editor', label: 'Chief Editor' },
+                  { id: 'review', label: 'Review Team' },
+                  { id: 'photography', label: 'Photography Team' },
+                  { id: 'fine-arts', label: 'Fine Arts Team' },
+                  { id: 'graphic-content', label: 'Graphic Content Team' },
+                  { id: 'public-relations', label: 'Public Relations Team' },
+                ].map((tab) => (
+                  <button key={tab.id} aria-label={`Filter by ${tab.label}`} onClick={() => setSelectedTeamFilter(tab.id)} className={`team-filter-pill ${selectedTeamFilter === tab.id ? 'active' : ''}`}>
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+                {filteredTeamGroups.map((group) => (
+                  <TeamFanStack key={group.id} group={group} />
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ANNOUNCEMENTS MODAL */}
+        {announcementsOpen && (
+          <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(17, 24, 39, 0.5)', backdropFilter: 'blur(8px)', zIndex: 150, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px', boxSizing: 'border-box' }} onClick={() => setAnnouncementsOpen(false)}>
+            <div className="glass-modal" style={{ width: '100%', maxWidth: '800px', maxHeight: '85vh', padding: 'clamp(28px, 4vw, 48px)', boxSizing: 'border-box', overflowY: 'auto', position: 'relative' }} onClick={(e) => e.stopPropagation()}>
+              <button aria-label="Close Announcements Modal" onClick={() => setAnnouncementsOpen(false)} className="animated-close-btn" style={{ position: 'absolute', top: '24px', right: '24px', background: 'transparent', border: 'none', cursor: 'pointer' }}>✕</button>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: '#D4AF37', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '8px' }}>Official Notice Board</div>
+              <h2 className="elegant-heading" style={{ fontSize: '28px', margin: '0 0 24px 0' }}>Announcements & Updates</h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', fontSize: '15px', color: themeSubText, lineHeight: 1.7 }}>
+                {liveBoardNotices.length > 0 ? (
+                  liveBoardNotices.map((item) => (
+                    <div
+                      key={item.id}
+                      style={{
+                        padding: '24px',
+                        background: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(255, 255, 255, 0.8)',
+                        border: '1px solid rgba(229, 228, 223, 0.8)',
+                        borderRadius: '16px',
+                      }}
+                    >
+                      <div style={{ fontSize: '10px', fontWeight: 800, letterSpacing: '1.5px', textTransform: 'uppercase', color: '#D4AF37', marginBottom: '4px' }}>
+                        {item.tag}
+                      </div>
+                      <strong style={{ color: themeText }}>{item.title}</strong>
+                      <p style={{ margin: '6px 0 0 0', fontSize: '14px' }}>{item.message}</p>
+                    </div>
+                  ))
+                ) : (
+                  <>
+                    <div style={{ padding: '24px', background: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(255, 255, 255, 0.8)', border: '1px solid rgba(229, 228, 223, 0.8)', borderRadius: '16px' }}>
+                      <strong style={{ color: themeText }}>Submissions Open for Edition I (2026)</strong>
+                      <p style={{ margin: '6px 0 0 0', fontSize: '14px' }}>The Editorial Board invites original literary, technical, and artistic contributions from all students, faculty, and staff of GEC Godda.</p>
+                    </div>
+                    <div style={{ padding: '24px', background: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(255, 255, 255, 0.8)', border: '1px solid rgba(229, 228, 223, 0.8)', borderRadius: '16px' }}>
+                      <strong style={{ color: themeText }}>Theme of the Year: The Zero (शून्य)</strong>
+                      <p style={{ margin: '6px 0 0 0', fontSize: '14px' }}>Exploring new beginnings, boundless potential, and foundational origins in science and arts.</p>
+                    </div>
+                    <div style={{ padding: '24px', background: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(255, 255, 255, 0.8)', border: '1px solid rgba(229, 228, 223, 0.8)', borderRadius: '16px' }}>
+                      <strong style={{ color: themeText }}>Submission Guidelines & Template</strong>
+                      <p style={{ margin: '6px 0 0 0', fontSize: '14px' }}>Download the official guidelines and submission template PDF files directly from the website's Guidelines section to format your entries correctly.</p>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* COMING SOON MODAL */}
+        {comingSoonOpen && (
+          <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(17, 24, 39, 0.6)', backdropFilter: 'blur(10px)', zIndex: 150, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px', boxSizing: 'border-box' }} onClick={() => setComingSoonOpen(false)}>
+            <div className="glass-modal" style={{ width: '100%', maxWidth: '600px', padding: 'clamp(36px, 5vw, 60px) clamp(24px, 4vw, 48px)', boxSizing: 'border-box', textAlign: 'center', position: 'relative' }} onClick={(e) => e.stopPropagation()}>
+              <button aria-label="Close Coming Soon Modal" onClick={() => setComingSoonOpen(false)} className="animated-close-btn" style={{ position: 'absolute', top: '24px', right: '24px', background: 'transparent', border: 'none', cursor: 'pointer' }}>✕</button>
+              <div style={{ fontSize: '48px', marginBottom: '16px' }}>⏳</div>
+              <h2 className="elegant-heading" style={{ fontSize: '36px', margin: '0 0 16px 0' }}>Coming Soon</h2>
+              <p style={{ fontSize: '18px', color: themeSubText, lineHeight: 1.6, margin: '0 0 30px 0' }}>
+                The digital edition of संRACHNA (2026) is currently under compilation. It will be available for download here once the final publication is released.
+              </p>
+              <button onClick={() => setComingSoonOpen(false)} className="liquid-glass-btn" style={{ padding: '12px 32px' }}>
+                Got it, Thanks!
+              </button>
+            </div>
+          </div>
+        )}
       </div>
-      <strong style={{ color: themeText }}>{item.title}</strong>
-      <p style={{ margin: '6px 0 0 0', fontSize: '14px' }}>{item.message}</p>
-    </div>
-  ))
-) : (
-  <>
-              <div style={{ padding: '24px', background: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(255, 255, 255, 0.8)', border: '1px solid rgba(229, 228, 223, 0.8)', borderRadius: '16px' }}>
-                <strong style={{ color: themeText }}>Submissions Open for Edition I (2026)</strong>
-                <p style={{ margin: '6px 0 0 0', fontSize: '14px' }}>The Editorial Board invites original literary, technical, and artistic contributions from all students, faculty, and staff of GEC Godda.</p>
-              </div>
-              <div style={{ padding: '24px', background: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(255, 255, 255, 0.8)', border: '1px solid rgba(229, 228, 223, 0.8)', borderRadius: '16px' }}>
-                <strong style={{ color: themeText }}>Theme of the Year: The Zero (शून्य)</strong>
-                <p style={{ margin: '6px 0 0 0', fontSize: '14px' }}>Exploring new beginnings, boundless potential, and foundational origins in science and arts.</p>
-              </div>
-              <div style={{ padding: '24px', background: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(255, 255, 255, 0.8)', border: '1px solid rgba(229, 228, 223, 0.8)', borderRadius: '16px' }}>
-                <strong style={{ color: themeText }}>Submission Guidelines & Template</strong>
-                <p style={{ margin: '6px 0 0 0', fontSize: '14px' }}>Download the official guidelines and submission template PDF files directly from the website's Guidelines section to format your entries correctly.</p>
-              </div>
-              </>
-)}
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* COMING SOON MODAL */}
-      {comingSoonOpen && (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(17, 24, 39, 0.6)', backdropFilter: 'blur(10px)', zIndex: 150, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px', boxSizing: 'border-box' }} onClick={() => setComingSoonOpen(false)}>
-          <div className="glass-modal" style={{ width: '100%', maxWidth: '600px', padding: 'clamp(36px, 5vw, 60px) clamp(24px, 4vw, 48px)', boxSizing: 'border-box', textAlign: 'center', position: 'relative' }} onClick={(e) => e.stopPropagation()}>
-            <button aria-label="Close Coming Soon Modal" onClick={() => setComingSoonOpen(false)} className="animated-close-btn" style={{ position: 'absolute', top: '24px', right: '24px', background: 'transparent', border: 'none', cursor: 'pointer' }}>✕</button>
-            <div style={{ fontSize: '48px', marginBottom: '16px' }}>⏳</div>
-            <h2 className="elegant-heading" style={{ fontSize: '36px', margin: '0 0 16px 0', color: themeText }}>Coming Soon</h2>
-            <p style={{ fontSize: '18px', color: themeSubText, lineHeight: 1.6, margin: '0 0 30px 0' }}>
-              The digital edition of संRACHNA (2026) is currently under compilation. It will be available for download here once the final publication is released.
-            </p>
-            <button onClick={() => setComingSoonOpen(false)} className="liquid-glass-btn" style={{ padding: '12px 32px' }}>
-              Got it, Thanks!
-            </button>
-          </div>
-        </div>
+      {openSubmissionPortal && (
+        <SubmissionForm onBack={() => setOpenSubmissionPortal(false)} />
       )}
-    </div>
-      <Suspense fallback={null}>
-        {openSubmissionPortal && (
-          <SubmissionForm onBack={() => setOpenSubmissionPortal(false)} />
-        )}
-        {openGuidelines && (
-          <GuidelinesPage
-            isDarkMode={isDarkMode}
-            onToggleTheme={() => setIsDarkMode(!isDarkMode)}
-            onBack={closeGuidelines}
-            onOpenSubmission={() => {
-              closeGuidelines();
-              setOpenSubmissionPortal(true);
-            }}
-          />
-        )}
-        {openReviewDesk && (
-          <ReviewDashboard
-            onExit={() => {
-              window.history.replaceState(null, '', '/');
-              setOpenReviewDesk(false);
-            }}
-          />
-        )}
-      </Suspense>
+      {openReviewDesk && (
+        <ReviewDashboard
+          onExit={() => {
+            window.history.replaceState(null, '', '/');
+            setOpenReviewDesk(false);
+          }}
+        />
+      )}
     </>
   );
 }
