@@ -2635,7 +2635,7 @@ const is404Route =
         {/* =========================================================================== */}
         {/* PREMIUM THEME-ALIGNED EDITORIAL FOOTER (NO WHITE BOX, 3 HINDI LINES)       */}
         {/* =========================================================================== */}
-        <Reveal margin="0px 0px -120px 0px">
+        <Reveal margin="0px">
           <footer
             style={{
               position: 'relative',
