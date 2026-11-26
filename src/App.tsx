@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef, lazy, Suspense } from 'react';
 const SubmissionForm = lazy(() => import('./components/ui/SubmissionForm'));
 const ReviewDashboard = lazy(() => import('./components/ReviewDashboard'));
 import { supabase } from './lib/supabase';
+import GuidelinesPage from './GuidelinesPage';
 
 // ===========================================================================
 // 1. FLOATING 3D PARTICLES ENGINE
@@ -1411,6 +1412,22 @@ export default function App() {
   const [hasEntered, setHasEntered] = useState(false);
   const [showFloatingActions, setShowFloatingActions] = useState(false);
 const [openSubmissionPortal, setOpenSubmissionPortal] = useState(false);
+  const [openGuidelines, setOpenGuidelines] = useState(
+  () => window.location.pathname.toLowerCase().replace(/\/$/, '') === '/guidelines'
+);
+
+const navigateToGuidelines = () => {
+  window.history.pushState({}, '', '/guidelines');
+  setCurrentPath('/guidelines');
+  setOpenGuidelines(true);
+  setMenuOpen(false);
+};
+
+const closeGuidelines = () => {
+  window.history.pushState({}, '', '/');
+  setCurrentPath('/');
+  setOpenGuidelines(false);
+};
 const [openReviewDesk, setOpenReviewDesk] = useState(
     () =>
       window.location.hash.toLowerCase() === '#review' ||
@@ -1495,7 +1512,11 @@ const [liveNotices, setLiveNotices] = useState<
   const zoomThreshold = 500;
 
   useEffect(() => {
-    const handlePopState = () => setCurrentPath(window.location.pathname);
+    const handlePopState = () => {
+  const path = window.location.pathname;
+  setCurrentPath(path);
+  setOpenGuidelines(path.toLowerCase().replace(/\/$/, '') === '/guidelines');
+};
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
@@ -1542,12 +1563,15 @@ const [liveNotices, setLiveNotices] = useState<
   };
 
   const isStudioRoute = currentPath === '/studio' || currentPath === '/studio/';
+const isGuidelinesRoute = currentPath === '/guidelines' || currentPath === '/guidelines/';
 const is404Route =
   currentPath !== '/' &&
   currentPath !== '' &&
   !currentPath.includes('index.html') &&
-  !isStudioRoute&&
-  !openReviewDesk;
+  !isStudioRoute &&
+  !isGuidelinesRoute &&
+  !openReviewDesk &&
+  !openGuidelines;
   if (is404Route) {
     return (
       <Error404View onBackHome={() => {
@@ -1671,7 +1695,7 @@ const is404Route =
         position: 'relative',
         overflowX: 'clip',
         transition: 'background-color 0.4s ease, color 0.4s ease' ,
-        display: openSubmissionPortal ? 'none' : 'block'
+        display: openSubmissionPortal || openGuidelines ? 'none' : 'block'
       }}
     >
       <style>{`
@@ -2800,7 +2824,7 @@ const is404Route =
         </div>
         
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div className="sidebar-item" onClick={() => scrollToSection('submissions')}>
+          <div className="sidebar-item" onClick={navigateToGuidelines}>
             <h4 style={{ margin: '0 0 4px 0', fontSize: '18px', fontWeight: 700, color: themeText, fontFamily: "'Playfair Display', serif" }}>Guidelines & Rules</h4>
             <p style={{ margin: 0, fontSize: '13px', color: themeSubText }}>Review submission criteria, fonts, and ethics.</p>
           </div>
@@ -2966,6 +2990,17 @@ const is404Route =
       <Suspense fallback={null}>
         {openSubmissionPortal && (
           <SubmissionForm onBack={() => setOpenSubmissionPortal(false)} />
+        )}
+        {openGuidelines && (
+          <GuidelinesPage
+            isDarkMode={isDarkMode}
+            onToggleTheme={() => setIsDarkMode(!isDarkMode)}
+            onBack={closeGuidelines}
+            onOpenSubmission={() => {
+              closeGuidelines();
+              setOpenSubmissionPortal(true);
+            }}
+          />
         )}
         {openReviewDesk && (
           <ReviewDashboard
