@@ -2952,7 +2952,7 @@ const is404Route =
           <div className="glass-modal" style={{ width: '100%', maxWidth: '600px', padding: 'clamp(36px, 5vw, 60px) clamp(24px, 4vw, 48px)', boxSizing: 'border-box', textAlign: 'center', position: 'relative' }} onClick={(e) => e.stopPropagation()}>
             <button aria-label="Close Coming Soon Modal" onClick={() => setComingSoonOpen(false)} className="animated-close-btn" style={{ position: 'absolute', top: '24px', right: '24px', background: 'transparent', border: 'none', cursor: 'pointer' }}>✕</button>
             <div style={{ fontSize: '48px', marginBottom: '16px' }}>⏳</div>
-            <h2 className="elegant-heading" style={{ fontSize: '36px', margin: '0 0 16px 0' }}>Coming Soon</h2>
+            <h2 className="elegant-heading" style={{ fontSize: '36px', margin: '0 0 16px 0', color: themeText }}>Coming Soon</h2>
             <p style={{ fontSize: '18px', color: themeSubText, lineHeight: 1.6, margin: '0 0 30px 0' }}>
               The digital edition of संRACHNA (2026) is currently under compilation. It will be available for download here once the final publication is released.
             </p>
