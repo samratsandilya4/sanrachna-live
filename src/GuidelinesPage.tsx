@@ -470,7 +470,7 @@ function AnimateDigits({
 }
 
 // ===========================================================================
-// 6. SINGLE-ROW HORIZONTAL SLIDING PILL TABS (ZERO MOBILE LINE-WRAP BUG)
+// 6. SINGLE-ROW HORIZONTAL SLIDING PILL TABS (NO UNWANTED AUTO-SCROLL)
 // ===========================================================================
 function SlidingPillTabs<T extends string>({
   items,
@@ -1956,7 +1956,6 @@ export default function GuidelinesPage({
   const [checklistShake, setChecklistShake] = useState(false);
   const [showLockHint, setShowLockHint] = useState(false);
 
-  // Cinematic Theme Curtain Ripple State
   const [themePulseKey, setThemePulseKey] = useState(0);
   const [themePulseTarget, setThemePulseTarget] = useState<'dark' | 'light'>(
     isDarkMode ? 'dark' : 'light'
@@ -2148,7 +2147,6 @@ export default function GuidelinesPage({
 
         .san-awwwards-gp * { box-sizing: border-box; }
 
-        /* Horizontal Single-Row Scroll Container for Mobile Tabs */
         .gp-tabs-scroll-outer {
           max-width: 100%;
           overflow-x: auto;
@@ -2161,7 +2159,6 @@ export default function GuidelinesPage({
           display: none;
         }
 
-        /* Cinematic Theme Switch Curtain Wave */
         @keyframes themeRadialWave {
           0% {
             opacity: 0.92;
@@ -2184,7 +2181,6 @@ export default function GuidelinesPage({
           animation: themeRadialWave 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
 
-        /* Pure CSS Gradient Text Classes */
         .royal-accent-text-dark {
           display: inline-block;
           font-style: italic;
@@ -2241,16 +2237,69 @@ export default function GuidelinesPage({
           0% { transform: translateX(-140%) skewX(-24deg); }
           100% { transform: translateX(260%) skewX(-24deg); }
         }
-        @keyframes modalPopIn {
-          from { opacity: 0; filter: blur(12px); transform: translateY(24px) scale(0.96); }
-          to { opacity: 1; filter: blur(0px); transform: translateY(0) scale(1); }
+
+        /* Smooth 60fps Luxury Glass Modal (Zero Blur-Keyframe Flash) */
+        @keyframes gpOverlayFadeIn {
+          0% { opacity: 0; }
+          100% { opacity: 1; }
         }
+        @keyframes gpLuxurySheetIn {
+          0% {
+            opacity: 0;
+            transform: perspective(1200px) translate3d(0, 28px, -24px) rotateX(4.5deg) scale(0.975);
+          }
+          100% {
+            opacity: 1;
+            transform: perspective(1200px) translate3d(0, 0, 0) rotateX(0deg) scale(1);
+          }
+        }
+        @keyframes gpModalSheenSweep {
+          0% {
+            transform: translate3d(-135%, 0, 0) skewX(-22deg);
+            opacity: 0;
+          }
+          25% {
+            opacity: 0.55;
+          }
+          100% {
+            transform: translate3d(260%, 0, 0) skewX(-22deg);
+            opacity: 0;
+          }
+        }
+        .gp-modal-backdrop {
+          backdrop-filter: blur(18px) saturate(165%);
+          -webkit-backdrop-filter: blur(18px) saturate(165%);
+          animation: gpOverlayFadeIn 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+        .gp-modal-sheet {
+          position: relative;
+          overflow-x: hidden;
+          animation: gpLuxurySheetIn 0.44s cubic-bezier(0.16, 1, 0.3, 1) both;
+          will-change: transform, opacity;
+        }
+        .gp-modal-sheet::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          width: 48%;
+          height: 100%;
+          background: linear-gradient(
+            90deg,
+            transparent 0%,
+            rgba(255, 255, 255, 0.16) 45%,
+            rgba(212, 175, 55, 0.22) 55%,
+            transparent 100%
+          );
+          pointer-events: none;
+          z-index: 5;
+          animation: gpModalSheenSweep 1.05s cubic-bezier(0.16, 1, 0.3, 1) 0.12s both;
+        }
+
         @keyframes footerHaloPulse {
           0%, 100% { opacity: 0.45; transform: translateX(-50%) scale(1); }
           50% { opacity: 0.78; transform: translateX(-50%) scale(1.08); }
         }
 
-        /* Bespoke Category Icon Load & Idle Micro-Animations */
         @keyframes iconDrawPop {
           0% { opacity: 0; transform: scale(0.55) rotate(-14deg); }
           65% { opacity: 1; transform: scale(1.1) rotate(4deg); }
@@ -2295,7 +2344,6 @@ export default function GuidelinesPage({
         .icon-anim-flame { animation: animFlame 2.4s ease-in-out infinite; }
         .icon-anim-float { animation: animFloat 3.2s ease-in-out infinite; }
 
-        /* Staggered Left-Rail Toggle Entrance & Active Pulse (Video 1 Effect) */
         @keyframes railToggleArcIn {
           0% {
             opacity: 0;
@@ -2346,7 +2394,6 @@ export default function GuidelinesPage({
           }
         }
 
-        /* Top Capsule Header — Video-Style Arc Shift Into Left Rail on Scroll */
         .gp-capsule-wrap {
           position: sticky;
           top: 12px;
@@ -2385,7 +2432,6 @@ export default function GuidelinesPage({
             : '0 14px 36px rgba(30, 58, 95, 0.11), inset 0 1px 2px rgba(255,255,255,1)'};
         }
 
-        /* DESKTOP LEFT-SHIFT VERTICAL CAPSULE RAIL */
         .gp-left-rail {
           display: none;
         }
@@ -2698,7 +2744,6 @@ export default function GuidelinesPage({
             padding-top: 48px !important;
             padding-bottom: 64px !important;
           }
-          /* Keep 2-column compact grid on mobile footer so it doesn't stretch vertically */
           .gp-footer-socials-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 8px;
@@ -2706,7 +2751,6 @@ export default function GuidelinesPage({
         }
       `}</style>
 
-      {/* Cinematic Radial Curtain Wave on Light ↔ Dark Theme Toggle */}
       {themePulseKey > 0 && (
         <div
           key={themePulseKey}
@@ -2721,7 +2765,6 @@ export default function GuidelinesPage({
         />
       )}
 
-      {/* Top Glowing Scroll Progress Thread */}
       <div
         aria-hidden="true"
         style={{
@@ -2737,10 +2780,8 @@ export default function GuidelinesPage({
         }}
       />
 
-      {/* 3D Floating Bubbles Background */}
       <Floating3DBubbles isDarkMode={isDarkMode} />
 
-      {/* Subtle Ambient Royal Auroras */}
       <div aria-hidden="true" style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0, overflow: 'hidden' }}>
         <div
           style={{
@@ -2759,9 +2800,7 @@ export default function GuidelinesPage({
         />
       </div>
 
-      {/* ================================================================= */}
-      {/* DESKTOP LEFT-SHIFT VERTICAL CAPSULE RAIL (STAGGERED ARC IN)       */}
-      {/* ================================================================= */}
+      {/* DESKTOP LEFT-SHIFT VERTICAL CAPSULE RAIL */}
       <aside
         className="gp-left-rail"
         onMouseEnter={() => setRailHovered(true)}
@@ -2898,9 +2937,7 @@ export default function GuidelinesPage({
         </div>
       </aside>
 
-      {/* ================================================================= */}
-      {/* DESKTOP PERSISTENT TOP-RIGHT ACTION PILL (THEME + SUBMIT)         */}
-      {/* ================================================================= */}
+      {/* DESKTOP PERSISTENT TOP-RIGHT ACTION PILL */}
       <div
         className="gp-topright-dock"
         style={{
@@ -2931,9 +2968,7 @@ export default function GuidelinesPage({
         </button>
       </div>
 
-      {/* ================================================================= */}
-      {/* TOP FLOATING CAPSULE HEADER                                       */}
-      {/* ================================================================= */}
+      {/* TOP FLOATING CAPSULE HEADER */}
       <div className={`gp-capsule-wrap ${isDocked ? 'is-docked' : ''}`}>
         <header className="gp-capsule-nav">
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
@@ -3007,9 +3042,7 @@ export default function GuidelinesPage({
       </div>
 
       <main style={{ position: 'relative', zIndex: 5 }}>
-        {/* ================================================================= */}
-        {/* CINEMATIC HERO                                                    */}
-        {/* ================================================================= */}
+        {/* CINEMATIC HERO */}
         <section
           className="gp-inner gp-hero-section"
           style={{
@@ -3130,9 +3163,7 @@ export default function GuidelinesPage({
           <div className="gp-divider" />
         </div>
 
-        {/* ================================================================= */}
-        {/* SECTION 01: 12 WAYS TO CONTRIBUTE                                 */}
-        {/* ================================================================= */}
+        {/* SECTION 01: 12 WAYS TO CONTRIBUTE */}
         <section id="bento-categories" className="gp-inner" style={{ paddingTop: '68px', paddingBottom: '82px' }}>
           <div
             style={{
@@ -3207,9 +3238,7 @@ export default function GuidelinesPage({
           <div className="gp-divider" />
         </div>
 
-        {/* ================================================================= */}
-        {/* SECTION 02: DOWNLOADS & PRE-SUBMISSION GLASS FOLDERS              */}
-        {/* ================================================================= */}
+        {/* SECTION 02: DOWNLOADS & PRE-SUBMISSION GLASS FOLDERS */}
         <section id="glass-folders" className="gp-inner" style={{ paddingTop: '68px', paddingBottom: '84px' }}>
           <div style={{ marginBottom: '30px' }}>
             <AnimatedSectionTitle
@@ -3256,9 +3285,7 @@ export default function GuidelinesPage({
           <div className="gp-divider" />
         </div>
 
-        {/* ================================================================= */}
-        {/* SECTION 03: FORMATTING STUDIO                                     */}
-        {/* ================================================================= */}
+        {/* SECTION 03: FORMATTING STUDIO */}
         <section id="formatting-studio" className="gp-inner" style={{ paddingTop: '68px', paddingBottom: '84px' }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', gap: '20px', marginBottom: '30px' }}>
             <AnimatedSectionTitle title="Formatting &" accent="Print Preview" isDarkMode={isDarkMode} />
@@ -3484,9 +3511,7 @@ export default function GuidelinesPage({
           <div className="gp-divider" />
         </div>
 
-        {/* ================================================================= */}
-        {/* SECTION 04: FROM PORTAL TO PRINT                                  */}
-        {/* ================================================================= */}
+        {/* SECTION 04: FROM PORTAL TO PRINT */}
         <section className="gp-inner" style={{ paddingTop: '68px', paddingBottom: '82px' }}>
           <div style={{ marginBottom: '32px' }}>
             <AnimatedSectionTitle
@@ -3566,9 +3591,7 @@ export default function GuidelinesPage({
           <div className="gp-divider" />
         </div>
 
-        {/* ================================================================= */}
-        {/* SECTION 05: EDITORIAL RULES & ETHICS + CONTRIBUTOR HONOURS        */}
-        {/* ================================================================= */}
+        {/* SECTION 05: EDITORIAL RULES & ETHICS + CONTRIBUTOR HONOURS */}
         <section id="editorial-ethics" className="gp-inner" style={{ paddingTop: '68px', paddingBottom: '88px' }}>
           <div className="gp-disclosures-split">
             <div className="gp-sticky-desktop" style={{ textAlign: 'left' }}>
@@ -3645,9 +3668,7 @@ export default function GuidelinesPage({
           </div>
         </section>
 
-        {/* ================================================================= */}
-        {/* BALANCED FULL-BLEED CINEMATIC FOOTER                              */}
-        {/* ================================================================= */}
+        {/* BALANCED FULL-BLEED CINEMATIC FOOTER */}
         <footer
           style={{
             position: 'relative',
@@ -3968,9 +3989,7 @@ export default function GuidelinesPage({
         </footer>
       </main>
 
-      {/* ================================================================= */}
-      {/* FROSTED-GLASS MODAL WITH STRICT 4-CHECKBOX SUBMIT GATE            */}
-      {/* ================================================================= */}
+      {/* FROSTED-GLASS LUXURY MODAL (ZERO FLASH • SHEEN SWEEP • 4-CHECKBOX GATE) */}
       {modalCat && (() => {
         const ModalIcon = modalCat.icon;
         const checks = checkedMap[modalCat.id] ?? modalCat.checklist.map(() => false);
@@ -4003,6 +4022,7 @@ export default function GuidelinesPage({
 
         return (
           <div
+            className="gp-modal-backdrop"
             onClick={() => {
               setActiveModalCatId(null);
               setShowLockHint(false);
@@ -4011,9 +4031,7 @@ export default function GuidelinesPage({
               position: 'fixed',
               inset: 0,
               zIndex: 200,
-              background: isDarkMode ? 'rgba(4, 7, 18, 0.78)' : 'rgba(18, 12, 16, 0.56)',
-              backdropFilter: 'blur(16px)',
-              WebkitBackdropFilter: 'blur(16px)',
+              background: isDarkMode ? 'rgba(4, 7, 18, 0.76)' : 'rgba(15, 20, 36, 0.46)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -4021,6 +4039,7 @@ export default function GuidelinesPage({
             }}
           >
             <div
+              className="gp-modal-sheet"
               onClick={(e) => e.stopPropagation()}
               style={{
                 width: '100%',
@@ -4032,14 +4051,12 @@ export default function GuidelinesPage({
                 background: isDarkMode
                   ? 'linear-gradient(155deg, rgba(16, 23, 46, 0.96) 0%, rgba(8, 12, 26, 0.98) 100%)'
                   : 'linear-gradient(155deg, rgba(255, 254, 250, 0.98) 0%, rgba(247, 240, 229, 0.98) 100%)',
-                border: '1px solid rgba(212, 175, 55, 0.55)',
-                boxShadow: '0 32px 90px rgba(0, 0, 0, 0.55), inset 0 1px 2px rgba(255,255,255,0.2)',
-                animation: 'modalPopIn 0.42s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+                border: '1px solid rgba(212, 175, 55, 0.58)',
+                boxShadow: '0 32px 90px rgba(0, 0, 0, 0.58), inset 0 1.5px 2px rgba(255,255,255,0.22)',
                 textAlign: 'left',
-                position: 'relative',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }}>
+              <div style={{ position: 'relative', zIndex: 6, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                   <div
                     style={{
@@ -4124,13 +4141,15 @@ export default function GuidelinesPage({
                 </div>
               </div>
 
-              <p style={{ margin: '16px 0 18px 0', fontSize: '14.5px', lineHeight: 1.7, color: textSub }}>
+              <p style={{ position: 'relative', zIndex: 6, margin: '16px 0 18px 0', fontSize: '14.5px', lineHeight: 1.7, color: textSub }}>
                 {modalCat.summary}
               </p>
 
               {modalCat.specialNote && (
                 <div
                   style={{
+                    position: 'relative',
+                    zIndex: 6,
                     marginBottom: '18px',
                     padding: '12px 16px',
                     borderRadius: '14px',
@@ -4148,7 +4167,7 @@ export default function GuidelinesPage({
                 </div>
               )}
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(270px, 1fr))', gap: '22px' }}>
+              <div style={{ position: 'relative', zIndex: 6, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(270px, 1fr))', gap: '22px' }}>
                 <div>
                   <div style={{ fontSize: '11.5px', fontWeight: 800, letterSpacing: '1.3px', textTransform: 'uppercase', color: '#D4AF37', marginBottom: '10px' }}>
                     Accepted Topics &amp; Scope
@@ -4263,7 +4282,6 @@ export default function GuidelinesPage({
                   )}
                 </div>
 
-                {/* Right Side: Strict 4-Checkbox Gate */}
                 <div
                   className={checklistShake ? 'gp-shake' : ''}
                   style={{
