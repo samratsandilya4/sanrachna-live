@@ -2272,9 +2272,16 @@ const is404Route =
             }}
           >
             <video
-              src="/sanrachna-intro.mp4" autoPlay loop muted playsInline aria-hidden="true"
-              style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', zIndex: 1, filter: 'brightness(0.65)' }}
-            />
+  src="/sanrachna-intro.mp4"
+  poster="/intro-poster.webp"
+  preload="metadata"
+  autoPlay
+  loop
+  muted
+  playsInline
+  aria-hidden="true"
+  style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', zIndex: 1, filter: 'brightness(0.65)' }}
+/>
             <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at center, rgba(11,19,43,0.3) 0%, rgba(11,19,43,0.85) 100%)', zIndex: 2 }} />
 
             <div
