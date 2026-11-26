@@ -495,7 +495,7 @@ function SlidingPillTabs<T extends string>({
       const wrap = wrapRef.current;
       if (!btn || !wrap) return;
       setPill({ left: btn.offsetLeft, width: btn.offsetWidth, ready: true });
-
+    };
     sync();
     window.addEventListener('resize', sync);
     return () => window.removeEventListener('resize', sync);
