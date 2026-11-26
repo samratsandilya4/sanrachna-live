@@ -1419,19 +1419,18 @@ export default function App() {
   const [hasEntered, setHasEntered] = useState(false);
   const [showFloatingActions, setShowFloatingActions] = useState(false);
   const [openSubmissionPortal, setOpenSubmissionPortal] = useState(false);
-  const [openReviewDesk, setOpenReviewDesk] = useState(
-    const [guidelinesOpen, setGuidelinesOpen] = useState(false);
+ const [openReviewDesk, setOpenReviewDesk] = useState(
     () =>
       window.location.hash.toLowerCase() === '#review' ||
       window.location.pathname.toLowerCase() === '/review' ||
       window.location.pathname.toLowerCase() === '/studio' ||
       window.location.pathname.toLowerCase() === '/studio/'
   );
-  const [guidelinesOpen, setGuidelinesOpen] = useState<boolean>(() =>
-  typeof window !== 'undefined' &&
-  window.location.pathname.toLowerCase().replace(/\/+$/, '') === '/guidelines'
-);
-
+  const [guidelinesOpen, setGuidelinesOpen] = useState<boolean>(
+    () =>
+      typeof window !== 'undefined' &&
+      window.location.pathname.toLowerCase().replace(/\/+$/, '') === '/guidelines'
+  );
   useEffect(() => {
     const syncReviewRoute = () => {
       const isStudio =
