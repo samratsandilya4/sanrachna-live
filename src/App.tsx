@@ -2,7 +2,11 @@ import React, { useEffect, useState, useRef, lazy, Suspense } from 'react';
 const SubmissionForm = lazy(() => import('./components/ui/SubmissionForm'));
 const ReviewDashboard = lazy(() => import('./components/ReviewDashboard'));
 import { supabase } from './lib/supabase';
+// PURANA (Line 5):
 import GuidelinesPage from './GuidelinesPage';
+
+// NAYA:
+const GuidelinesPage = lazy(() => import('./GuidelinesPage'));
 
 // ===========================================================================
 // 1. FLOATING 3D PARTICLES ENGINE
@@ -645,10 +649,46 @@ interface ObjectiveItem {
 const Objectives3DCarousel = ({ items }: { items: ObjectiveItem[] }) => {
   const [position, setPosition] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
+  const carouselRef = useRef<HTMLDivElement>(null);
+  const isVisibleRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    const node = carouselRef.current;
+    if (!node || typeof IntersectionObserver === 'undefined') {
+      isVisibleRef.current = true;
+      return;
+    }
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        isVisibleRef.current = entry.isIntersecting;
+      },
+      { threshold: 0.05 }
+    );
+    obs.observe(node);
+    return () => obs.disconnect();
+  }, []);
   const rafRef = useRef<number | null>(null);
   const lastTimeRef = useRef<number | null>(null);
   const lastScrollYRef = useRef<number>(typeof window !== 'undefined' ? window.scrollY : 0);
   const scrollBoostRef = useRef<number>(0);
+  const carouselRef = useRef<HTMLDivElement>(null);
+  const isVisibleRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    const node = carouselRef.current;
+    if (!node || typeof IntersectionObserver === 'undefined') {
+      isVisibleRef.current = true;
+      return;
+    }
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        isVisibleRef.current = entry.isIntersecting;
+      },
+      { threshold: 0.05 }
+    );
+    obs.observe(node);
+    return () => obs.disconnect();
+  }, []);
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
@@ -669,9 +709,19 @@ const Objectives3DCarousel = ({ items }: { items: ObjectiveItem[] }) => {
     window.addEventListener('scroll', handleWindowScroll, { passive: true });
 
     const animate = (now: number) => {
+      if (!isVisibleRef.current || document.hidden) {
+        lastTimeRef.current = now;
+        rafRef.current = requestAnimationFrame(animate);
+        return;
+      }
       if (lastTimeRef.current === null) lastTimeRef.current = now;
       const delta = Math.min(0.1, (now - lastTimeRef.current) / 1000);
       lastTimeRef.current = now;
+      if (!isVisibleRef.current || document.hidden) {
+        lastTimeRef.current = now;
+        rafRef.current = requestAnimationFrame(animate);
+        return;
+      }
 
       const boostStep = scrollBoostRef.current * 0.12;
       scrollBoostRef.current *= 0.88;
@@ -695,7 +745,7 @@ const Objectives3DCarousel = ({ items }: { items: ObjectiveItem[] }) => {
   const jumpToCard = (targetIdx: number) => setPosition(targetIdx);
 
   return (
-    <div style={{ position: 'relative', width: '100%', padding: '16px 0 24px 0', userSelect: 'none' }}>
+    <div ref={carouselRef} style={{ position: 'relative', width: '100%', padding: '16px 0 24px 0', userSelect: 'none' }}>
       <div style={{ position: 'relative', height: isMobile ? '350px' : '420px', width: '100%', perspective: '1400px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'visible' }}>
         {items.map((item, idx) => {
           let diff = idx - position;
