@@ -1689,7 +1689,7 @@ export default function App() {
           position: 'relative',
           overflowX: 'clip',
           transition: 'background-color 0.4s ease, color 0.4s ease',
-          display: openSubmissionPortal ? 'none' : 'block'
+          display: (openSubmissionPortal || guidelinesOpen) ? 'none' : 'block'
         }}
       >
         <style>{`
