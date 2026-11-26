@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import SubmissionForm from './components/ui/SubmissionForm';
 import ReviewDashboard from './components/ReviewDashboard';
+import GuidelinesPage from './GuidelinesPage';
 import { supabase } from './lib/supabase';
 
 // ===========================================================================
@@ -1425,6 +1426,10 @@ export default function App() {
       window.location.pathname.toLowerCase() === '/studio' ||
       window.location.pathname.toLowerCase() === '/studio/'
   );
+  const [guidelinesOpen, setGuidelinesOpen] = useState<boolean>(() =>
+  typeof window !== 'undefined' &&
+  window.location.pathname.toLowerCase().replace(/\/+$/, '') === '/guidelines'
+);
 
   useEffect(() => {
     const syncReviewRoute = () => {
@@ -1554,11 +1559,12 @@ export default function App() {
 
   const isStudioRoute = currentPath === '/studio' || currentPath === '/studio/';
   const is404Route =
-    currentPath !== '/' &&
-    currentPath !== '' &&
-    !currentPath.includes('index.html') &&
-    !isStudioRoute &&
-    !openReviewDesk;
+  currentPath !== '/' &&
+  currentPath !== '' &&
+  !currentPath.includes('index.html') &&
+  !isStudioRoute &&
+  !guidelinesOpen &&
+  !openReviewDesk;
 
   if (is404Route) {
     return (
@@ -2799,7 +2805,7 @@ export default function App() {
           </div>
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <div className="sidebar-item" onClick={() => scrollToSection('submissions')}>
+          <div className="sidebar-item" onClick={() => { setGuidelinesOpen(true); setMenuOpen(false); }}>
               <h4 style={{ margin: '0 0 4px 0', fontSize: '18px', fontWeight: 700, color: themeText, fontFamily: "'Playfair Display', serif" }}>Guidelines & Rules</h4>
               <p style={{ margin: 0, fontSize: '13px', color: themeSubText }}>Review submission criteria, fonts, and ethics.</p>
             </div>
@@ -2971,6 +2977,22 @@ export default function App() {
           onExit={() => {
             window.history.replaceState(null, '', '/');
             setOpenReviewDesk(false);
+          }}
+        />
+      )}{guidelinesOpen && (
+        <GuidelinesPage
+          isDarkMode={isDarkMode}
+          onToggleTheme={() => setIsDarkMode((prev) => !prev)}
+          onBack={() => {
+            setGuidelinesOpen(false);
+            if (window.location.pathname.toLowerCase().startsWith('/guidelines')) {
+              window.history.pushState({}, '', '/');
+              setCurrentPath('/');
+            }
+          }}
+          onOpenSubmission={() => {
+            setGuidelinesOpen(false);
+            setOpenSubmissionPortal(true);
           }}
         />
       )}
