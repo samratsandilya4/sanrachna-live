@@ -2,10 +2,6 @@ import React, { useEffect, useState, useRef, lazy, Suspense } from 'react';
 const SubmissionForm = lazy(() => import('./components/ui/SubmissionForm'));
 const ReviewDashboard = lazy(() => import('./components/ReviewDashboard'));
 import { supabase } from './lib/supabase';
-// PURANA (Line 5):
-import GuidelinesPage from './GuidelinesPage';
-
-// NAYA:
 const GuidelinesPage = lazy(() => import('./GuidelinesPage'));
 
 // ===========================================================================
@@ -671,24 +667,6 @@ const Objectives3DCarousel = ({ items }: { items: ObjectiveItem[] }) => {
   const lastTimeRef = useRef<number | null>(null);
   const lastScrollYRef = useRef<number>(typeof window !== 'undefined' ? window.scrollY : 0);
   const scrollBoostRef = useRef<number>(0);
-  const carouselRef = useRef<HTMLDivElement>(null);
-  const isVisibleRef = useRef<boolean>(false);
-
-  useEffect(() => {
-    const node = carouselRef.current;
-    if (!node || typeof IntersectionObserver === 'undefined') {
-      isVisibleRef.current = true;
-      return;
-    }
-    const obs = new IntersectionObserver(
-      ([entry]) => {
-        isVisibleRef.current = entry.isIntersecting;
-      },
-      { threshold: 0.05 }
-    );
-    obs.observe(node);
-    return () => obs.disconnect();
-  }, []);
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
