@@ -1420,6 +1420,7 @@ export default function App() {
   const [showFloatingActions, setShowFloatingActions] = useState(false);
   const [openSubmissionPortal, setOpenSubmissionPortal] = useState(false);
   const [openReviewDesk, setOpenReviewDesk] = useState(
+    const [guidelinesOpen, setGuidelinesOpen] = useState(false);
     () =>
       window.location.hash.toLowerCase() === '#review' ||
       window.location.pathname.toLowerCase() === '/review' ||
