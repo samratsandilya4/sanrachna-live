@@ -13,6 +13,7 @@ import {
   Download,
   Eye,
   Feather,
+  FileCheck2,
   FileText,
   Flame,
   GraduationCap,
@@ -24,10 +25,12 @@ import {
   Palette,
   Radio,
   Search,
+  Send,
   ShieldAlert,
   Sparkles,
   Sun,
   UserCheck,
+  XCircle,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -72,13 +75,13 @@ function Floating3DBubbles({ isDarkMode }: { isDarkMode: boolean }) {
         angle: Math.random() * Math.PI * 2,
         radius: Math.random() * Math.max(w, h) * 1.18,
         y: (Math.random() - 0.5) * h * 2,
-        size: 1.8 + Math.random() * 4.8,
+        size: 1.8 + Math.random() * 4.6,
         angularSpeed: 0.0012 + Math.random() * 0.0011,
-        opacity: 0.16 + Math.random() * 0.3,
+        opacity: 0.16 + Math.random() * 0.28,
         screenX: 0,
         screenY: 0,
         projectedScale: 1,
-        tone: r > 0.52 ? 'gold' : r > 0.16 ? 'crimson' : 'navy',
+        tone: r > 0.54 ? 'gold' : r > 0.18 ? 'crimson' : 'navy',
       };
     };
 
@@ -90,7 +93,7 @@ function Floating3DBubbles({ isDarkMode }: { isDarkMode: boolean }) {
       canvas.width = Math.round(width * dpr);
       canvas.height = Math.round(height * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      const count = window.innerWidth < 768 ? 38 : 115;
+      const count = window.innerWidth < 768 ? 36 : 115;
       particles = Array.from({ length: count }, () => spawn(width, height));
     };
 
@@ -106,7 +109,7 @@ function Floating3DBubbles({ isDarkMode }: { isDarkMode: boolean }) {
 
       for (const p of particles) {
         p.angle += p.angularSpeed;
-        p.y -= 0.52;
+        p.y -= 0.5;
         if (p.y < -height) {
           p.y = height;
           p.radius = Math.random() * Math.max(width, height) * 1.18;
@@ -122,11 +125,11 @@ function Floating3DBubbles({ isDarkMode }: { isDarkMode: boolean }) {
 
       for (const p of particles) {
         const radius = Math.max(0.6, p.size * p.projectedScale);
-        const alpha = Math.min(0.65, isDarkMode ? p.opacity * 1.15 : p.opacity * 0.85);
+        const alpha = Math.min(0.62, isDarkMode ? p.opacity * 1.15 : p.opacity * 0.82);
         ctx.beginPath();
         if (p.tone === 'gold') ctx.fillStyle = `rgba(212, 175, 55, ${alpha})`;
         else if (p.tone === 'crimson') ctx.fillStyle = `rgba(139, 30, 36, ${alpha})`;
-        else ctx.fillStyle = `rgba(56, 114, 184, ${alpha})`;
+        else ctx.fillStyle = `rgba(43, 76, 126, ${alpha})`;
         ctx.arc(p.screenX, p.screenY, radius, 0, Math.PI * 2);
         ctx.fill();
       }
@@ -162,7 +165,7 @@ function Floating3DBubbles({ isDarkMode }: { isDarkMode: boolean }) {
 }
 
 // ===========================================================================
-// 2. BLUR-TO-SHARP SCROLL REVEAL WRAPPER
+// 2. SCROLL REVEAL & ANIMATED SECTION HEADING (ZERO TINY KICKERS)
 // ===========================================================================
 function BlurReveal({
   children,
@@ -199,7 +202,7 @@ function BlurReveal({
       style={{
         opacity: visible ? 1 : 0,
         filter: visible ? 'blur(0px)' : 'blur(14px)',
-        transform: visible ? 'translate3d(0, 0, 0) scale(1)' : 'translate3d(0, 28px, 0) scale(0.97)',
+        transform: visible ? 'translate3d(0, 0, 0) scale(1)' : 'translate3d(0, 30px, 0) scale(0.97)',
         transition: `opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1) ${delay}ms, filter 0.8s cubic-bezier(0.16, 1, 0.3, 1) ${delay}ms, transform 0.8s cubic-bezier(0.16, 1, 0.3, 1) ${delay}ms`,
         willChange: 'opacity, filter, transform',
       }}
@@ -209,60 +212,143 @@ function BlurReveal({
   );
 }
 
-// ===========================================================================
-// 3. VIDEO 1 EFFECT: DIA TEXT REVEAL (KINETIC SHIMMER-WIPE WORD CYCLE)
-// ===========================================================================
-const DIA_WORDS = ['publishing.', 'preserving.', 'celebrating.', 'remembering.'];
+function AnimatedSectionTitle({
+  title,
+  accent,
+  subtitle,
+  align = 'left',
+  isDarkMode,
+}: {
+  title: string;
+  accent?: string;
+  subtitle?: string;
+  align?: 'left' | 'center';
+  isDarkMode: boolean;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [inView, setInView] = useState(false);
 
-function DiaTextReveal({ isDarkMode }: { isDarkMode: boolean }) {
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === 'undefined') {
+      setInView(true);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setInView(true);
+          observer.unobserve(el);
+        }
+      },
+      { threshold: 0.15 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div
+      ref={ref}
+      style={{
+        textAlign: align,
+        opacity: inView ? 1 : 0,
+        filter: inView ? 'blur(0px)' : 'blur(12px)',
+        transform: inView ? 'translate3d(0, 0, 0)' : 'translate3d(0, 24px, 0)',
+        transition: 'opacity 0.85s cubic-bezier(0.16, 1, 0.3, 1), filter 0.85s cubic-bezier(0.16, 1, 0.3, 1), transform 0.85s cubic-bezier(0.16, 1, 0.3, 1)',
+      }}
+    >
+      <h2
+        style={{
+          margin: 0,
+          fontFamily: "'Cormorant Garamond', 'Playfair Display', serif",
+          fontSize: 'clamp(34px, 4.5vw, 54px)',
+          fontWeight: 700,
+          lineHeight: 1.14,
+          color: isDarkMode ? '#FAF9F5' : '#152238',
+        }}
+      >
+        {title}{' '}
+        {accent && (
+          <span className={isDarkMode ? 'royal-accent-text-dark' : 'royal-accent-text-light'}>
+            {accent}
+          </span>
+        )}
+      </h2>
+
+      {/* Animated Ink Underline Stroke */}
+      <div
+        style={{
+          margin: align === 'center' ? '12px auto 0 auto' : '12px 0 0 0',
+          height: '2.5px',
+          width: inView ? '88px' : '0px',
+          borderRadius: '999px',
+          background: isDarkMode
+            ? 'linear-gradient(90deg, #8B1E24 0%, #D4AF37 60%, #F5E6B8 100%)'
+            : 'linear-gradient(90deg, #8B1E24 0%, #1E3A5F 55%, #C5A059 100%)',
+          transition: 'width 0.9s cubic-bezier(0.16, 1, 0.3, 1) 180ms',
+        }}
+      />
+
+      {subtitle && (
+        <p
+          style={{
+            margin: align === 'center' ? '14px auto 0 auto' : '14px 0 0 0',
+            maxWidth: '640px',
+            fontSize: '15px',
+            lineHeight: 1.7,
+            color: isDarkMode ? '#A1A1AA' : '#4B5563',
+          }}
+        >
+          {subtitle}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ===========================================================================
+// 3. KINETIC HERO WORD REVEAL (ZERO DESCENDER CLIP • ZERO THEME GLITCH)
+// ===========================================================================
+const HERO_CYCLE_WORDS = ['poetry.', 'stories.', 'frames.', 'ideas.'];
+
+function KineticHeroWord({ isDarkMode }: { isDarkMode: boolean }) {
   const [index, setIndex] = useState(0);
   const [phase, setPhase] = useState<'in' | 'out'>('in');
 
   useEffect(() => {
-    const holdTimer = window.setInterval(() => {
+    const timer = window.setInterval(() => {
       setPhase('out');
       window.setTimeout(() => {
-        setIndex((prev) => (prev + 1) % DIA_WORDS.length);
+        setIndex((prev) => (prev + 1) % HERO_CYCLE_WORDS.length);
         setPhase('in');
-      }, 420);
+      }, 380);
     }, 2800);
-
-    return () => window.clearInterval(holdTimer);
+    return () => window.clearInterval(timer);
   }, []);
 
   return (
     <span
       style={{
         display: 'inline-block',
-        position: 'relative',
-        verticalAlign: 'bottom',
+        verticalAlign: 'baseline',
+        overflow: 'visible',
       }}
     >
       <span
-        key={`${index}-${phase}`}
-        className={phase === 'in' ? 'dia-word-in' : 'dia-word-out'}
-        style={{
-          display: 'inline-block',
-          fontStyle: 'italic',
-          fontWeight: 700,
-          background: isDarkMode
-            ? 'linear-gradient(110deg, #FFF3C4 0%, #D4AF37 42%, #F43F5E 78%, #F6E05E 100%)'
-            : 'linear-gradient(110deg, #8B1E24 0%, #C2410C 42%, #D4AF37 78%, #1E3A5F 100%)',
-          backgroundSize: '200% auto',
-          WebkitBackgroundClip: 'text',
-          backgroundClip: 'text',
-          color: 'transparent',
-          paddingRight: '6px',
-        }}
+        key={`${index}-${phase}-${isDarkMode ? 'd' : 'l'}`}
+        className={`kinetic-word ${phase === 'in' ? 'dia-word-in' : 'dia-word-out'} ${
+          isDarkMode ? 'royal-accent-text-dark' : 'royal-accent-text-light'
+        }`}
       >
-        {DIA_WORDS[index]}
+        {HERO_CYCLE_WORDS[index]}
       </span>
     </span>
   );
 }
 
 // ===========================================================================
-// 4. VIDEO 3 EFFECT: ANIMATE DIGITS (ROLLING VERTICAL ODOMETER)
+// 4. ROLLING ODOMETER DIGITS
 // ===========================================================================
 function DigitReel({ digit, height }: { digit: number; height: number }) {
   return (
@@ -272,7 +358,6 @@ function DigitReel({ digit, height }: { digit: number; height: number }) {
         height: `${height}px`,
         overflow: 'hidden',
         verticalAlign: 'top',
-        position: 'relative',
       }}
     >
       <span
@@ -280,7 +365,7 @@ function DigitReel({ digit, height }: { digit: number; height: number }) {
           display: 'flex',
           flexDirection: 'column',
           transform: `translate3d(0, -${digit * height}px, 0)`,
-          transition: 'transform 0.55s cubic-bezier(0.22, 1, 0.36, 1)',
+          transition: 'transform 0.52s cubic-bezier(0.22, 1, 0.36, 1)',
           willChange: 'transform',
         }}
       >
@@ -339,13 +424,122 @@ function AnimateDigits({
 }
 
 // ===========================================================================
-// 5. VIDEO 4 EFFECT: ANIMATED INPUT WITH TYPEWRITER HINTS & SPRING GLOW
+// 5. SLIDING SPRING PILL SWITCHER (REUSABLE FOR HEADER, FILTERS, FORMAT TABS)
+// ===========================================================================
+function SlidingPillTabs<T extends string>({
+  items,
+  activeId,
+  onSelect,
+  isDarkMode,
+  compact = false,
+}: {
+  items: { id: T; label: string }[];
+  activeId: T;
+  onSelect: (id: T) => void;
+  isDarkMode: boolean;
+  compact?: boolean;
+}) {
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const btnRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const [pill, setPill] = useState({ left: 0, width: 0, ready: false });
+
+  useEffect(() => {
+    const sync = () => {
+      const btn = btnRefs.current[activeId];
+      const wrap = wrapRef.current;
+      if (!btn || !wrap) return;
+      setPill({
+        left: btn.offsetLeft,
+        width: btn.offsetWidth,
+        ready: true,
+      });
+    };
+    sync();
+    window.addEventListener('resize', sync);
+    return () => window.removeEventListener('resize', sync);
+  }, [activeId, items.length]);
+
+  return (
+    <div
+      ref={wrapRef}
+      style={{
+        position: 'relative',
+        display: 'inline-flex',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: '4px',
+        padding: compact ? '4px' : '5px',
+        borderRadius: '999px',
+        background: isDarkMode ? 'rgba(13, 20, 42, 0.72)' : 'rgba(255, 255, 255, 0.78)',
+        border: `1px solid ${isDarkMode ? 'rgba(212, 175, 55, 0.24)' : 'rgba(139, 30, 36, 0.16)'}`,
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+      }}
+    >
+      {/* Animated Sliding Pill Indicator */}
+      <span
+        aria-hidden="true"
+        style={{
+          position: 'absolute',
+          top: compact ? '4px' : '5px',
+          bottom: compact ? '4px' : '5px',
+          left: 0,
+          width: `${pill.width}px`,
+          transform: `translate3d(${pill.left}px, 0, 0)`,
+          opacity: pill.ready ? 1 : 0,
+          borderRadius: '999px',
+          background: 'linear-gradient(135deg, #8B1E24 0%, #5A1220 55%, #1E3A5F 100%)',
+          border: '1px solid rgba(212, 175, 55, 0.65)',
+          boxShadow: '0 6px 18px rgba(139, 30, 36, 0.32)',
+          transition: 'transform 0.42s cubic-bezier(0.22, 1, 0.36, 1), width 0.42s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.25s ease',
+          pointerEvents: 'none',
+          zIndex: 0,
+        }}
+      />
+
+      {items.map((item) => {
+        const isActive = item.id === activeId;
+        return (
+          <button
+            key={item.id}
+            ref={(el) => {
+              btnRefs.current[item.id] = el;
+            }}
+            type="button"
+            onClick={() => onSelect(item.id)}
+            style={{
+              position: 'relative',
+              zIndex: 1,
+              border: 'none',
+              background: 'transparent',
+              padding: compact ? '7px 14px' : '9px 18px',
+              borderRadius: '999px',
+              fontSize: compact ? '12px' : '12.5px',
+              fontWeight: 700,
+              letterSpacing: '0.3px',
+              color: isActive ? '#FAF9F5' : isDarkMode ? '#CBD5E1' : '#334155',
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              transition: 'color 0.28s ease',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {item.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ===========================================================================
+// 6. ANIMATED SEARCH INPUT WITH TYPEWRITER SUGGESTIONS
 // ===========================================================================
 const SEARCH_HINTS = [
-  'Try "Poem" (25–50 lines)...',
-  'Try "Articles" (700–900 words)...',
-  'Try "Photography" (300 DPI)...',
-  'Try "Campus News" or "Alumni"...',
+  'Search "Poem" (25–50 lines)...',
+  'Search "Articles" (700–900 words)...',
+  'Search "Photography" (300 DPI)...',
+  'Search "Campus News" or "Alumni"...',
 ];
 
 function AnimatedSearchInput({
@@ -365,13 +559,13 @@ function AnimatedSearchInput({
   useEffect(() => {
     if (value.length > 0) return;
     const target = SEARCH_HINTS[hintIdx];
-    const speed = deleting ? 28 : 54;
+    const speed = deleting ? 28 : 52;
 
     const timer = window.setTimeout(() => {
       if (!deleting && hintText.length < target.length) {
         setHintText(target.slice(0, hintText.length + 1));
       } else if (!deleting && hintText.length === target.length) {
-        window.setTimeout(() => setDeleting(true), 1250);
+        window.setTimeout(() => setDeleting(true), 1200);
       } else if (deleting && hintText.length > 0) {
         setHintText(target.slice(0, hintText.length - 1));
       } else {
@@ -384,13 +578,7 @@ function AnimatedSearchInput({
   }, [hintText, deleting, hintIdx, value]);
 
   return (
-    <div
-      style={{
-        position: 'relative',
-        flex: '1 1 260px',
-        maxWidth: '380px',
-      }}
-    >
+    <div style={{ position: 'relative', flex: '1 1 260px', maxWidth: '370px' }}>
       <div
         style={{
           display: 'flex',
@@ -398,15 +586,15 @@ function AnimatedSearchInput({
           gap: '10px',
           padding: '11px 16px',
           borderRadius: '999px',
-          background: isDarkMode ? 'rgba(14, 21, 42, 0.72)' : 'rgba(255, 255, 255, 0.88)',
+          background: isDarkMode ? 'rgba(13, 20, 42, 0.78)' : 'rgba(255, 255, 255, 0.9)',
           backdropFilter: 'blur(18px)',
           WebkitBackdropFilter: 'blur(18px)',
           border: focused
             ? '1.5px solid #D4AF37'
-            : `1px solid ${isDarkMode ? 'rgba(212,175,55,0.28)' : 'rgba(139,30,36,0.2)'}`,
+            : `1px solid ${isDarkMode ? 'rgba(212,175,55,0.26)' : 'rgba(139,30,36,0.2)'}`,
           boxShadow: focused
-            ? '0 0 0 4px rgba(212, 175, 55, 0.14), 0 12px 30px rgba(139, 30, 36, 0.2)'
-            : '0 6px 18px rgba(0, 0, 0, 0.06)',
+            ? '0 0 0 4px rgba(212, 175, 55, 0.14), 0 12px 28px rgba(139, 30, 36, 0.2)'
+            : '0 6px 18px rgba(0, 0, 0, 0.05)',
           transition: 'all 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
         }}
       >
@@ -429,7 +617,7 @@ function AnimatedSearchInput({
                 top: '50%',
                 transform: 'translateY(-50%)',
                 fontSize: '13px',
-                color: isDarkMode ? 'rgba(250,249,245,0.45)' : 'rgba(82,82,91,0.65)',
+                color: isDarkMode ? 'rgba(250,249,245,0.48)' : 'rgba(75,85,99,0.7)',
                 pointerEvents: 'none',
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
@@ -489,7 +677,7 @@ function AnimatedSearchInput({
 }
 
 // ===========================================================================
-// 6. VIDEO 5 EFFECT: FROSTED GLASS FOLDER CARDS (3D FLAP + FANNING DOCS)
+// 7. FROSTED GLASS FOLDER CARDS (PURE ROYAL COLORS, ZERO ORANGE)
 // ===========================================================================
 interface FolderDoc {
   title: string;
@@ -524,25 +712,24 @@ function GlassFolderCard({
       onClick={() => setIsOpen((prev) => !prev)}
       style={{
         position: 'relative',
-        paddingTop: '72px',
+        paddingTop: '78px',
         cursor: 'pointer',
         userSelect: 'none',
         perspective: '1100px',
       }}
     >
-      {/* Folder Back Shell with macOS-style Tab */}
       <div
         style={{
           position: 'relative',
-          height: '215px',
+          height: '216px',
           borderRadius: '26px',
           background: isDarkMode
-            ? 'linear-gradient(145deg, rgba(34, 22, 34, 0.92) 0%, rgba(16, 24, 48, 0.95) 100%)'
-            : 'linear-gradient(145deg, #E8DCCB 0%, #D9C8B2 100%)',
+            ? 'linear-gradient(145deg, rgba(46, 16, 30, 0.92) 0%, rgba(16, 26, 52, 0.96) 100%)'
+            : 'linear-gradient(145deg, #E9DFD1 0%, #D9CBB8 100%)',
           border: '1px solid rgba(212, 175, 55, 0.45)',
           boxShadow: isDarkMode
             ? '0 26px 60px rgba(0, 0, 0, 0.5)'
-            : '0 22px 50px rgba(139, 30, 36, 0.14)',
+            : '0 20px 46px rgba(30, 58, 95, 0.13)',
         }}
       >
         {/* Top Folder Ear Tab */}
@@ -551,27 +738,25 @@ function GlassFolderCard({
             position: 'absolute',
             top: '-18px',
             left: '22px',
-            width: '122px',
+            width: '124px',
             height: '26px',
             borderRadius: '14px 18px 0 0',
-            background: isDarkMode
-              ? 'linear-gradient(135deg, #8B1E24 0%, #521014 100%)'
-              : 'linear-gradient(135deg, #8B1E24 0%, #6B161B 100%)',
+            background: 'linear-gradient(135deg, #8B1E24 0%, #52101A 100%)',
             border: '1px solid rgba(212, 175, 55, 0.55)',
             borderBottom: 'none',
           }}
         />
 
-        {/* Fanning Stacked Paper/Media Sheets Inside Folder */}
+        {/* Fanning Sheets Inside Folder */}
         <div style={{ position: 'absolute', inset: '10px 18px auto 18px', height: '140px' }}>
           {docs.map((doc, idx) => {
             const total = docs.length;
             const depthFromFront = total - 1 - idx;
             const closedY = -depthFromFront * 8;
             const closedScale = 1 - depthFromFront * 0.04;
-            const openY = -18 - depthFromFront * 36;
+            const openY = -18 - depthFromFront * 37;
             const openX = (idx - (total - 1) / 2) * 14;
-            const openRotate = (idx - (total - 1) / 2) * 3.8;
+            const openRotate = (idx - (total - 1) / 2) * 3.6;
 
             const cardInner = (
               <div
@@ -582,13 +767,13 @@ function GlassFolderCard({
                   background: isDarkMode
                     ? idx === total - 1
                       ? 'linear-gradient(135deg, #FAF9F5 0%, #EFE8DC 100%)'
-                      : 'linear-gradient(135deg, #1E2949 0%, #141C36 100%)'
+                      : 'linear-gradient(135deg, #1E2C50 0%, #131B36 100%)'
                     : idx === total - 1
                     ? 'linear-gradient(135deg, #FFFFFF 0%, #FAF5EC 100%)'
-                    : 'linear-gradient(135deg, #F5EFE6 0%, #EAE0D0 100%)',
+                    : 'linear-gradient(135deg, #F4EFE6 0%, #E7DDD0 100%)',
                   color: idx === total - 1 ? '#111827' : isDarkMode ? '#FAF9F5' : '#1E3A5F',
-                  border: `1px solid ${idx === total - 1 ? 'rgba(212,175,55,0.7)' : 'rgba(212,175,55,0.35)'}`,
-                  boxShadow: '0 10px 26px rgba(0, 0, 0, 0.22)',
+                  border: `1px solid ${idx === total - 1 ? 'rgba(212,175,55,0.72)' : 'rgba(212,175,55,0.34)'}`,
+                  boxShadow: '0 10px 26px rgba(0, 0, 0, 0.2)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
@@ -608,10 +793,10 @@ function GlassFolderCard({
                     fontWeight: 800,
                     letterSpacing: '0.8px',
                     textTransform: 'uppercase',
-                    padding: '4px 9px',
+                    padding: '4px 10px',
                     borderRadius: '999px',
                     background: doc.accent,
-                    color: '#FFFFFF',
+                    color: '#FAF9F5',
                     flexShrink: 0,
                   }}
                 >
@@ -651,7 +836,7 @@ function GlassFolderCard({
           })}
         </div>
 
-        {/* Front Frosted Glass Flap (3D Perspective Tilt Open) */}
+        {/* Front Frosted Glass Flap */}
         <div
           style={{
             position: 'absolute',
@@ -667,15 +852,15 @@ function GlassFolderCard({
             justifyContent: 'space-between',
             gap: '12px',
             background: isDarkMode
-              ? 'linear-gradient(155deg, rgba(255, 255, 255, 0.14) 0%, rgba(16, 22, 44, 0.72) 100%)'
-              : 'linear-gradient(155deg, rgba(255, 255, 255, 0.86) 0%, rgba(250, 245, 236, 0.74) 100%)',
+              ? 'linear-gradient(155deg, rgba(255, 255, 255, 0.13) 0%, rgba(15, 23, 46, 0.78) 100%)'
+              : 'linear-gradient(155deg, rgba(255, 255, 255, 0.88) 0%, rgba(248, 243, 234, 0.76) 100%)',
             backdropFilter: 'blur(22px) saturate(180%)',
             WebkitBackdropFilter: 'blur(22px) saturate(180%)',
             borderTop: '1.5px solid rgba(255, 255, 255, 0.55)',
-            borderLeft: '1px solid rgba(212, 175, 55, 0.35)',
-            borderRight: '1px solid rgba(212, 175, 55, 0.35)',
+            borderLeft: '1px solid rgba(212, 175, 55, 0.34)',
+            borderRight: '1px solid rgba(212, 175, 55, 0.34)',
             borderBottom: '1px solid rgba(212, 175, 55, 0.45)',
-            boxShadow: 'inset 0 2px 6px rgba(255, 255, 255, 0.35), 0 18px 38px rgba(0, 0, 0, 0.2)',
+            boxShadow: 'inset 0 2px 6px rgba(255, 255, 255, 0.32), 0 18px 36px rgba(0, 0, 0, 0.18)',
             transformOrigin: 'bottom center',
             transform: isOpen ? 'rotateX(-22deg) translateY(4px)' : 'rotateX(0deg)',
             transition: 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
@@ -686,14 +871,14 @@ function GlassFolderCard({
               style={{
                 fontFamily: "'Playfair Display', serif",
                 fontSize: '21px',
-                fontWeight: 800,
+                fontWeight: 700,
                 color: isDarkMode ? '#FAF9F5' : '#1E3A5F',
                 lineHeight: 1.15,
               }}
             >
               {title}
             </div>
-            <div style={{ fontSize: '12.5px', color: isDarkMode ? 'rgba(250,249,245,0.72)' : '#52525B', marginTop: '4px' }}>
+            <div style={{ fontSize: '12.5px', color: isDarkMode ? 'rgba(250,249,245,0.72)' : '#4B5563', marginTop: '4px' }}>
               {subtitle}
             </div>
           </div>
@@ -711,14 +896,14 @@ function GlassFolderCard({
               height: '44px',
               borderRadius: '50%',
               flexShrink: 0,
-              border: '1px solid rgba(212, 175, 55, 0.7)',
-              background: 'linear-gradient(135deg, #8B1E24 0%, #521014 100%)',
-              color: '#F6E05E',
+              border: '1px solid rgba(212, 175, 55, 0.72)',
+              background: 'linear-gradient(135deg, #8B1E24 0%, #4E1018 100%)',
+              color: '#F5E6B8',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               cursor: 'pointer',
-              boxShadow: '0 8px 20px rgba(139, 30, 36, 0.38)',
+              boxShadow: '0 8px 20px rgba(139, 30, 36, 0.36)',
               transform: isOpen ? 'scale(1.08)' : 'scale(1)',
               transition: 'transform 0.3s ease',
             }}
@@ -732,7 +917,7 @@ function GlassFolderCard({
 }
 
 // ===========================================================================
-// 7. VIDEO 2 EFFECT: SLIDING ROYAL GLOSSY HOVER STACK (DISCLOSURES & ETHICS)
+// 8. SCROLL-DRIVEN + HOVER SLIDING DISCLOSURES (ZERO MOBILE OVERLAP)
 // ===========================================================================
 interface DisclosureItem {
   num: string;
@@ -747,7 +932,7 @@ const DISCLOSURES_STACK: DisclosureItem[] = [
     num: '01',
     tag: 'Entry Cap',
     title: 'Maximum Two Entries & Portal Exclusivity',
-    summary: 'Every contributor may submit up to two (02) original entries in an edition, strictly through the official Sanrachna portal.',
+    summary: 'Every contributor may submit up to two (02) original entries per edition, strictly through the official Sanrachna portal.',
     points: ['Maximum 02 entries per author per edition', 'Late entries are not entertained under any circumstances', 'Open exclusively to GEC Godda students, faculty, staff & alumni'],
   },
   {
@@ -755,29 +940,30 @@ const DISCLOSURES_STACK: DisclosureItem[] = [
     tag: 'Zero AI',
     title: 'Originality, Anti-Plagiarism & Zero-AI Policy',
     summary: 'Artificial Intelligence (AI) generated write-ups or artwork and any form of plagiarism are strictly prohibited.',
-    points: ['100% self-authored manuscripts & self-created visuals only', 'Automated & manual review screening for originality', 'Authors remain responsible for factual accuracy & citations'],
+    points: ['100% self-authored manuscripts & self-created visuals only', 'Editorial & originality screening on every entry', 'Authors remain responsible for factual accuracy & citations'],
   },
   {
     num: '03',
     tag: 'Conduct',
     title: 'Respectful Content & Community Boundaries',
-    summary: 'Content must uphold institutional harmony and avoid sensitive, promotional, or offensive material.',
-    points: ['Religious, mythological & derogatory content strictly prohibited', 'No self-promotion, commercial ads, or political interviews', 'Destructive criticism forbidden; constructive suggestions reviewed politely'],
+    summary: 'Submissions must uphold institutional dignity and avoid sensitive, promotional, or offensive material.',
+    points: ['Religious, mythological & derogatory content strictly prohibited', 'No self-promotion, commercial ads, or political interviews', 'Destructive criticism forbidden; constructive ideas reviewed politely'],
   },
   {
     num: '04',
     tag: 'Editorial',
     title: 'Review Discretion, Edits & Copyright Ownership',
-    summary: 'Submission does not guarantee publication. Published material copyright stays solely with संRACHNA.',
-    points: ['Editorial Board may edit for grammar, spelling & length', 'Over-length drafts may be returned for author rewrite', 'Republication elsewhere strictly requires prior acknowledgement of संRACHNA'],
+    summary: 'Submission does not guarantee publication. Copyright of all published work stays solely with संRACHNA.',
+    points: ['Editorial Board may edit for grammar, spelling & length', 'Over-length drafts may be returned for author rewrite', 'Republication elsewhere strictly requires prior acknowledgement'],
   },
 ];
 
-function SlidingHoverDisclosures({ isDarkMode }: { isDarkMode: boolean }) {
+function SlidingScrollDisclosures({ isDarkMode }: { isDarkMode: boolean }) {
   const [activeIdx, setActiveIdx] = useState<number>(0);
-  const [indicator, setIndicator] = useState<{ top: number; height: number }>({ top: 0, height: 150 });
+  const [indicator, setIndicator] = useState<{ top: number; height: number }>({ top: 0, height: 155 });
   const containerRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const hoverLockRef = useRef<boolean>(false);
 
   const syncIndicator = (idx: number) => {
     const node = itemRefs.current[idx];
@@ -796,9 +982,53 @@ function SlidingHoverDisclosures({ isDarkMode }: { isDarkMode: boolean }) {
     return () => window.removeEventListener('resize', onResize);
   }, [activeIdx]);
 
+  // Smooth scroll-driven active card tracking (automatically slides highlight on scroll!)
+  useEffect(() => {
+    let rafId: number | null = null;
+
+    const evaluateClosestToCenter = () => {
+      rafId = null;
+      if (hoverLockRef.current) return;
+      const viewportCenter = window.innerHeight * 0.48;
+      let bestIdx = 0;
+      let bestDist = Infinity;
+
+      itemRefs.current.forEach((node, idx) => {
+        if (!node) return;
+        const rect = node.getBoundingClientRect();
+        const cardCenter = rect.top + rect.height / 2;
+        const dist = Math.abs(cardCenter - viewportCenter);
+        if (dist < bestDist) {
+          bestDist = dist;
+          bestIdx = idx;
+        }
+      });
+
+      setActiveIdx((prev) => (prev === bestIdx ? prev : bestIdx));
+    };
+
+    const onScroll = () => {
+      if (rafId === null) rafId = requestAnimationFrame(evaluateClosestToCenter);
+    };
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    evaluateClosestToCenter();
+
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      if (rafId !== null) cancelAnimationFrame(rafId);
+    };
+  }, []);
+
   return (
-    <div ref={containerRef} style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      {/* Sliding Glossy Royal Backdrop (Video 2 Effect) */}
+    <div
+      ref={containerRef}
+      onMouseLeave={() => {
+        hoverLockRef.current = false;
+      }}
+      style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '14px' }}
+    >
+      {/* Sliding Royal Crimson-Sapphire Glossy Backdrop */}
       <div
         aria-hidden="true"
         style={{
@@ -808,25 +1038,28 @@ function SlidingHoverDisclosures({ isDarkMode }: { isDarkMode: boolean }) {
           top: 0,
           height: `${indicator.height}px`,
           transform: `translate3d(0, ${indicator.top}px, 0)`,
-          transition: 'transform 0.48s cubic-bezier(0.16, 1, 0.3, 1), height 0.48s cubic-bezier(0.16, 1, 0.3, 1)',
+          transition: 'transform 0.52s cubic-bezier(0.16, 1, 0.3, 1), height 0.52s cubic-bezier(0.16, 1, 0.3, 1)',
           borderRadius: '26px',
-          background: 'linear-gradient(135deg, #4E1014 0%, #8B1E24 52%, #1E3A5F 100%)',
-          border: '1px solid rgba(212, 175, 55, 0.75)',
-          boxShadow: '0 24px 55px rgba(139, 30, 36, 0.36), inset 0 1.5px 2px rgba(255, 255, 255, 0.25)',
+          background: 'linear-gradient(135deg, #4B1020 0%, #8B1E24 48%, #1E3A5F 100%)',
+          border: '1px solid rgba(212, 175, 55, 0.78)',
+          boxShadow: '0 24px 55px rgba(139, 30, 36, 0.34), inset 0 1.5px 2px rgba(255, 255, 255, 0.25)',
           zIndex: 1,
           pointerEvents: 'none',
         }}
       />
 
       {DISCLOSURES_STACK.map((item, idx) => {
-        const isHovered = activeIdx === idx;
+        const isActive = activeIdx === idx;
         return (
           <div
             key={item.num}
             ref={(el) => {
               itemRefs.current[idx] = el;
             }}
-            onMouseEnter={() => setActiveIdx(idx)}
+            onMouseEnter={() => {
+              hoverLockRef.current = true;
+              setActiveIdx(idx);
+            }}
             onClick={() => setActiveIdx(idx)}
             style={{
               position: 'relative',
@@ -834,17 +1067,17 @@ function SlidingHoverDisclosures({ isDarkMode }: { isDarkMode: boolean }) {
               borderRadius: '26px',
               padding: '26px 28px',
               cursor: 'pointer',
-              border: isHovered
+              border: isActive
                 ? '1px solid transparent'
-                : `1px solid ${isDarkMode ? 'rgba(212,175,55,0.18)' : 'rgba(139,30,36,0.14)'}`,
-              background: isHovered
+                : `1px solid ${isDarkMode ? 'rgba(212,175,55,0.18)' : 'rgba(30,58,95,0.14)'}`,
+              background: isActive
                 ? 'transparent'
                 : isDarkMode
-                ? 'rgba(14, 21, 42, 0.55)'
-                : 'rgba(255, 255, 255, 0.72)',
-              backdropFilter: isHovered ? 'none' : 'blur(14px)',
-              color: isHovered ? '#FAF9F5' : isDarkMode ? '#FAF9F5' : '#111827',
-              transition: 'color 0.35s ease, background 0.35s ease',
+                ? 'rgba(13, 20, 42, 0.78)'
+                : 'rgba(255, 255, 255, 0.85)',
+              color: isActive ? '#FAF9F5' : isDarkMode ? '#FAF9F5' : '#111827',
+              transform: isActive ? 'scale(1.01)' : 'scale(1)',
+              transition: 'color 0.35s ease, background 0.35s ease, transform 0.35s ease',
               textAlign: 'left',
               overflow: 'hidden',
             }}
@@ -856,7 +1089,7 @@ function SlidingHoverDisclosures({ isDarkMode }: { isDarkMode: boolean }) {
                     fontFamily: "'Cormorant Garamond', 'Playfair Display', serif",
                     fontSize: '26px',
                     fontWeight: 700,
-                    color: isHovered ? '#F6E05E' : '#D4AF37',
+                    color: isActive ? '#F5E6B8' : '#C5A059',
                     lineHeight: 1,
                   }}
                 >
@@ -868,7 +1101,7 @@ function SlidingHoverDisclosures({ isDarkMode }: { isDarkMode: boolean }) {
                     fontFamily: "'Playfair Display', serif",
                     fontSize: 'clamp(18px, 2.2vw, 22px)',
                     fontWeight: 700,
-                    color: isHovered ? '#FFFFFF' : isDarkMode ? '#FAF9F5' : '#1E3A5F',
+                    color: isActive ? '#FFFFFF' : isDarkMode ? '#FAF9F5' : '#1E3A5F',
                   }}
                 >
                   {item.title}
@@ -883,12 +1116,12 @@ function SlidingHoverDisclosures({ isDarkMode }: { isDarkMode: boolean }) {
                   textTransform: 'uppercase',
                   padding: '5px 12px',
                   borderRadius: '999px',
-                  background: isHovered
+                  background: isActive
                     ? 'rgba(212, 175, 55, 0.24)'
                     : isDarkMode
                     ? 'rgba(255,255,255,0.06)'
                     : 'rgba(139,30,36,0.08)',
-                  color: isHovered ? '#F6E05E' : isDarkMode ? '#D4AF37' : '#8B1E24',
+                  color: isActive ? '#F5E6B8' : isDarkMode ? '#D4AF37' : '#8B1E24',
                 }}
               >
                 {item.tag}
@@ -900,7 +1133,7 @@ function SlidingHoverDisclosures({ isDarkMode }: { isDarkMode: boolean }) {
                 margin: '10px 0 14px 0',
                 fontSize: '14px',
                 lineHeight: 1.65,
-                color: isHovered ? 'rgba(250, 249, 245, 0.88)' : isDarkMode ? '#A1A1AA' : '#52525B',
+                color: isActive ? 'rgba(250, 249, 245, 0.9)' : isDarkMode ? '#A1A1AA' : '#4B5563',
                 maxWidth: '680px',
               }}
             >
@@ -917,7 +1150,7 @@ function SlidingHoverDisclosures({ isDarkMode }: { isDarkMode: boolean }) {
                     gap: '7px',
                     fontSize: '12.5px',
                     fontWeight: 600,
-                    color: isHovered ? '#F6E05E' : isDarkMode ? '#D4D4D8' : '#3F3F46',
+                    color: isActive ? '#F5E6B8' : isDarkMode ? '#CBD5E1' : '#334155',
                   }}
                 >
                   <Check size={13} />
@@ -933,7 +1166,7 @@ function SlidingHoverDisclosures({ isDarkMode }: { isDarkMode: boolean }) {
 }
 
 // ===========================================================================
-// 8. OFFICIAL 12-CATEGORY DATA & BENTO METADATA
+// 9. OFFICIAL 12-CATEGORY DATA (PERFECT 4x4 BENTO: ALUMNI NEXT TO CAREER!)
 // ===========================================================================
 interface GuidelinesPageProps {
   isDarkMode: boolean;
@@ -944,6 +1177,8 @@ interface GuidelinesPageProps {
 
 type CategoryGroup = 'all' | 'writing' | 'media' | 'visual';
 type FormatTab = 'english' | 'hindi' | 'visual';
+type NavSectionId = 'bento-categories' | 'glass-folders' | 'formatting-studio' | 'editorial-ethics';
+type CardTheme = 'crimson' | 'sapphire' | 'plum' | 'champagne';
 
 interface CategorySpec {
   id: string;
@@ -958,6 +1193,7 @@ interface CategorySpec {
   min: number;
   max: number;
   featuredSpan?: boolean;
+  cardTheme: CardTheme;
   icon: LucideIcon;
   summary: string;
   topics: string[];
@@ -965,6 +1201,11 @@ interface CategorySpec {
   checklist: string[];
 }
 
+// Ordered so that 4-col Bento fills 4 exact rows (16 cells, ZERO gaps):
+// Row 1: Articles (2) + Journalism (1) + Mass Comm (1) = 4
+// Row 2: Biography (1) + Poem (2) + Essay/Short Story (1) = 4
+// Row 3: Campus News (2) + Career & Entrepreneurship (1) + Alumni Corner (1) = 4
+// Row 4: Drawing/Painting/Artworks (2) + Photography (1) + Remembrance/Observance (1) = 4
 const CATEGORIES: CategorySpec[] = [
   {
     id: 'articles',
@@ -979,6 +1220,7 @@ const CATEGORIES: CategorySpec[] = [
     min: 700,
     max: 900,
     featuredSpan: true,
+    cardTheme: 'crimson',
     icon: FileText,
     summary:
       'In-depth scientific breakthroughs, engineering trends, research summaries, patents, and national or international perspectives.',
@@ -987,7 +1229,7 @@ const CATEGORIES: CategorySpec[] = [
       'Nobel Prize winners’ topics & great scientists’ contributions',
       'Research summaries, technical papers, trending research & patents',
       'Emerging trends in engineering fields',
-      'National or international technical and non-technical issues',
+      'National or international technical and non-technical topics',
     ],
     checklist: [
       'Word count strictly within 700 – 900 words',
@@ -1008,6 +1250,7 @@ const CATEGORIES: CategorySpec[] = [
     unit: 'words',
     min: 250,
     max: 500,
+    cardTheme: 'sapphire',
     icon: Mic,
     summary:
       'Crisp interviews and factual features highlighting great scientific personalities, technocrats, sportspersons, filmmakers, and current affairs.',
@@ -1036,6 +1279,7 @@ const CATEGORIES: CategorySpec[] = [
     unit: 'words',
     min: 400,
     max: 600,
+    cardTheme: 'plum',
     icon: Radio,
     summary:
       'Thoughtful reviews and critical reflections on internationally acclaimed novels, movies, and impactful storytelling.',
@@ -1063,6 +1307,7 @@ const CATEGORIES: CategorySpec[] = [
     unit: 'words',
     min: 250,
     max: 500,
+    cardTheme: 'champagne',
     icon: UserCheck,
     summary:
       'Inspiring life sketches of great scientists and iconic personalities alongside authentic diary entries.',
@@ -1091,6 +1336,7 @@ const CATEGORIES: CategorySpec[] = [
     min: 25,
     max: 50,
     featuredSpan: true,
+    cardTheme: 'plum',
     icon: Feather,
     summary:
       'Original Hindi or English poetry spanning Technical/Scientific and Non-Technical creative expression.',
@@ -1119,6 +1365,7 @@ const CATEGORIES: CategorySpec[] = [
     unit: 'words',
     min: 300,
     max: 600,
+    cardTheme: 'crimson',
     icon: BookOpen,
     summary:
       'Original essays and short stories blending scientific curiosity with human narratives and campus reflections.',
@@ -1147,6 +1394,7 @@ const CATEGORIES: CategorySpec[] = [
     min: 500,
     max: 700,
     featuredSpan: true,
+    cardTheme: 'sapphire',
     icon: Newspaper,
     summary:
       'Official chronicles of GEC Godda—seminars, exhibitions, symposiums, placement highlights, awards, and official club event reports.',
@@ -1177,6 +1425,7 @@ const CATEGORIES: CategorySpec[] = [
     unit: 'words',
     min: 150,
     max: 250,
+    cardTheme: 'champagne',
     icon: Briefcase,
     summary:
       'Concise startup spotlights from national, international, and nearby institutional innovation ecosystems.',
@@ -1194,6 +1443,34 @@ const CATEGORIES: CategorySpec[] = [
     ],
   },
   {
+    id: 'alumni-corner',
+    number: '12',
+    name: 'Alumni Corner',
+    hindiName: 'पूर्व छात्र संवाद',
+    group: 'media',
+    domain: 'Alumni Voices',
+    limitLabel: '250 – 500 words',
+    fileType: '.doc / .docx',
+    unit: 'words',
+    min: 250,
+    max: 500,
+    cardTheme: 'crimson',
+    icon: GraduationCap,
+    summary:
+      'Dedicated column for GEC Godda alumni to share career journeys, industry lessons, and cherished campus memories.',
+    topics: [
+      'Career journeys, higher studies & real-world insights',
+      'Cherished campus memories from GEC Godda',
+      'Mentorship advice for current undergraduate batches',
+    ],
+    checklist: [
+      '250 – 500 words limit followed',
+      'Batch & branch mentioned in brief author biography',
+      'Editable .doc/.docx formatted to A4 specs',
+      '300 DPI author photograph ready',
+    ],
+  },
+  {
     id: 'artworks',
     number: '09',
     name: 'Drawing / Painting / Artworks',
@@ -1206,6 +1483,7 @@ const CATEGORIES: CategorySpec[] = [
     min: 1,
     max: 2,
     featuredSpan: true,
+    cardTheme: 'champagne',
     icon: Palette,
     summary:
       'Hand-drawn sketches, traditional paintings, original digital illustrations, visual riddles, and picture stories.',
@@ -1235,6 +1513,7 @@ const CATEGORIES: CategorySpec[] = [
     unit: 'nos',
     min: 1,
     max: 2,
+    cardTheme: 'sapphire',
     icon: Camera,
     summary:
       'Scientific and non-scientific photographs paired with an appropriate caption and short story behind the frame.',
@@ -1263,6 +1542,7 @@ const CATEGORIES: CategorySpec[] = [
     unit: 'words',
     min: 500,
     max: 700,
+    cardTheme: 'plum',
     icon: Flame,
     summary:
       'Dignified tributes honoring national commemoration days such as Vijay Diwas and historic observances.',
@@ -1279,50 +1559,145 @@ const CATEGORIES: CategorySpec[] = [
       'Author brief bio & 300 DPI photo ready',
     ],
   },
+];
+
+// Quick-Match Topic Pills ("Where Does My Idea Fit?")
+const QUICK_IDEA_MATCHES = [
+  { label: 'Movie / Novel Review', targetId: 'mass-communication' },
+  { label: 'Diary Entry', targetId: 'biography' },
+  { label: 'Club Event Report', targetId: 'campus-news' },
+  { label: 'Interview', targetId: 'journalism' },
+  { label: 'Sketch / Riddle', targetId: 'artworks' },
+  { label: 'Startup Spotlight', targetId: 'career-entrepreneurship' },
+  { label: 'Vijay Diwas Tribute', targetId: 'remembrance' },
+];
+
+// Editorial Journey Steps ("From Portal to Print")
+const EDITORIAL_STEPS = [
   {
-    id: 'alumni-corner',
-    number: '12',
-    name: 'Alumni Corner',
-    hindiName: 'पूर्व छात्र संवाद',
-    group: 'media',
-    domain: 'Alumni Voices',
-    limitLabel: '250 – 500 words',
-    fileType: '.doc / .docx',
-    unit: 'words',
-    min: 250,
-    max: 500,
-    icon: GraduationCap,
-    summary:
-      'Dedicated column for GEC Godda alumni to share career journeys, industry lessons, and cherished campus memories.',
-    topics: [
-      'Career journeys, higher studies & real-world insights',
-      'Cherished campus memories from GEC Godda',
-      'Mentorship advice for current undergraduate batches',
-    ],
-    checklist: [
-      '250 – 500 words limit followed',
-      'Batch & branch mentioned in brief author biography',
-      'Editable .doc/.docx formatted to A4 specs',
-      '300 DPI author photograph ready',
-    ],
+    step: '01',
+    title: 'Upload on Portal',
+    desc: 'Format your manuscript or 300 DPI artwork and submit it directly through the official Sanrachna portal.',
+    icon: Send,
+  },
+  {
+    step: '02',
+    title: 'Editorial & Originality Review',
+    desc: 'Our Review Team checks originality, factual accuracy, category fit, and light copy-edits without changing your voice.',
+    icon: FileCheck2,
+  },
+  {
+    step: '03',
+    title: 'Print & Digital Publication',
+    desc: 'Selected pieces are typeset for Edition I and featured in both print and digital showcases with full contributor credit.',
+    icon: Award,
   },
 ];
 
 // ===========================================================================
-// 9. CURSOR-REACTIVE SPOTLIGHT BENTO TILE
+// 10. RICH ROYAL-GRADIENT BENTO TILE WITH 3D SCROLL UNFOLD + SPOTLIGHT
 // ===========================================================================
+function getCardGradients(theme: CardTheme, isDarkMode: boolean) {
+  if (isDarkMode) {
+    switch (theme) {
+      case 'crimson':
+        return {
+          bg: 'linear-gradient(150deg, rgba(139, 30, 36, 0.34) 0%, rgba(28, 14, 30, 0.88) 54%, rgba(11, 16, 36, 0.94) 100%)',
+          aura: 'rgba(190, 18, 60, 0.24)',
+          border: 'rgba(212, 175, 55, 0.28)',
+          badgeBg: 'rgba(139, 30, 36, 0.36)',
+        };
+      case 'sapphire':
+        return {
+          bg: 'linear-gradient(150deg, rgba(30, 58, 95, 0.44) 0%, rgba(15, 25, 54, 0.88) 56%, rgba(9, 14, 30, 0.95) 100%)',
+          aura: 'rgba(56, 114, 184, 0.24)',
+          border: 'rgba(147, 197, 253, 0.22)',
+          badgeBg: 'rgba(30, 58, 95, 0.45)',
+        };
+      case 'plum':
+        return {
+          bg: 'linear-gradient(150deg, rgba(88, 28, 58, 0.4) 0%, rgba(24, 15, 38, 0.88) 56%, rgba(10, 14, 30, 0.95) 100%)',
+          aura: 'rgba(162, 54, 108, 0.22)',
+          border: 'rgba(212, 175, 55, 0.26)',
+          badgeBg: 'rgba(88, 28, 58, 0.42)',
+        };
+      case 'champagne':
+        return {
+          bg: 'linear-gradient(150deg, rgba(197, 160, 89, 0.22) 0%, rgba(22, 24, 44, 0.88) 54%, rgba(10, 14, 30, 0.95) 100%)',
+          aura: 'rgba(212, 175, 55, 0.22)',
+          border: 'rgba(212, 175, 55, 0.32)',
+          badgeBg: 'rgba(212, 175, 55, 0.16)',
+        };
+    }
+  } else {
+    switch (theme) {
+      case 'crimson':
+        return {
+          bg: 'linear-gradient(150deg, rgba(255, 247, 246, 0.96) 0%, rgba(249, 232, 230, 0.88) 55%, rgba(244, 235, 224, 0.9) 100%)',
+          aura: 'rgba(139, 30, 36, 0.14)',
+          border: 'rgba(139, 30, 36, 0.22)',
+          badgeBg: 'rgba(139, 30, 36, 0.1)',
+        };
+      case 'sapphire':
+        return {
+          bg: 'linear-gradient(150deg, rgba(247, 250, 255, 0.96) 0%, rgba(232, 240, 250, 0.9) 55%, rgba(243, 238, 230, 0.9) 100%)',
+          aura: 'rgba(30, 58, 95, 0.14)',
+          border: 'rgba(30, 58, 95, 0.2)',
+          badgeBg: 'rgba(30, 58, 95, 0.1)',
+        };
+      case 'plum':
+        return {
+          bg: 'linear-gradient(150deg, rgba(253, 247, 250, 0.96) 0%, rgba(244, 232, 240, 0.88) 55%, rgba(246, 239, 230, 0.9) 100%)',
+          aura: 'rgba(88, 28, 58, 0.14)',
+          border: 'rgba(88, 28, 58, 0.2)',
+          badgeBg: 'rgba(88, 28, 58, 0.1)',
+        };
+      case 'champagne':
+        return {
+          bg: 'linear-gradient(150deg, rgba(255, 252, 244, 0.97) 0%, rgba(248, 240, 222, 0.9) 55%, rgba(242, 233, 215, 0.92) 100%)',
+          aura: 'rgba(197, 160, 89, 0.2)',
+          border: 'rgba(197, 160, 89, 0.34)',
+          badgeBg: 'rgba(197, 160, 89, 0.18)',
+        };
+    }
+  }
+}
+
 function BentoCategoryTile({
   cat,
+  index,
   isDarkMode,
   onSelect,
 }: {
   cat: CategorySpec;
+  index: number;
   isDarkMode: boolean;
   onSelect: () => void;
 }) {
   const tileRef = useRef<HTMLButtonElement>(null);
   const [spot, setSpot] = useState({ x: 50, y: 50, active: false });
+  const [inView, setInView] = useState(false);
   const Icon = cat.icon;
+  const palette = getCardGradients(cat.cardTheme, isDarkMode);
+
+  useEffect(() => {
+    const el = tileRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') {
+      setInView(true);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setInView(true);
+          observer.unobserve(el);
+        }
+      },
+      { threshold: 0.08, rootMargin: '0px 0px -30px 0px' }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   const handleMove = (e: React.MouseEvent<HTMLButtonElement>) => {
     const rect = tileRef.current?.getBoundingClientRect();
@@ -1333,6 +1708,8 @@ function BentoCategoryTile({
       active: true,
     });
   };
+
+  const staggerMs = (index % 4) * 75;
 
   return (
     <button
@@ -1347,30 +1724,50 @@ function BentoCategoryTile({
         overflow: 'hidden',
         borderRadius: '26px',
         padding: '24px 24px 22px 24px',
-        border: `1px solid ${spot.active ? 'rgba(212, 175, 55, 0.72)' : isDarkMode ? 'rgba(212, 175, 55, 0.2)' : 'rgba(139, 30, 36, 0.14)'}`,
-        background: isDarkMode
-          ? 'linear-gradient(155deg, rgba(17, 24, 48, 0.76) 0%, rgba(9, 13, 28, 0.88) 100%)'
-          : 'linear-gradient(155deg, rgba(255, 255, 255, 0.9) 0%, rgba(247, 241, 232, 0.82) 100%)',
+        border: `1px solid ${spot.active ? 'rgba(212, 175, 55, 0.78)' : palette.border}`,
+        background: palette.bg,
         backdropFilter: 'blur(20px) saturate(160%)',
         WebkitBackdropFilter: 'blur(20px) saturate(160%)',
         boxShadow: spot.active
           ? isDarkMode
-            ? '0 24px 55px rgba(139, 30, 36, 0.28), inset 0 1px 2px rgba(255,255,255,0.2)'
-            : '0 22px 48px rgba(139, 30, 36, 0.16), inset 0 1px 2px rgba(255,255,255,1)'
+            ? '0 24px 56px rgba(139, 30, 36, 0.34), inset 0 1px 2px rgba(255,255,255,0.2)'
+            : '0 22px 48px rgba(30, 58, 95, 0.16), inset 0 1px 2px rgba(255,255,255,1)'
           : isDarkMode
           ? '0 14px 36px rgba(0, 0, 0, 0.34)'
-          : '0 10px 30px rgba(30, 58, 95, 0.06)',
-        transform: spot.active ? 'translateY(-6px)' : 'translateY(0)',
-        transition: 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s ease, box-shadow 0.35s ease',
+          : '0 10px 28px rgba(30, 58, 95, 0.07)',
+        opacity: inView ? 1 : 0,
+        filter: inView ? 'blur(0px)' : 'blur(10px)',
+        transform: !inView
+          ? 'perspective(1000px) translate3d(0, 44px, 0) rotateX(9deg) scale(0.94)'
+          : spot.active
+          ? 'perspective(1000px) translate3d(0, -7px, 0) rotateX(0deg) scale(1.01)'
+          : 'perspective(1000px) translate3d(0, 0, 0) rotateX(0deg) scale(1)',
+        transition: `opacity 0.75s cubic-bezier(0.16, 1, 0.3, 1) ${staggerMs}ms, filter 0.75s cubic-bezier(0.16, 1, 0.3, 1) ${staggerMs}ms, transform 0.65s cubic-bezier(0.16, 1, 0.3, 1) ${inView ? 0 : staggerMs}ms, border-color 0.3s ease, box-shadow 0.35s ease`,
         cursor: 'pointer',
         textAlign: 'left',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
-        minHeight: '215px',
+        minHeight: '220px',
         fontFamily: 'inherit',
+        willChange: 'transform, opacity, filter',
       }}
     >
+      {/* Top-Left Corner Ambient Royal Glow */}
+      <div
+        aria-hidden="true"
+        style={{
+          position: 'absolute',
+          top: '-45px',
+          left: '-45px',
+          width: '170px',
+          height: '170px',
+          borderRadius: '50%',
+          background: `radial-gradient(circle, ${palette.aura} 0%, transparent 72%)`,
+          pointerEvents: 'none',
+        }}
+      />
+
       {/* Dynamic Cursor-Following Spotlight Glow */}
       <div
         aria-hidden="true"
@@ -1380,8 +1777,8 @@ function BentoCategoryTile({
           pointerEvents: 'none',
           opacity: spot.active ? 1 : 0,
           transition: 'opacity 0.3s ease',
-          background: `radial-gradient(280px circle at ${spot.x}px ${spot.y}px, ${
-            isDarkMode ? 'rgba(212, 175, 55, 0.2)' : 'rgba(212, 175, 55, 0.22)'
+          background: `radial-gradient(290px circle at ${spot.x}px ${spot.y}px, ${
+            isDarkMode ? 'rgba(212, 175, 55, 0.22)' : 'rgba(212, 175, 55, 0.26)'
           }, transparent 70%)`,
         }}
       />
@@ -1397,7 +1794,7 @@ function BentoCategoryTile({
           fontSize: '92px',
           fontWeight: 700,
           lineHeight: 1,
-          color: isDarkMode ? 'rgba(212, 175, 55, 0.07)' : 'rgba(139, 30, 36, 0.06)',
+          color: isDarkMode ? 'rgba(212, 175, 55, 0.08)' : 'rgba(139, 30, 36, 0.07)',
           pointerEvents: 'none',
           userSelect: 'none',
         }}
@@ -1417,10 +1814,9 @@ function BentoCategoryTile({
             justifyContent: 'center',
             background: spot.active
               ? 'linear-gradient(135deg, #8B1E24 0%, #D4AF37 100%)'
-              : isDarkMode
-              ? 'rgba(212, 175, 55, 0.14)'
-              : 'rgba(139, 30, 36, 0.09)',
-            color: spot.active ? '#FFFFFF' : isDarkMode ? '#F6E05E' : '#8B1E24',
+              : palette.badgeBg,
+            color: spot.active ? '#FFFFFF' : isDarkMode ? '#F5E6B8' : '#8B1E24',
+            border: '1px solid rgba(212, 175, 55, 0.3)',
             transition: 'all 0.35s ease',
           }}
         >
@@ -1434,9 +1830,9 @@ function BentoCategoryTile({
             fontSize: '11.5px',
             fontWeight: 800,
             letterSpacing: '0.3px',
-            background: isDarkMode ? 'rgba(212, 175, 55, 0.14)' : 'rgba(139, 30, 36, 0.09)',
-            color: isDarkMode ? '#F6E05E' : '#8B1E24',
-            border: '1px solid rgba(212, 175, 55, 0.32)',
+            background: isDarkMode ? 'rgba(212, 175, 55, 0.14)' : 'rgba(255, 255, 255, 0.72)',
+            color: isDarkMode ? '#F5E6B8' : '#8B1E24',
+            border: '1px solid rgba(212, 175, 55, 0.36)',
           }}
         >
           {cat.limitLabel}
@@ -1445,7 +1841,7 @@ function BentoCategoryTile({
 
       {/* Middle Row: Title + Summary */}
       <div style={{ margin: '18px 0 16px 0', position: 'relative', zIndex: 2 }}>
-        <div style={{ fontSize: '10.5px', fontWeight: 800, letterSpacing: '1.5px', textTransform: 'uppercase', color: '#D4AF37' }}>
+        <div style={{ fontSize: '10.5px', fontWeight: 800, letterSpacing: '1.4px', textTransform: 'uppercase', color: isDarkMode ? '#D4AF37' : '#8B1E24', opacity: 0.88 }}>
           {cat.domain}
         </div>
         <h3
@@ -1454,12 +1850,12 @@ function BentoCategoryTile({
             fontFamily: "'Playfair Display', serif",
             fontSize: cat.featuredSpan ? '24px' : '20px',
             fontWeight: 700,
-            color: isDarkMode ? '#FAF9F5' : '#1E3A5F',
-            lineHeight: 1.2,
+            color: isDarkMode ? '#FAF9F5' : '#152238',
+            lineHeight: 1.22,
           }}
         >
           {cat.name}{' '}
-          <span style={{ fontSize: '13.5px', fontWeight: 500, color: '#D4AF37', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+          <span style={{ fontSize: '13.5px', fontWeight: 500, color: isDarkMode ? '#D4AF37' : '#8B1E24', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
             ({cat.hindiName})
           </span>
         </h3>
@@ -1468,7 +1864,7 @@ function BentoCategoryTile({
             margin: '8px 0 0 0',
             fontSize: '13px',
             lineHeight: 1.6,
-            color: isDarkMode ? '#A1A1AA' : '#52525B',
+            color: isDarkMode ? '#CBD5E1' : '#4B5563',
             display: '-webkit-box',
             WebkitLineClamp: 2,
             WebkitBoxOrient: 'vertical',
@@ -1486,10 +1882,10 @@ function BentoCategoryTile({
           alignItems: 'center',
           justifyContent: 'space-between',
           paddingTop: '12px',
-          borderTop: `1px solid ${isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(139,30,36,0.1)'}`,
+          borderTop: `1px solid ${isDarkMode ? 'rgba(255,255,255,0.09)' : 'rgba(139,30,36,0.12)'}`,
           fontSize: '11.5px',
           fontWeight: 700,
-          color: isDarkMode ? '#D4D4D8' : '#3F3F46',
+          color: isDarkMode ? '#E2E8F0' : '#334155',
           position: 'relative',
           zIndex: 2,
         }}
@@ -1500,12 +1896,12 @@ function BentoCategoryTile({
             display: 'inline-flex',
             alignItems: 'center',
             gap: '5px',
-            color: '#D4AF37',
+            color: isDarkMode ? '#F5E6B8' : '#8B1E24',
             transform: spot.active ? 'translateX(4px)' : 'translateX(0)',
             transition: 'transform 0.3s ease',
           }}
         >
-          <span>Inspect Rules</span>
+          <span>View Rules</span>
           <ArrowRight size={13} />
         </span>
       </div>
@@ -1514,7 +1910,7 @@ function BentoCategoryTile({
 }
 
 // ===========================================================================
-// 10. MAIN AWWWARDS-GRADE GUIDELINES PAGE
+// 11. MAIN PREMIUM GUIDELINES PAGE
 // ===========================================================================
 export default function GuidelinesPage({
   isDarkMode,
@@ -1522,10 +1918,12 @@ export default function GuidelinesPage({
   onBack,
   onOpenSubmission,
 }: GuidelinesPageProps) {
+  const [activeNav, setActiveNav] = useState<NavSectionId>('bento-categories');
   const [activeGroup, setActiveGroup] = useState<CategoryGroup>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [activeModalCatId, setActiveModalCatId] = useState<string | null>(null);
   const [formatTab, setFormatTab] = useState<FormatTab>('english');
+  const [specimenMode, setSpecimenMode] = useState<'ready' | 'rejected'>('ready');
   const [checkedMap, setCheckedMap] = useState<Record<string, boolean[]>>({});
   const [draftMap, setDraftMap] = useState<Record<string, string>>({});
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -1535,11 +1933,29 @@ export default function GuidelinesPage({
     window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
   }, []);
 
+  // Scroll progress + Active Capsule Tab auto-sync
   useEffect(() => {
+    const sections: NavSectionId[] = [
+      'bento-categories',
+      'glass-folders',
+      'formatting-studio',
+      'editorial-ethics',
+    ];
+
     const onScroll = () => {
       const maxScroll = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
       setScrollProgress(Math.min(100, Math.max(0, (window.scrollY / maxScroll) * 100)));
+
+      const marker = window.innerHeight * 0.35;
+      for (let i = sections.length - 1; i >= 0; i--) {
+        const el = document.getElementById(sections[i]);
+        if (el && el.getBoundingClientRect().top <= marker) {
+          setActiveNav(sections[i]);
+          break;
+        }
+      }
     };
+
     window.addEventListener('scroll', onScroll, { passive: true });
     onScroll();
     return () => window.removeEventListener('scroll', onScroll);
@@ -1600,7 +2016,8 @@ export default function GuidelinesPage({
     }
   };
 
-  const scrollToAnchor = (id: string) => {
+  const scrollToAnchor = (id: NavSectionId) => {
+    setActiveNav(id);
     const el = document.getElementById(id);
     if (el) el.scrollIntoView({ behavior: 'smooth' });
   };
@@ -1614,7 +2031,6 @@ export default function GuidelinesPage({
     document.body.removeChild(a);
   };
 
-  // Official Social Links matching main App.tsx
   const socialChannels = [
     {
       name: 'GEC Godda Website',
@@ -1670,11 +2086,11 @@ export default function GuidelinesPage({
     },
   ];
 
-  // Theme Colors
+  // Royal Editorial Theme Tokens (Zero Orange!)
   const bg = isDarkMode ? '#070B19' : '#FAF9F5';
-  const textMain = isDarkMode ? '#FAF9F5' : '#111827';
-  const textSub = isDarkMode ? '#A1A1AA' : '#52525B';
-  const hairline = isDarkMode ? 'rgba(212, 175, 55, 0.2)' : 'rgba(139, 30, 36, 0.14)';
+  const textMain = isDarkMode ? '#FAF9F5' : '#152238';
+  const textSub = isDarkMode ? '#A1A1AA' : '#4B5563';
+  const hairline = isDarkMode ? 'rgba(212, 175, 55, 0.22)' : 'rgba(139, 30, 36, 0.14)';
 
   return (
     <div
@@ -1691,22 +2107,50 @@ export default function GuidelinesPage({
       }}
     >
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,600;1,700&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,500&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Rozha+One&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,600;1,700&family=Noto+Serif+Devanagari:wght@600;700&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,500&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Rozha+One&display=swap');
 
         .san-awwwards-gp * { box-sizing: border-box; }
+
+        /* Pure CSS Gradient Text Classes — 100% Immune to Light/Dark Toggle Box Glitch */
+        .royal-accent-text-dark {
+          display: inline-block;
+          font-style: italic;
+          background-image: linear-gradient(115deg, #FFF5D6 0%, #D4AF37 45%, #E11D48 82%, #F5E6B8 100%);
+          background-size: 220% auto;
+          -webkit-background-clip: text;
+          background-clip: text;
+          -webkit-text-fill-color: transparent;
+          color: transparent;
+          animation: royalFlow 6s ease infinite;
+        }
+
+        .royal-accent-text-light {
+          display: inline-block;
+          font-style: italic;
+          background-image: linear-gradient(115deg, #8B1E24 0%, #9F1239 42%, #1E3A5F 78%, #A67C2E 100%);
+          background-size: 220% auto;
+          -webkit-background-clip: text;
+          background-clip: text;
+          -webkit-text-fill-color: transparent;
+          color: transparent;
+          animation: royalFlow 6s ease infinite;
+        }
+
+        .kinetic-word {
+          padding: 0.04em 0.14em 0.18em 0.04em;
+          line-height: 1.24;
+        }
 
         @keyframes diaWipeIn {
           0% {
             opacity: 0;
-            filter: blur(12px);
+            filter: blur(10px);
             transform: translateY(10px) scale(0.97);
-            background-position: 100% 50%;
           }
           100% {
             opacity: 1;
             filter: blur(0px);
             transform: translateY(0) scale(1);
-            background-position: 0% 50%;
           }
         }
 
@@ -1718,16 +2162,16 @@ export default function GuidelinesPage({
           }
           100% {
             opacity: 0;
-            filter: blur(12px);
+            filter: blur(10px);
             transform: translateY(-10px);
           }
         }
 
         .dia-word-in {
-          animation: diaWipeIn 0.65s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+          animation: diaWipeIn 0.62s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
         .dia-word-out {
-          animation: diaWipeOut 0.4s ease forwards;
+          animation: diaWipeOut 0.36s ease forwards;
         }
 
         @keyframes caretBlink {
@@ -1763,13 +2207,18 @@ export default function GuidelinesPage({
           to { opacity: 1; filter: blur(0px); transform: translateY(0) scale(1); }
         }
 
+        @keyframes footerHaloPulse {
+          0%, 100% { opacity: 0.45; transform: translateX(-50%) scale(1); }
+          50% { opacity: 0.78; transform: translateX(-50%) scale(1.08); }
+        }
+
         .gp-inner {
           max-width: 1280px;
           margin: 0 auto;
           padding: 0 32px;
         }
 
-        /* Dynamic Island Floating Capsule Header */
+        /* Floating Dynamic Island Capsule Header */
         .gp-capsule-wrap {
           position: sticky;
           top: 14px;
@@ -1780,39 +2229,30 @@ export default function GuidelinesPage({
 
         .gp-capsule-nav {
           pointer-events: auto;
-          max-width: 1180px;
+          max-width: 1200px;
           margin: 0 auto;
-          padding: 10px 16px 10px 18px;
+          padding: 9px 14px 9px 16px;
           border-radius: 999px;
           display: flex;
           align-items: center;
           justify-content: space-between;
-          gap: 14px;
-          background: ${isDarkMode ? 'rgba(9, 14, 30, 0.78)' : 'rgba(255, 253, 249, 0.84)'};
+          gap: 12px;
+          background: ${isDarkMode ? 'rgba(9, 14, 30, 0.82)' : 'rgba(255, 253, 249, 0.88)'};
           backdrop-filter: blur(24px) saturate(190%);
           -webkit-backdrop-filter: blur(24px) saturate(190%);
           border: 1px solid rgba(212, 175, 55, 0.42);
           box-shadow: ${isDarkMode
-            ? '0 18px 46px rgba(0, 0, 0, 0.55), inset 0 1px 1px rgba(255,255,255,0.14)'
-            : '0 16px 40px rgba(30, 58, 95, 0.1), inset 0 1px 2px rgba(255,255,255,1)'};
+            ? '0 18px 46px rgba(0, 0, 0, 0.56), inset 0 1px 1px rgba(255,255,255,0.14)'
+            : '0 16px 40px rgba(30, 58, 95, 0.11), inset 0 1px 2px rgba(255,255,255,1)'};
         }
 
-        .gp-nav-link {
-          background: transparent;
-          border: none;
-          font-family: inherit;
-          font-size: 12.5px;
+        .gp-brand-wordmark {
+          font-family: 'Noto Serif Devanagari', 'Rozha One', 'Playfair Display', serif;
           font-weight: 700;
-          letter-spacing: 0.5px;
-          color: ${textSub};
-          cursor: pointer;
-          padding: 7px 12px;
-          border-radius: 999px;
-          transition: all 0.25s ease;
-        }
-        .gp-nav-link:hover {
-          color: #D4AF37;
-          background: ${isDarkMode ? 'rgba(212,175,55,0.1)' : 'rgba(139,30,36,0.06)'};
+          font-size: 19px;
+          letter-spacing: 0.4px;
+          color: ${isDarkMode ? '#EBD28C' : '#8B1E24'};
+          line-height: 1.2;
         }
 
         .gp-glass-pill {
@@ -1824,8 +2264,8 @@ export default function GuidelinesPage({
           gap: 8px;
           padding: 11px 22px;
           border-radius: 999px;
-          border: 1px solid rgba(212, 175, 55, 0.45);
-          background: ${isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.85)'};
+          border: 1px solid rgba(212, 175, 55, 0.44);
+          background: ${isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.88)'};
           backdrop-filter: blur(16px);
           -webkit-backdrop-filter: blur(16px);
           color: ${textMain};
@@ -1850,15 +2290,16 @@ export default function GuidelinesPage({
         }
         .gp-glass-pill:hover {
           transform: translateY(-2px);
-          border-color: #F6E05E;
-          background: linear-gradient(135deg, #8B1E24 0%, #521014 100%);
+          border-color: #EBD28C;
+          background: linear-gradient(135deg, #8B1E24 0%, #4E1020 100%);
           color: #FFFFFF;
-          box-shadow: 0 14px 32px rgba(139, 30, 36, 0.34);
+          box-shadow: 0 14px 30px rgba(139, 30, 36, 0.32);
         }
         .gp-glass-pill:hover::after {
           animation: sheenPass 0.8s ease;
         }
 
+        /* Pure Royal Crimson -> Ruby -> Gold CTA (Zero Orange) */
         .gp-magnetic-cta {
           position: relative;
           overflow: hidden;
@@ -1866,12 +2307,12 @@ export default function GuidelinesPage({
           align-items: center;
           justify-content: center;
           gap: 9px;
-          padding: 12px 24px;
+          padding: 12px 26px;
           border-radius: 999px;
-          border: 1px solid #F6E05E;
-          background: linear-gradient(135deg, #8B1E24 0%, #B91C1C 45%, #D4AF37 100%);
+          border: 1px solid #EBD28C;
+          background: linear-gradient(135deg, #8B1E24 0%, #9F1239 46%, #1E3A5F 100%);
           background-size: 200% 200%;
-          animation: royalFlow 5s ease infinite;
+          animation: royalFlow 6s ease infinite;
           color: #FFFFFF;
           font-size: 12.5px;
           font-weight: 800;
@@ -1879,7 +2320,7 @@ export default function GuidelinesPage({
           text-transform: uppercase;
           cursor: pointer;
           font-family: inherit;
-          box-shadow: 0 12px 30px rgba(139, 30, 36, 0.4), inset 0 1.5px 2px rgba(255,255,255,0.45);
+          box-shadow: 0 12px 30px rgba(139, 30, 36, 0.38), inset 0 1.5px 2px rgba(255,255,255,0.4);
           transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
         }
         .gp-magnetic-cta::after {
@@ -1894,7 +2335,7 @@ export default function GuidelinesPage({
         }
         .gp-magnetic-cta:hover {
           transform: translateY(-3px) scale(1.03);
-          box-shadow: 0 18px 40px rgba(212, 175, 55, 0.38);
+          box-shadow: 0 18px 40px rgba(139, 30, 36, 0.48), 0 0 24px rgba(212, 175, 55, 0.25);
         }
         .gp-magnetic-cta:hover::after {
           animation: sheenPass 0.8s ease;
@@ -1906,7 +2347,26 @@ export default function GuidelinesPage({
           background: linear-gradient(90deg, transparent 0%, rgba(139, 30, 36, 0.45) 25%, rgba(212, 175, 55, 0.72) 50%, rgba(30, 58, 95, 0.45) 75%, transparent 100%);
         }
 
-        /* Asymmetric Bento Grid */
+        .gp-idea-chip {
+          padding: 6px 13px;
+          border-radius: 999px;
+          font-size: 12px;
+          font-weight: 600;
+          border: 1px solid ${hairline};
+          background: ${isDarkMode ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.72)'};
+          color: ${textSub};
+          cursor: pointer;
+          font-family: inherit;
+          transition: all 0.28s ease;
+        }
+        .gp-idea-chip:hover {
+          border-color: #D4AF37;
+          color: ${isDarkMode ? '#F5E6B8' : '#8B1E24'};
+          transform: translateY(-2px);
+          background: ${isDarkMode ? 'rgba(212,175,55,0.12)' : 'rgba(139,30,36,0.07)'};
+        }
+
+        /* 4-Column Perfect Bento Grid */
         .bento-grid {
           display: grid;
           grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1924,42 +2384,29 @@ export default function GuidelinesPage({
 
         .gp-format-bento {
           display: grid;
-          grid-template-columns: 1.1fr 0.9fr;
+          grid-template-columns: 1.05fr 0.95fr;
           gap: 28px;
           align-items: stretch;
         }
 
+        .gp-journey-grid {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 22px;
+        }
+
         .gp-disclosures-split {
           display: grid;
-          grid-template-columns: 0.75fr 1.25fr;
-          gap: 44px;
+          grid-template-columns: 0.82fr 1.18fr;
+          gap: 40px;
           align-items: start;
         }
 
-        .gp-filter-chip {
-          padding: 9px 18px;
-          border-radius: 999px;
-          font-size: 12px;
-          font-weight: 700;
-          border: 1px solid ${hairline};
-          background: ${isDarkMode ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.78)'};
-          color: ${textSub};
-          cursor: pointer;
-          font-family: inherit;
-          transition: all 0.3s ease;
-        }
-        .gp-filter-chip:hover {
-          border-color: #D4AF37;
-          color: ${textMain};
-        }
-        .gp-filter-chip.active {
-          background: linear-gradient(135deg, #8B1E24 0%, #521014 100%);
-          border-color: #F6E05E;
-          color: #FFFFFF;
-          box-shadow: 0 8px 22px rgba(139, 30, 36, 0.32);
+        .gp-sticky-desktop {
+          position: sticky;
+          top: 102px;
         }
 
-        /* Full-bleed Footer Social Icon Cards */
         .gp-social-chip {
           display: flex;
           align-items: center;
@@ -1967,7 +2414,7 @@ export default function GuidelinesPage({
           padding: 13px 16px;
           border-radius: 18px;
           border: 1px solid ${hairline};
-          background: ${isDarkMode ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.72)'};
+          background: ${isDarkMode ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.75)'};
           backdrop-filter: blur(14px);
           color: ${textMain};
           text-decoration: none;
@@ -1976,12 +2423,28 @@ export default function GuidelinesPage({
         .gp-social-chip:hover {
           transform: translateY(-4px);
           border-color: #D4AF37;
-          background: linear-gradient(135deg, rgba(139,30,36,0.9) 0%, rgba(30,58,95,0.9) 100%);
+          background: linear-gradient(135deg, rgba(139,30,36,0.92) 0%, rgba(30,58,95,0.92) 100%);
           color: #FFFFFF;
           box-shadow: 0 16px 34px rgba(139, 30, 36, 0.32);
         }
         .gp-social-chip:hover span {
-          color: rgba(250, 249, 245, 0.85) !important;
+          color: rgba(250, 249, 245, 0.88) !important;
+        }
+
+        .gp-footer-link {
+          background: transparent;
+          border: none;
+          padding: 0;
+          font-size: 14px;
+          font-weight: 600;
+          color: ${textMain};
+          cursor: pointer;
+          font-family: inherit;
+          transition: color 0.25s ease, transform 0.25s ease;
+        }
+        .gp-footer-link:hover {
+          color: #D4AF37;
+          transform: translateX(5px);
         }
 
         .gp-footer-cols {
@@ -1997,8 +2460,14 @@ export default function GuidelinesPage({
           }
           .gp-disclosures-split,
           .gp-format-bento,
+          .gp-journey-grid,
           .gp-footer-cols {
             grid-template-columns: 1fr;
+          }
+          /* Disable sticky below 1080px so text NEVER bleeds behind scrolling cards */
+          .gp-sticky-desktop {
+            position: relative !important;
+            top: auto !important;
           }
           .gp-hide-md {
             display: none !important;
@@ -2031,8 +2500,8 @@ export default function GuidelinesPage({
           left: 0,
           height: '3px',
           width: `${scrollProgress}%`,
-          background: 'linear-gradient(90deg, #8B1E24 0%, #D4AF37 55%, #F6E05E 100%)',
-          boxShadow: '0 0 14px rgba(212, 175, 55, 0.85)',
+          background: 'linear-gradient(90deg, #8B1E24 0%, #D4AF37 55%, #1E3A5F 100%)',
+          boxShadow: '0 0 14px rgba(212, 175, 55, 0.8)',
           zIndex: 120,
           transition: 'width 0.1s linear',
         }}
@@ -2053,24 +2522,24 @@ export default function GuidelinesPage({
             height: '460px',
             borderRadius: '50%',
             background: isDarkMode
-              ? 'radial-gradient(circle, rgba(139,30,36,0.28) 0%, rgba(212,175,55,0.12) 45%, transparent 72%)'
-              : 'radial-gradient(circle, rgba(212,175,55,0.22) 0%, rgba(139,30,36,0.08) 45%, transparent 72%)',
+              ? 'radial-gradient(circle, rgba(139,30,36,0.28) 0%, rgba(30,58,95,0.22) 48%, transparent 74%)'
+              : 'radial-gradient(circle, rgba(212,175,55,0.18) 0%, rgba(139,30,36,0.08) 48%, transparent 74%)',
             filter: 'blur(85px)',
           }}
         />
       </div>
 
       {/* ================================================================= */}
-      {/* FLOATING DYNAMIC-ISLAND GLASS HEADER WITH SANRACHNA LOGO          */}
+      {/* FLOATING CAPSULE HEADER WITH ANIMATED SLIDING PILL TABS           */}
       {/* ================================================================= */}
       <div className="gp-capsule-wrap">
         <header className="gp-capsule-nav">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '11px' }}>
             <button
               type="button"
               onClick={onBack}
               className="gp-glass-pill"
-              style={{ padding: '8px 15px', fontSize: '11px' }}
+              style={{ padding: '8px 14px', fontSize: '11px' }}
             >
               <ArrowLeft size={14} />
               <span className="gp-hide-sm">Home</span>
@@ -2090,33 +2559,24 @@ export default function GuidelinesPage({
                   border: '1px solid rgba(212, 175, 55, 0.7)',
                 }}
               />
-              <span
-                style={{
-                  fontFamily: "'Rozha One', 'Playfair Display', serif",
-                  fontSize: '19px',
-                  color: '#D4AF37',
-                  letterSpacing: '0.4px',
-                }}
-              >
-                संRACHNA
-              </span>
+              <span className="gp-brand-wordmark">संRACHNA</span>
             </div>
           </div>
 
-          <nav className="gp-hide-md" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <button type="button" onClick={() => scrollToAnchor('bento-categories')} className="gp-nav-link">
-              12 Categories
-            </button>
-            <button type="button" onClick={() => scrollToAnchor('glass-folders')} className="gp-nav-link">
-              Official Kit
-            </button>
-            <button type="button" onClick={() => scrollToAnchor('formatting-studio')} className="gp-nav-link">
-              Formatting
-            </button>
-            <button type="button" onClick={() => scrollToAnchor('editorial-ethics')} className="gp-nav-link">
-              Disclosures
-            </button>
-          </nav>
+          <div className="gp-hide-md">
+            <SlidingPillTabs<NavSectionId>
+              compact
+              isDarkMode={isDarkMode}
+              activeId={activeNav}
+              onSelect={scrollToAnchor}
+              items={[
+                { id: 'bento-categories', label: 'Categories' },
+                { id: 'glass-folders', label: 'Official Kit' },
+                { id: 'formatting-studio', label: 'Formatting' },
+                { id: 'editorial-ethics', label: 'Rules & Ethics' },
+              ]}
+            />
+          </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <button
@@ -2127,7 +2587,7 @@ export default function GuidelinesPage({
               style={{ width: '38px', height: '38px', padding: 0 }}
               title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
             >
-              {isDarkMode ? <Sun size={15} color="#F6E05E" /> : <Moon size={15} color="#1E3A5F" />}
+              {isDarkMode ? <Sun size={15} color="#EBD28C" /> : <Moon size={15} color="#1E3A5F" />}
             </button>
 
             <button
@@ -2145,18 +2605,17 @@ export default function GuidelinesPage({
 
       <main style={{ position: 'relative', zIndex: 5 }}>
         {/* ================================================================= */}
-        {/* CINEMATIC HERO WITH ORBITING SHUNYA RING + DIA TEXT REVEAL        */}
+        {/* CINEMATIC HERO — GROUNDED EDITORIAL COPY & ORBITING SHUNYA RING   */}
         {/* ================================================================= */}
         <section
           className="gp-inner"
           style={{
             position: 'relative',
-            paddingTop: '72px',
-            paddingBottom: '88px',
+            paddingTop: '76px',
+            paddingBottom: '92px',
             textAlign: 'center',
           }}
         >
-          {/* Rotating Geometric "The Zero (शून्य)" Orbital Ring */}
           <div
             aria-hidden="true"
             style={{
@@ -2186,79 +2645,81 @@ export default function GuidelinesPage({
           </div>
 
           <BlurReveal>
-            <div
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '10px',
-                fontSize: '11.5px',
-                fontWeight: 800,
-                letterSpacing: '2.6px',
-                textTransform: 'uppercase',
-                color: '#D4AF37',
-                marginBottom: '22px',
-              }}
-            >
-              <span style={{ width: '28px', height: '1px', background: 'linear-gradient(90deg, transparent, #D4AF37)' }} />
-              <span>Government Engineering College, Godda • Editorial Handbook</span>
-              <span style={{ width: '28px', height: '1px', background: 'linear-gradient(90deg, #D4AF37, transparent)' }} />
-            </div>
-
             <h1
               style={{
-                margin: '0 auto 22px auto',
+                margin: '0 auto 20px auto',
                 maxWidth: '940px',
                 fontFamily: "'Cormorant Garamond', 'Playfair Display', serif",
-                fontSize: 'clamp(44px, 7.2vw, 88px)',
+                fontSize: 'clamp(44px, 7vw, 86px)',
                 fontWeight: 700,
-                lineHeight: 1.02,
+                lineHeight: 1.12,
                 letterSpacing: '-0.02em',
                 color: textMain,
               }}
             >
-              Craft worth <DiaTextReveal isDarkMode={isDarkMode} />
+              From <span style={{ fontFamily: "'Noto Serif Devanagari', 'Rozha One', serif", fontWeight: 700 }}>शून्य</span> to{' '}
+              <KineticHeroWord isDarkMode={isDarkMode} />
             </h1>
 
             <p
               style={{
-                margin: '0 auto 34px auto',
-                maxWidth: '680px',
-                fontSize: 'clamp(15.5px, 1.8vw, 19px)',
-                lineHeight: 1.75,
+                margin: '0 auto 32px auto',
+                maxWidth: '670px',
+                fontSize: 'clamp(15.5px, 1.8vw, 18.5px)',
+                lineHeight: 1.78,
                 color: textSub,
               }}
             >
-              Edition I Theme — <strong style={{ color: '#D4AF37' }}>THE ZERO (शून्य)</strong>{' '}
-              <span style={{ opacity: 0.72 }}>(related to, but not restricted to)</span>. Explore all 12 official categories, test your draft with live odometer counters, and prepare print-ready submissions.
+              Edition I centres on <strong style={{ color: isDarkMode ? '#EBD28C' : '#8B1E24' }}>The Zero (शून्य)</strong> — a starting point, not a boundary. Whether it is a scientific breakthrough, a late-night poem, or a single photograph, find your category below and shape it for print.
             </p>
 
-            <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '14px' }}>
+            {/* Clean Mobile-Friendly Action Hierarchy */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
               <button
                 type="button"
                 onClick={() => scrollToAnchor('bento-categories')}
                 className="gp-magnetic-cta"
+                style={{ padding: '14px 32px', fontSize: '13px' }}
               >
                 <span>Explore 12 Categories</span>
                 <ArrowRight size={15} />
               </button>
 
-              <a
-                href="/Guidelines.pdf"
-                download="Sanrachna_Guidelines_2026.pdf"
-                className="gp-glass-pill"
-              >
-                <Download size={14} />
-                <span>Guidelines PDF</span>
-              </a>
-
-              <a
-                href="/Template for Submission.pdf"
-                download="Sanrachna_Template_2026.pdf"
-                className="gp-glass-pill"
-              >
-                <Download size={14} />
-                <span>Template PDF</span>
-              </a>
+              <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', gap: '18px', fontSize: '13px', fontWeight: 700 }}>
+                <a
+                  href="/Guidelines.pdf"
+                  download="Sanrachna_Guidelines_2026.pdf"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    color: isDarkMode ? '#EBD28C' : '#8B1E24',
+                    textDecoration: 'none',
+                    borderBottom: `1px solid ${isDarkMode ? 'rgba(235,210,140,0.45)' : 'rgba(139,30,36,0.4)'}`,
+                    paddingBottom: '2px',
+                  }}
+                >
+                  <Download size={14} />
+                  <span>Official Guidelines PDF</span>
+                </a>
+                <span style={{ opacity: 0.35 }}>•</span>
+                <a
+                  href="/Template for Submission.pdf"
+                  download="Sanrachna_Template_2026.pdf"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    color: textMain,
+                    textDecoration: 'none',
+                    borderBottom: `1px solid ${hairline}`,
+                    paddingBottom: '2px',
+                  }}
+                >
+                  <Download size={14} />
+                  <span>Submission Template PDF</span>
+                </a>
+              </div>
             </div>
           </BlurReveal>
         </section>
@@ -2268,73 +2729,71 @@ export default function GuidelinesPage({
         </div>
 
         {/* ================================================================= */}
-        {/* SECTION 01: ASYMMETRIC BENTO GRID (12 CATEGORIES) + ANIMATED INPUT */}
+        {/* SECTION 01: 12 WAYS TO CONTRIBUTE (PERFECT 4x4 BENTO + QUICK MATCH)*/}
         {/* ================================================================= */}
-        <section id="bento-categories" className="gp-inner" style={{ paddingTop: '76px', paddingBottom: '84px' }}>
-          <BlurReveal>
-            <div
-              style={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                alignItems: 'flex-end',
-                justifyContent: 'space-between',
-                gap: '22px',
-                marginBottom: '28px',
-              }}
-            >
-              <div style={{ textAlign: 'left' }}>
-                <div style={{ fontSize: '11px', fontWeight: 800, letterSpacing: '2.2px', textTransform: 'uppercase', color: '#D4AF37' }}>
-                  01 • Interactive Editorial Bento
-                </div>
-                <h2
-                  style={{
-                    margin: '6px 0 0 0',
-                    fontFamily: "'Cormorant Garamond', 'Playfair Display', serif",
-                    fontSize: 'clamp(34px, 4.4vw, 52px)',
-                    fontWeight: 700,
-                    lineHeight: 1.08,
-                    color: textMain,
-                  }}
-                >
-                  Choose Your Submission Category
-                </h2>
-              </div>
+        <section id="bento-categories" className="gp-inner" style={{ paddingTop: '78px', paddingBottom: '88px' }}>
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              alignItems: 'flex-end',
+              justifyContent: 'space-between',
+              gap: '22px',
+              marginBottom: '26px',
+            }}
+          >
+            <AnimatedSectionTitle
+              title="12 Ways to"
+              accent="Contribute"
+              isDarkMode={isDarkMode}
+            />
 
-              <AnimatedSearchInput
-                value={searchQuery}
-                onChange={setSearchQuery}
-                isDarkMode={isDarkMode}
-              />
-            </div>
+            <AnimatedSearchInput
+              value={searchQuery}
+              onChange={setSearchQuery}
+              isDarkMode={isDarkMode}
+            />
+          </div>
 
-            {/* Category Filter Chips */}
-            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px', marginBottom: '28px' }}>
-              {(
-                [
-                  { id: 'all', label: 'All 12 Categories' },
-                  { id: 'writing', label: 'Writing & Poetry' },
-                  { id: 'media', label: 'Campus & Media' },
-                  { id: 'visual', label: 'Art & Photography' },
-                ] as { id: CategoryGroup; label: string }[]
-              ).map((chip) => (
-                <button
-                  key={chip.id}
-                  type="button"
-                  onClick={() => setActiveGroup(chip.id)}
-                  className={`gp-filter-chip ${activeGroup === chip.id ? 'active' : ''}`}
-                >
-                  {chip.label}
-                </button>
-              ))}
-            </div>
-          </BlurReveal>
+          {/* Animated Sliding Filter Pill Tabs */}
+          <div style={{ marginBottom: '18px', textAlign: 'left' }}>
+            <SlidingPillTabs<CategoryGroup>
+              isDarkMode={isDarkMode}
+              activeId={activeGroup}
+              onSelect={setActiveGroup}
+              items={[
+                { id: 'all', label: 'All 12' },
+                { id: 'writing', label: 'Writing & Poetry' },
+                { id: 'media', label: 'Campus & Media' },
+                { id: 'visual', label: 'Art & Photo' },
+              ]}
+            />
+          </div>
 
-          {/* 12-Category Asymmetric Cursor-Spotlight Bento Grid */}
+          {/* "Where Does My Idea Fit?" Quick-Match Topic Pills */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px', marginBottom: '30px', textAlign: 'left' }}>
+            <span style={{ fontSize: '12px', fontWeight: 700, color: textSub, marginRight: '4px' }}>
+              Quick match:
+            </span>
+            {QUICK_IDEA_MATCHES.map((chip) => (
+              <button
+                key={chip.label}
+                type="button"
+                onClick={() => setActiveModalCatId(chip.targetId)}
+                className="gp-idea-chip"
+              >
+                {chip.label} ↗
+              </button>
+            ))}
+          </div>
+
+          {/* 4x4 Rich Gradient Bento Grid with 3D Scroll Unfold */}
           <div className="bento-grid">
-            {filteredCategories.map((cat) => (
+            {filteredCategories.map((cat, idx) => (
               <BentoCategoryTile
                 key={cat.id}
                 cat={cat}
+                index={idx}
                 isDarkMode={isDarkMode}
                 onSelect={() => setActiveModalCatId(cat.id)}
               />
@@ -2353,33 +2812,19 @@ export default function GuidelinesPage({
         </div>
 
         {/* ================================================================= */}
-        {/* SECTION 02: INTERACTIVE GLASS FOLDER CARDS (VIDEO 5 EFFECT)       */}
+        {/* SECTION 02: DOWNLOADS & PRE-SUBMISSION GLASS FOLDERS              */}
         {/* ================================================================= */}
-        <section id="glass-folders" className="gp-inner" style={{ paddingTop: '76px', paddingBottom: '88px' }}>
-          <BlurReveal>
-            <div style={{ textAlign: 'left', marginBottom: '36px' }}>
-              <div style={{ fontSize: '11px', fontWeight: 800, letterSpacing: '2.2px', textTransform: 'uppercase', color: '#D4AF37' }}>
-                02 • Interactive Editorial Folders
-              </div>
-              <h2
-                style={{
-                  margin: '6px 0 8px 0',
-                  fontFamily: "'Cormorant Garamond', 'Playfair Display', serif",
-                  fontSize: 'clamp(34px, 4.4vw, 52px)',
-                  fontWeight: 700,
-                  lineHeight: 1.08,
-                  color: textMain,
-                }}
-              >
-                Downloads &amp; Pre-Submission Kit
-              </h2>
-              <p style={{ margin: 0, maxWidth: '640px', fontSize: '15px', color: textSub, lineHeight: 1.65 }}>
-                Hover or tap either frosted-glass folder to fan out the official PDFs and the 4 mandatory items every contributor must keep ready.
-              </p>
-            </div>
-          </BlurReveal>
+        <section id="glass-folders" className="gp-inner" style={{ paddingTop: '78px', paddingBottom: '90px' }}>
+          <div style={{ marginBottom: '34px' }}>
+            <AnimatedSectionTitle
+              title="Downloads &"
+              accent="Essentials"
+              subtitle="Hover or tap either frosted folder to open the official PDFs and check the four essentials every contributor keeps ready."
+              isDarkMode={isDarkMode}
+            />
+          </div>
 
-          <BlurReveal delay={100}>
+          <BlurReveal delay={90}>
             <div className="gp-folders-grid">
               <GlassFolderCard
                 title="Official Submission Kit"
@@ -2398,7 +2843,7 @@ export default function GuidelinesPage({
                     title: 'Template for Submission.pdf',
                     meta: 'Official formatted A4 reference template',
                     tag: 'PDF ↓',
-                    accent: '#B45309',
+                    accent: '#581C3A',
                     href: '/Template for Submission.pdf',
                     downloadName: 'Sanrachna_Template_2026.pdf',
                   },
@@ -2414,8 +2859,8 @@ export default function GuidelinesPage({
               />
 
               <GlassFolderCard
-                title="Pre-Submission Essentials"
-                subtitle="4 mandatory items required before uploading"
+                title="Four Mandatory Essentials"
+                subtitle="Keep these ready before uploading on the portal"
                 isDarkMode={isDarkMode}
                 primaryActionLabel="Open Submission Portal"
                 onPrimaryAction={onOpenSubmission}
@@ -2430,13 +2875,13 @@ export default function GuidelinesPage({
                     title: '(c) Clear Descriptive Title',
                     meta: 'At top of article + separate supporting media',
                     tag: 'TITLE',
-                    accent: '#6B21A8',
+                    accent: '#581C3A',
                   },
                   {
                     title: '(b) Author Photograph (300 DPI)',
                     meta: 'Sharp portrait image attached separately',
                     tag: '300 DPI',
-                    accent: '#B45309',
+                    accent: '#8B6D2E',
                   },
                   {
                     title: '(a) Brief Author Biography',
@@ -2455,61 +2900,39 @@ export default function GuidelinesPage({
         </div>
 
         {/* ================================================================= */}
-        {/* SECTION 03: FORMATTING STUDIO & LIVE MORPHING A4 SPECIMEN         */}
+        {/* SECTION 03: FORMATTING STUDIO + REJECTED VS PRINT-READY A4 TOGGLE */}
         {/* ================================================================= */}
-        <section id="formatting-studio" className="gp-inner" style={{ paddingTop: '76px', paddingBottom: '88px' }}>
-          <BlurReveal>
-            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', gap: '18px', marginBottom: '34px' }}>
-              <div style={{ textAlign: 'left' }}>
-                <div style={{ fontSize: '11px', fontWeight: 800, letterSpacing: '2.2px', textTransform: 'uppercase', color: '#D4AF37' }}>
-                  03 • Typography &amp; Print Blueprint
-                </div>
-                <h2
-                  style={{
-                    margin: '6px 0 0 0',
-                    fontFamily: "'Cormorant Garamond', 'Playfair Display', serif",
-                    fontSize: 'clamp(34px, 4.4vw, 52px)',
-                    fontWeight: 700,
-                    lineHeight: 1.08,
-                    color: textMain,
-                  }}
-                >
-                  Formatting &amp; Live A4 Preview
-                </h2>
-              </div>
+        <section id="formatting-studio" className="gp-inner" style={{ paddingTop: '78px', paddingBottom: '90px' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', gap: '20px', marginBottom: '34px' }}>
+            <AnimatedSectionTitle
+              title="Formatting &"
+              accent="Print Preview"
+              isDarkMode={isDarkMode}
+            />
 
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                {(
-                  [
-                    { id: 'english', label: 'English Text' },
-                    { id: 'hindi', label: 'हिन्दी Text' },
-                    { id: 'visual', label: 'Images & 300 DPI' },
-                  ] as { id: FormatTab; label: string }[]
-                ).map((tab) => (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => setFormatTab(tab.id)}
-                    className={`gp-filter-chip ${formatTab === tab.id ? 'active' : ''}`}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </BlurReveal>
+            <SlidingPillTabs<FormatTab>
+              isDarkMode={isDarkMode}
+              activeId={formatTab}
+              onSelect={setFormatTab}
+              items={[
+                { id: 'english', label: 'English Text' },
+                { id: 'hindi', label: 'हिन्दी Text' },
+                { id: 'visual', label: 'Images & 300 DPI' },
+              ]}
+            />
+          </div>
 
-          <BlurReveal delay={100}>
+          <BlurReveal delay={90}>
             <div className="gp-format-bento">
-              {/* Left: Flowing Editorial Specification Ledger */}
+              {/* Left: Clean Editorial Specs */}
               <div
                 style={{
                   borderRadius: '28px',
                   padding: '30px 32px',
                   border: `1px solid ${hairline}`,
                   background: isDarkMode
-                    ? 'linear-gradient(155deg, rgba(16, 23, 46, 0.72) 0%, rgba(9, 13, 28, 0.86) 100%)'
-                    : 'linear-gradient(155deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 243, 234, 0.85) 100%)',
+                    ? 'linear-gradient(155deg, rgba(16, 24, 48, 0.78) 0%, rgba(9, 13, 28, 0.9) 100%)'
+                    : 'linear-gradient(155deg, rgba(255, 255, 255, 0.92) 0%, rgba(247, 241, 232, 0.86) 100%)',
                   backdropFilter: 'blur(20px)',
                   textAlign: 'left',
                 }}
@@ -2551,7 +2974,7 @@ export default function GuidelinesPage({
                       borderTop: idx === 0 ? 'none' : `1px solid ${hairline}`,
                     }}
                   >
-                    <span style={{ fontSize: '11.5px', fontWeight: 800, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#D4AF37' }}>
+                    <span style={{ fontSize: '11.5px', fontWeight: 800, letterSpacing: '1.1px', textTransform: 'uppercase', color: isDarkMode ? '#D4AF37' : '#8B1E24' }}>
                       {item.k}
                     </span>
                     <span style={{ fontSize: '14.5px', fontWeight: 600, color: textMain }}>{item.v}</span>
@@ -2559,99 +2982,147 @@ export default function GuidelinesPage({
                 ))}
               </div>
 
-              {/* Right: Live Morphing A4 Glass Specimen */}
+              {/* Right: Live Morphing A4 Specimen (Print-Ready vs What Gets Rejected) */}
               <div
                 style={{
                   borderRadius: '28px',
-                  padding: '28px',
-                  border: '1px solid rgba(212, 175, 55, 0.5)',
+                  padding: '26px',
+                  border: `1px solid ${specimenMode === 'ready' ? 'rgba(34, 197, 94, 0.45)' : 'rgba(225, 29, 72, 0.55)'}`,
                   background: isDarkMode
-                    ? 'linear-gradient(155deg, rgba(24, 32, 62, 0.88) 0%, rgba(10, 14, 30, 0.94) 100%)'
-                    : 'linear-gradient(155deg, #FFFFFF 0%, #F5EDE0 100%)',
+                    ? specimenMode === 'ready'
+                      ? 'linear-gradient(155deg, rgba(16, 38, 42, 0.85) 0%, rgba(10, 15, 32, 0.94) 100%)'
+                      : 'linear-gradient(155deg, rgba(58, 14, 24, 0.86) 0%, rgba(12, 14, 30, 0.94) 100%)'
+                    : specimenMode === 'ready'
+                    ? 'linear-gradient(155deg, #FFFFFF 0%, #F1F8F4 100%)'
+                    : 'linear-gradient(155deg, #FFFDFD 0%, #FCECEE 100%)',
                   boxShadow: isDarkMode
                     ? '0 26px 60px rgba(0, 0, 0, 0.5)'
-                    : '0 22px 52px rgba(139, 30, 36, 0.12)',
+                    : '0 20px 48px rgba(30, 58, 95, 0.1)',
                   display: 'flex',
                   flexDirection: 'column',
                   justifyContent: 'space-between',
                   textAlign: 'left',
+                  transition: 'all 0.45s cubic-bezier(0.16, 1, 0.3, 1)',
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', fontSize: '11px', fontWeight: 800, letterSpacing: '1.4px', textTransform: 'uppercase', color: '#D4AF37' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 800, letterSpacing: '1.2px', textTransform: 'uppercase', color: specimenMode === 'ready' ? '#22C55E' : '#E11D48' }}>
                     <Eye size={14} />
-                    <span>Live A4 Specimen</span>
+                    <span>{specimenMode === 'ready' ? 'Print-Ready A4' : 'Common Mistakes'}</span>
                   </span>
-                  <span style={{ fontSize: '11px', fontWeight: 700, color: textSub }}>1&quot; Margins • A4</span>
+
+                  <SlidingPillTabs<'ready' | 'rejected'>
+                    compact
+                    isDarkMode={isDarkMode}
+                    activeId={specimenMode}
+                    onSelect={setSpecimenMode}
+                    items={[
+                      { id: 'ready', label: 'Print-Ready' },
+                      { id: 'rejected', label: 'Gets Rejected' },
+                    ]}
+                  />
                 </div>
 
                 <div
                   style={{
                     flex: 1,
-                    border: '1px dashed rgba(212, 175, 55, 0.45)',
+                    border: `1.5px dashed ${specimenMode === 'ready' ? 'rgba(34, 197, 94, 0.45)' : 'rgba(225, 29, 72, 0.55)'}`,
                     borderRadius: '16px',
-                    padding: '24px 22px',
+                    padding: specimenMode === 'ready' ? '24px 22px' : '14px 12px',
                     display: 'flex',
                     flexDirection: 'column',
                     justifyContent: 'space-between',
+                    transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
                   }}
                 >
-                  {formatTab === 'english' && (
-                    <div style={{ fontFamily: "'Bookman Old Style', Georgia, serif" }}>
-                      <div style={{ fontSize: '17px', fontWeight: 700, color: textMain }}>
-                        The Architecture of Zero (14pt Bold)
+                  {specimenMode === 'ready' ? (
+                    formatTab === 'english' ? (
+                      <div style={{ fontFamily: "'Bookman Old Style', Georgia, serif" }}>
+                        <div style={{ fontSize: '17px', fontWeight: 700, color: textMain }}>
+                          The Architecture of Zero (14pt Bold)
+                        </div>
+                        <div style={{ fontSize: '13.5px', fontWeight: 700, color: '#D4AF37', marginTop: '7px' }}>
+                          Sub-heading in 12pt Bold
+                        </div>
+                        <p style={{ fontSize: '12.5px', lineHeight: 1.8, color: textSub, margin: '12px 0' }}>
+                          Clean Bookman Old Style (11pt) with 1&quot; margins, 1.5 line spacing, and 6pt paragraph spacing saved in editable .doc or .docx format.
+                        </p>
+                        <div style={{ textAlign: 'center', fontSize: '11.5px', fontWeight: 700, color: '#22C55E', marginTop: '18px' }}>
+                          — 1 — (Bottom Centre)
+                        </div>
                       </div>
-                      <div style={{ fontSize: '13.5px', fontWeight: 700, color: '#D4AF37', marginTop: '7px' }}>
-                        Sub-heading in 12pt Bold
+                    ) : formatTab === 'hindi' ? (
+                      <div>
+                        <div style={{ fontSize: '19px', fontWeight: 700, color: textMain }}>
+                          शून्य से सृजन की ओर (16pt शीर्षक)
+                        </div>
+                        <div style={{ fontSize: '15px', fontWeight: 600, color: '#D4AF37', marginTop: '7px' }}>
+                          उप-शीर्षक (14pt KrutiDev / Mangal)
+                        </div>
+                        <p style={{ fontSize: '14.5px', lineHeight: 1.85, color: textSub, margin: '12px 0' }}>
+                          मुख्य लेख 14pt फ़ॉन्ट में, 1.5 लाइन स्पेसिंग और प्रत्येक पैराग्राफ के बाद 6pt स्पेसिंग के साथ A4 पृष्ठ पर तैयार करें।
+                        </p>
+                        <div style={{ textAlign: 'center', fontSize: '11.5px', fontWeight: 700, color: '#22C55E', marginTop: '18px' }}>
+                          — १ — (Bottom Centre)
+                        </div>
                       </div>
-                      <p style={{ fontSize: '12.5px', lineHeight: 1.8, color: textSub, margin: '12px 0' }}>
-                        Manuscript text styled in Bookman Old Style (11pt) with 1.5 line spacing and 6pt spacing after each paragraph, prepared in editable .doc or .docx format.
-                      </p>
-                      <div style={{ textAlign: 'center', fontSize: '11.5px', fontWeight: 700, color: '#D4AF37', marginTop: '20px' }}>
-                        — 1 — (Bottom Centre)
+                    ) : (
+                      <div style={{ textAlign: 'center', margin: 'auto 0' }}>
+                        <div
+                          style={{
+                            height: '120px',
+                            borderRadius: '14px',
+                            background: 'linear-gradient(135deg, rgba(20,83,75,0.28), rgba(212,175,55,0.24), rgba(30,58,95,0.34))',
+                            border: '1px solid rgba(34, 197, 94, 0.45)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          <Image size={28} color="#22C55E" />
+                          <span style={{ fontSize: '13px', fontWeight: 800, color: textMain, marginTop: '8px' }}>
+                            Standalone 300 DPI File (.JPG / .PNG)
+                          </span>
+                        </div>
+                        <p style={{ fontSize: '12.5px', color: textSub, marginTop: '12px', marginBottom: 0 }}>
+                          Sent separately with caption &amp; short description—ready for high-resolution print.
+                        </p>
                       </div>
-                    </div>
-                  )}
-
-                  {formatTab === 'hindi' && (
-                    <div>
-                      <div style={{ fontSize: '19px', fontWeight: 700, color: textMain }}>
-                        शून्य से सृजन की ओर (16pt शीर्षक)
-                      </div>
-                      <div style={{ fontSize: '15px', fontWeight: 600, color: '#D4AF37', marginTop: '7px' }}>
-                        उप-शीर्षक (14pt KrutiDev / Mangal)
-                      </div>
-                      <p style={{ fontSize: '14.5px', lineHeight: 1.85, color: textSub, margin: '12px 0' }}>
-                        मुख्य लेख 14pt फ़ॉन्ट में, 1.5 लाइन स्पेसिंग और प्रत्येक पैराग्राफ के बाद 6pt स्पेसिंग के साथ A4 पृष्ठ पर तैयार करें।
-                      </p>
-                      <div style={{ textAlign: 'center', fontSize: '11.5px', fontWeight: 700, color: '#D4AF37', marginTop: '20px' }}>
-                        — १ — (Bottom Centre)
-                      </div>
-                    </div>
-                  )}
-
-                  {formatTab === 'visual' && (
-                    <div style={{ textAlign: 'center', margin: 'auto 0' }}>
-                      <div
-                        style={{
-                          height: '124px',
-                          borderRadius: '14px',
-                          background: 'linear-gradient(135deg, rgba(139,30,36,0.3), rgba(212,175,55,0.28), rgba(30,58,95,0.34))',
-                          border: '1px solid rgba(212, 175, 55, 0.5)',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}
-                      >
-                        <Image size={30} color="#D4AF37" />
-                        <span style={{ fontSize: '13px', fontWeight: 800, color: textMain, marginTop: '8px' }}>
-                          Standalone 300 DPI Image (.JPG / .PNG / .GIF)
-                        </span>
-                      </div>
-                      <p style={{ fontSize: '12.5px', color: textSub, marginTop: '14px', marginBottom: 0 }}>
-                        Upload artwork, photos &amp; author portraits separately—never pasted inside Word files.
-                      </p>
+                    )
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', margin: 'auto 0' }}>
+                      {(formatTab === 'visual'
+                        ? [
+                            'Images pasted inside a Word (.docx) document',
+                            'Blurry WhatsApp-forwarded or screenshot artwork (below 300 DPI)',
+                            'AI-generated illustrations or missing artwork caption',
+                          ]
+                        : [
+                            'Unformatted wall of text with tight single spacing & missing 1" margins',
+                            'Default Calibri / Arial fonts instead of Bookman Old or KrutiDev/Mangal',
+                            'Screenshots of typed text or unedited AI-generated paragraphs',
+                          ]
+                      ).map((mistake, mIdx) => (
+                        <div
+                          key={mIdx}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'flex-start',
+                            gap: '10px',
+                            padding: '10px 12px',
+                            borderRadius: '12px',
+                            background: isDarkMode ? 'rgba(225, 29, 72, 0.14)' : 'rgba(225, 29, 72, 0.08)',
+                            border: '1px solid rgba(225, 29, 72, 0.3)',
+                            fontSize: '13px',
+                            color: textMain,
+                            lineHeight: 1.5,
+                          }}
+                        >
+                          <XCircle size={16} color="#E11D48" style={{ flexShrink: 0, marginTop: '2px' }} />
+                          <span>{mistake}</span>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
@@ -2665,98 +3136,235 @@ export default function GuidelinesPage({
         </div>
 
         {/* ================================================================= */}
-        {/* SECTION 04: STICKY SPLIT + SLIDING HOVER STACK (VIDEO 2 EFFECT)   */}
+        {/* SECTION 04: FROM PORTAL TO PRINT (3-STEP EDITORIAL JOURNEY)       */}
         {/* ================================================================= */}
-        <section id="editorial-ethics" className="gp-inner" style={{ paddingTop: '76px', paddingBottom: '96px' }}>
-          <div className="gp-disclosures-split">
-            {/* Left Sticky Editorial Column */}
-            <div style={{ position: 'sticky', top: '104px', textAlign: 'left' }}>
-              <BlurReveal>
-                <div style={{ fontSize: '11px', fontWeight: 800, letterSpacing: '2.2px', textTransform: 'uppercase', color: '#D4AF37' }}>
-                  04 • Ethics &amp; Disclosures
-                </div>
-                <h2
-                  style={{
-                    margin: '8px 0 14px 0',
-                    fontFamily: "'Cormorant Garamond', 'Playfair Display', serif",
-                    fontSize: 'clamp(34px, 4.4vw, 52px)',
-                    fontWeight: 700,
-                    lineHeight: 1.06,
-                    color: textMain,
-                  }}
-                >
-                  Standards That Protect Every Voice
-                </h2>
-                <p style={{ margin: '0 0 24px 0', fontSize: '15px', lineHeight: 1.7, color: textSub }}>
-                  Glide across each card to inspect संRACHNA&apos;s official policies on originality, conduct, review rights, and publication copyright.
-                </p>
+        <section className="gp-inner" style={{ paddingTop: '78px', paddingBottom: '88px' }}>
+          <div style={{ marginBottom: '36px' }}>
+            <AnimatedSectionTitle
+              title="From Portal"
+              accent="to Print"
+              subtitle="Every submission moves through a transparent three-stage journey curated by the Editorial & Review Team."
+              isDarkMode={isDarkMode}
+            />
+          </div>
 
+          <div className="gp-journey-grid">
+            {EDITORIAL_STEPS.map((st, idx) => {
+              const StepIcon = st.icon;
+              return (
+                <BlurReveal key={st.step} delay={idx * 100}>
+                  <div
+                    style={{
+                      position: 'relative',
+                      height: '100%',
+                      borderRadius: '26px',
+                      padding: '28px 26px',
+                      border: `1px solid ${hairline}`,
+                      background: isDarkMode
+                        ? 'linear-gradient(150deg, rgba(22, 32, 64, 0.72) 0%, rgba(10, 14, 30, 0.9) 100%)'
+                        : 'linear-gradient(150deg, rgba(255, 255, 255, 0.92) 0%, rgba(246, 240, 231, 0.86) 100%)',
+                      textAlign: 'left',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <span
+                      aria-hidden="true"
+                      style={{
+                        position: 'absolute',
+                        right: '16px',
+                        top: '4px',
+                        fontFamily: "'Cormorant Garamond', 'Playfair Display', serif",
+                        fontSize: '74px',
+                        fontWeight: 700,
+                        lineHeight: 1,
+                        color: isDarkMode ? 'rgba(212, 175, 55, 0.08)' : 'rgba(139, 30, 36, 0.07)',
+                      }}
+                    >
+                      {st.step}
+                    </span>
+
+                    <div
+                      style={{
+                        width: '44px',
+                        height: '44px',
+                        borderRadius: '14px',
+                        background: 'linear-gradient(135deg, #8B1E24 0%, #1E3A5F 100%)',
+                        border: '1px solid rgba(212, 175, 55, 0.5)',
+                        color: '#F5E6B8',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginBottom: '18px',
+                      }}
+                    >
+                      <StepIcon size={20} />
+                    </div>
+
+                    <h3
+                      style={{
+                        margin: '0 0 8px 0',
+                        fontFamily: "'Playfair Display', serif",
+                        fontSize: '21px',
+                        fontWeight: 700,
+                        color: textMain,
+                      }}
+                    >
+                      {st.title}
+                    </h3>
+                    <p style={{ margin: 0, fontSize: '14px', lineHeight: 1.65, color: textSub }}>
+                      {st.desc}
+                    </p>
+                  </div>
+                </BlurReveal>
+              );
+            })}
+          </div>
+        </section>
+
+        <div className="gp-inner">
+          <div className="gp-divider" />
+        </div>
+
+        {/* ================================================================= */}
+        {/* SECTION 05: EDITORIAL RULES & ETHICS + DISTINCTION HONOUR FRAME   */}
+        {/* ================================================================= */}
+        <section id="editorial-ethics" className="gp-inner" style={{ paddingTop: '78px', paddingBottom: '96px' }}>
+          <div className="gp-disclosures-split">
+            {/* Left Column: Animated Heading + Regal Editorial Distinction Showcase */}
+            <div className="gp-sticky-desktop" style={{ textAlign: 'left' }}>
+              <AnimatedSectionTitle
+                title="Editorial Rules"
+                accent="& Ethics"
+                subtitle="Scroll or hover across each policy to see how संRACHNA upholds originality, fairness, and copyright."
+                isDarkMode={isDarkMode}
+              />
+
+              {/* Elevated Recognition & Contributor Honours Frame (Replaces plain E-Certificate pill) */}
+              <BlurReveal delay={120}>
                 <div
                   style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '10px',
-                    padding: '12px 18px',
-                    borderRadius: '18px',
-                    border: '1px solid rgba(212, 175, 55, 0.4)',
-                    background: isDarkMode ? 'rgba(212, 175, 55, 0.08)' : 'rgba(139, 30, 36, 0.06)',
-                    fontSize: '13px',
-                    fontWeight: 700,
-                    color: isDarkMode ? '#F6E05E' : '#8B1E24',
+                    marginTop: '28px',
+                    borderRadius: '26px',
+                    padding: '26px 24px',
+                    position: 'relative',
+                    overflow: 'hidden',
+                    background: isDarkMode
+                      ? 'linear-gradient(150deg, rgba(139, 30, 36, 0.28) 0%, rgba(22, 32, 62, 0.88) 60%, rgba(10, 14, 30, 0.96) 100%)'
+                      : 'linear-gradient(150deg, rgba(255, 252, 246, 0.96) 0%, rgba(246, 236, 224, 0.92) 55%, rgba(235, 240, 249, 0.9) 100%)',
+                    border: '1px solid rgba(212, 175, 55, 0.48)',
+                    boxShadow: isDarkMode
+                      ? '0 22px 50px rgba(0, 0, 0, 0.4)'
+                      : '0 18px 42px rgba(30, 58, 95, 0.1)',
                   }}
                 >
-                  <Award size={18} />
-                  <span>E-Certificate to the Best Content Submitter</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
+                    <div
+                      style={{
+                        width: '42px',
+                        height: '42px',
+                        borderRadius: '50%',
+                        background: 'linear-gradient(135deg, #D4AF37 0%, #8B6D2E 100%)',
+                        color: '#070B19',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                        boxShadow: '0 0 20px rgba(212, 175, 55, 0.4)',
+                      }}
+                    >
+                      <Award size={20} />
+                    </div>
+                    <div>
+                      <div style={{ fontFamily: "'Playfair Display', serif", fontSize: '19px', fontWeight: 700, color: textMain, lineHeight: 1.2 }}>
+                        Contributor Honours
+                      </div>
+                      <div style={{ fontSize: '12px', fontWeight: 600, color: isDarkMode ? '#EBD28C' : '#8B1E24', marginTop: '2px' }}>
+                        Edition I • Official Recognition
+                      </div>
+                    </div>
+                  </div>
+
+                  <p style={{ margin: '0 0 16px 0', fontSize: '13.5px', lineHeight: 1.65, color: textSub }}>
+                    Standout submissions earn the <strong style={{ color: textMain }}>Certificate of Editorial Distinction</strong> for the finest entry of the edition, alongside permanent publication credit.
+                  </p>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '9px' }}>
+                    {[
+                      'Official print & digital byline with author biography',
+                      'Editorial polish while preserving your original voice',
+                      'Honour Roll E-Certificate for Best Content Submitter',
+                    ].map((perk, idx) => (
+                      <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '9px', fontSize: '12.5px', fontWeight: 600, color: textMain }}>
+                        <Sparkles size={13} color="#D4AF37" style={{ flexShrink: 0 }} />
+                        <span>{perk}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </BlurReveal>
             </div>
 
-            {/* Right: Video 2 Sliding Glossy Hover Stack */}
-            <BlurReveal delay={120}>
-              <SlidingHoverDisclosures isDarkMode={isDarkMode} />
-            </BlurReveal>
+            {/* Right Column: Scroll-Reactive & Hover-Reactive Sliding Stack */}
+            <SlidingScrollDisclosures isDarkMode={isDarkMode} />
           </div>
         </section>
 
         {/* ================================================================= */}
-        {/* FULL-BLEED CINEMATIC FOOTER (NO DABBA • LOGOS + ALL 5 LINKS)      */}
+        {/* FULL-BLEED CINEMATIC FOOTER (ANIMATED • LOGOS UNTOUCHED • || ||)  */}
         {/* ================================================================= */}
         <footer
           style={{
             position: 'relative',
             overflow: 'hidden',
             background: isDarkMode
-              ? 'linear-gradient(180deg, #070B19 0%, #0A0F24 45%, #120912 100%)'
-              : 'linear-gradient(180deg, #FAF9F5 0%, #F3EBE0 55%, #E8D9C5 100%)',
+              ? 'linear-gradient(180deg, #070B19 0%, #0C1228 48%, #150B16 100%)'
+              : 'linear-gradient(180deg, #FAF9F5 0%, #F3ECE2 55%, #E7D9C6 100%)',
             borderTop: '1.5px solid transparent',
             borderImage: 'linear-gradient(90deg, #8B1E24, #D4AF37, #1E3A5F, #8B1E24) 1',
-            paddingTop: '84px',
+            paddingTop: '88px',
           }}
         >
-          {/* Closing Editorial Hero Statement (Full-Bleed, Open & Airy) */}
-          <div className="gp-inner" style={{ textAlign: 'center', paddingBottom: '68px' }}>
-            <BlurReveal>
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', fontSize: '11px', fontWeight: 800, letterSpacing: '2.4px', textTransform: 'uppercase', color: '#D4AF37' }}>
-                <Sparkles size={14} />
-                <span>Team संRACHNA • Government Engineering College, Godda</span>
-              </div>
+          {/* Ambient Animated Footer Halo */}
+          <div
+            aria-hidden="true"
+            style={{
+              position: 'absolute',
+              top: '-60px',
+              left: '50%',
+              width: '720px',
+              height: '280px',
+              borderRadius: '50%',
+              background: isDarkMode
+                ? 'radial-gradient(circle, rgba(139,30,36,0.28) 0%, rgba(212,175,55,0.12) 48%, transparent 74%)'
+                : 'radial-gradient(circle, rgba(212,175,55,0.22) 0%, rgba(139,30,36,0.08) 48%, transparent 74%)',
+              filter: 'blur(70px)',
+              pointerEvents: 'none',
+              animation: 'footerHaloPulse 7s ease-in-out infinite',
+            }}
+          />
 
+          {/* Closing Editorial Hero Statement */}
+          <div className="gp-inner" style={{ position: 'relative', zIndex: 2, textAlign: 'center', paddingBottom: '68px' }}>
+            <BlurReveal>
               <h2
                 style={{
-                  margin: '16px auto 14px auto',
+                  margin: '0 auto 14px auto',
                   maxWidth: '880px',
                   fontFamily: "'Cormorant Garamond', 'Playfair Display', serif",
                   fontSize: 'clamp(32px, 5vw, 58px)',
                   fontWeight: 700,
-                  lineHeight: 1.08,
+                  lineHeight: 1.1,
                   color: textMain,
                 }}
               >
-                &ldquo;Inform, Engage, Celebrate Talent, and Preserve Memories&rdquo;
+                &ldquo;Inform, Engage, Celebrate Talent, and{' '}
+                <span className={isDarkMode ? 'royal-accent-text-dark' : 'royal-accent-text-light'}>
+                  Preserve Memories&rdquo;
+                </span>
               </h2>
 
-              <p style={{ margin: '0 auto 30px auto', maxWidth: '580px', fontSize: '15.5px', lineHeight: 1.7, color: textSub }}>
-                Ready with your formatted manuscript, poetry, sketch, or photograph? Step into the official portal and share your creation with the campus.
+              <p style={{ margin: '0 auto 30px auto', maxWidth: '580px', fontSize: '15.5px', lineHeight: 1.72, color: textSub }}>
+                Ready with your formatted manuscript, poetry, sketch, or photograph? Step into the official portal and share your creation with GEC Godda.
               </p>
 
               <button
@@ -2775,169 +3383,168 @@ export default function GuidelinesPage({
             <div className="gp-divider" />
           </div>
 
-          {/* 3-Column Brand, Quick Links & All 5 Official Channels */}
-          <div className="gp-inner" style={{ paddingTop: '56px', paddingBottom: '56px' }}>
+          {/* 3-Column Brand (Logos Untouched), Quick Navigation & All 5 Channels */}
+          <div className="gp-inner" style={{ position: 'relative', zIndex: 2, paddingTop: '56px', paddingBottom: '56px' }}>
             <div className="gp-footer-cols">
-              {/* Column 1: Both Official Logos + Institutional Identity */}
-              <div style={{ textAlign: 'left' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '18px' }}>
-                  <img
-                    src="/gec-logo.png"
-                    alt="GEC Godda Logo"
-                    style={{
-                      width: '50px',
-                      height: '50px',
-                      objectFit: 'contain',
-                      borderRadius: '50%',
-                      backgroundColor: '#FFFFFF',
-                      padding: '4px',
-                      border: '1px solid rgba(212, 175, 55, 0.5)',
-                    }}
-                  />
-                  <div style={{ width: '1.5px', height: '38px', background: 'rgba(212, 175, 55, 0.45)' }} />
-                  <img
-                    src="/sanrachna-official-logo.png"
-                    alt="Sanrachna Official Logo"
-                    style={{
-                      width: '50px',
-                      height: '50px',
-                      objectFit: 'contain',
-                      borderRadius: '50%',
-                      backgroundColor: '#FFFFFF',
-                      padding: '5px',
-                      border: '1px solid rgba(212, 175, 55, 0.7)',
-                    }}
-                  />
-                  <div>
-                    <div style={{ fontFamily: "'Rozha One', 'Playfair Display', serif", fontSize: '24px', color: '#D4AF37', lineHeight: 1.05 }}>
-                      संRACHNA
-                    </div>
-                    <div style={{ fontSize: '11.5px', fontWeight: 700, color: textSub, marginTop: '2px' }}>
-                      सृजन से निर्माण तक
-                    </div>
-                  </div>
-                </div>
-
-                <p style={{ margin: '0 0 12px 0', fontSize: '13.5px', lineHeight: 1.7, color: textSub }}>
-                  The official annual college magazine of Government Engineering College, Godda. Edition I — Theme: <strong style={{ color: '#D4AF37' }}>The Zero (शून्य)</strong>.
-                </p>
-                <div style={{ fontSize: '12px', color: textSub, opacity: 0.85 }}>
-                  Chhatra, Poreyahat, Godda, Jharkhand – 814153
-                </div>
-              </div>
-
-              {/* Column 2: Quick Navigation & Downloads */}
-              <div style={{ textAlign: 'left' }}>
-                <div style={{ fontSize: '11px', fontWeight: 800, letterSpacing: '2px', textTransform: 'uppercase', color: '#D4AF37', marginBottom: '16px' }}>
-                  Handbook Navigation
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'flex-start' }}>
-                  {[
-                    { label: '← Return to Main Portal', action: onBack },
-                    { label: '12 Submission Categories', action: () => scrollToAnchor('bento-categories') },
-                    { label: 'Downloads & Pre-Submission Kit', action: () => scrollToAnchor('glass-folders') },
-                    { label: 'Formatting & Live A4 Preview', action: () => scrollToAnchor('formatting-studio') },
-                    { label: 'Ethics, Copyright & Disclosures', action: () => scrollToAnchor('editorial-ethics') },
-                  ].map((nav) => (
-                    <button
-                      key={nav.label}
-                      type="button"
-                      onClick={nav.action}
+              {/* Column 1: Untouched Logos + || सृजन से निर्माण तक || */}
+              <BlurReveal delay={0}>
+                <div style={{ textAlign: 'left' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '18px' }}>
+                    <img
+                      src="/gec-logo.png"
+                      alt="GEC Godda Logo"
                       style={{
-                        background: 'transparent',
-                        border: 'none',
-                        padding: 0,
-                        fontSize: '14px',
-                        fontWeight: 600,
-                        color: textMain,
-                        cursor: 'pointer',
-                        fontFamily: 'inherit',
+                        width: '50px',
+                        height: '50px',
+                        objectFit: 'contain',
+                        borderRadius: '50%',
+                        backgroundColor: '#FFFFFF',
+                        padding: '4px',
+                        border: '1px solid rgba(212, 175, 55, 0.5)',
                       }}
-                    >
-                      {nav.label}
-                    </button>
-                  ))}
-                  <div style={{ display: 'flex', gap: '14px', marginTop: '8px', flexWrap: 'wrap' }}>
-                    <a href="/Guidelines.pdf" download="Sanrachna_Guidelines_2026.pdf" style={{ color: '#D4AF37', fontSize: '13px', fontWeight: 700, textDecoration: 'none', borderBottom: '1px solid #D4AF37' }}>
-                      Guidelines PDF ↓
-                    </a>
-                    <a href="/Template for Submission.pdf" download="Sanrachna_Template_2026.pdf" style={{ color: textMain, fontSize: '13px', fontWeight: 700, textDecoration: 'none', borderBottom: `1px solid ${textMain}` }}>
-                      Template PDF ↓
-                    </a>
+                    />
+                    <div style={{ width: '1.5px', height: '38px', background: 'rgba(212, 175, 55, 0.45)' }} />
+                    <img
+                      src="/sanrachna-official-logo.png"
+                      alt="Sanrachna Official Logo"
+                      style={{
+                        width: '50px',
+                        height: '50px',
+                        objectFit: 'contain',
+                        borderRadius: '50%',
+                        backgroundColor: '#FFFFFF',
+                        padding: '5px',
+                        border: '1px solid rgba(212, 175, 55, 0.7)',
+                      }}
+                    />
+                    <div>
+                      <div style={{ fontFamily: "'Noto Serif Devanagari', 'Rozha One', serif", fontSize: '23px', fontWeight: 700, color: isDarkMode ? '#EBD28C' : '#8B1E24', lineHeight: 1.1 }}>
+                        संRACHNA
+                      </div>
+                      <div style={{ fontSize: '11.5px', fontWeight: 700, color: isDarkMode ? '#D4AF37' : '#1E3A5F', marginTop: '3px', letterSpacing: '0.4px' }}>
+                        || सृजन से निर्माण तक ||
+                      </div>
+                    </div>
+                  </div>
+
+                  <p style={{ margin: '0 0 12px 0', fontSize: '13.5px', lineHeight: 1.72, color: textSub }}>
+                    The official annual college magazine of Government Engineering College, Godda. Edition I — Theme: <strong style={{ color: isDarkMode ? '#EBD28C' : '#8B1E24' }}>The Zero (शून्य)</strong>.
+                  </p>
+                  <div style={{ fontSize: '12px', color: textSub, opacity: 0.85 }}>
+                    Chhatra, Poreyahat, Godda, Jharkhand – 814153
                   </div>
                 </div>
-              </div>
+              </BlurReveal>
 
-              {/* Column 3: ALL 5 Official Channels with Icons */}
-              <div style={{ textAlign: 'left' }}>
-                <div style={{ fontSize: '11px', fontWeight: 800, letterSpacing: '2px', textTransform: 'uppercase', color: '#D4AF37', marginBottom: '16px' }}>
-                  Official Channels &amp; Connect
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(185px, 1fr))', gap: '10px' }}>
-                  {socialChannels.map((ch) => (
-                    <a
-                      key={ch.name}
-                      href={ch.href}
-                      target={ch.href.startsWith('mailto:') ? undefined : '_blank'}
-                      rel={ch.href.startsWith('mailto:') ? undefined : 'noopener noreferrer'}
-                      className="gp-social-chip"
-                    >
-                      <div
-                        style={{
-                          width: '36px',
-                          height: '36px',
-                          borderRadius: '11px',
-                          background: 'rgba(212, 175, 55, 0.14)',
-                          color: '#D4AF37',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          flexShrink: 0,
-                        }}
+              {/* Column 2: Quick Navigation & PDF Downloads */}
+              <BlurReveal delay={100}>
+                <div style={{ textAlign: 'left' }}>
+                  <div style={{ fontSize: '12px', fontWeight: 800, letterSpacing: '1.4px', textTransform: 'uppercase', color: '#D4AF37', marginBottom: '16px' }}>
+                    Handbook Navigation
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '11px', alignItems: 'flex-start' }}>
+                    {[
+                      { label: '← Return to Main Portal', action: onBack },
+                      { label: '12 Ways to Contribute', action: () => scrollToAnchor('bento-categories') },
+                      { label: 'Downloads & Essentials', action: () => scrollToAnchor('glass-folders') },
+                      { label: 'Formatting & Print Preview', action: () => scrollToAnchor('formatting-studio') },
+                      { label: 'Editorial Rules & Ethics', action: () => scrollToAnchor('editorial-ethics') },
+                    ].map((nav) => (
+                      <button
+                        key={nav.label}
+                        type="button"
+                        onClick={nav.action}
+                        className="gp-footer-link"
                       >
-                        {ch.svg}
-                      </div>
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: '12.5px', fontWeight: 700, lineHeight: 1.2 }}>{ch.name}</div>
-                        <span
+                        {nav.label}
+                      </button>
+                    ))}
+                    <div style={{ display: 'flex', gap: '16px', marginTop: '8px', flexWrap: 'wrap' }}>
+                      <a href="/Guidelines.pdf" download="Sanrachna_Guidelines_2026.pdf" style={{ color: '#D4AF37', fontSize: '13px', fontWeight: 700, textDecoration: 'none', borderBottom: '1px solid #D4AF37' }}>
+                        Guidelines PDF ↓
+                      </a>
+                      <a href="/Template for Submission.pdf" download="Sanrachna_Template_2026.pdf" style={{ color: textMain, fontSize: '13px', fontWeight: 700, textDecoration: 'none', borderBottom: `1px solid ${textMain}` }}>
+                        Template PDF ↓
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </BlurReveal>
+
+              {/* Column 3: All 5 Official Channels */}
+              <BlurReveal delay={180}>
+                <div style={{ textAlign: 'left' }}>
+                  <div style={{ fontSize: '12px', fontWeight: 800, letterSpacing: '1.4px', textTransform: 'uppercase', color: '#D4AF37', marginBottom: '16px' }}>
+                    Official Channels &amp; Connect
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(185px, 1fr))', gap: '10px' }}>
+                    {socialChannels.map((ch) => (
+                      <a
+                        key={ch.name}
+                        href={ch.href}
+                        target={ch.href.startsWith('mailto:') ? undefined : '_blank'}
+                        rel={ch.href.startsWith('mailto:') ? undefined : 'noopener noreferrer'}
+                        className="gp-social-chip"
+                      >
+                        <div
                           style={{
-                            display: 'block',
-                            fontSize: '11px',
-                            color: textSub,
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            marginTop: '2px',
+                            width: '36px',
+                            height: '36px',
+                            borderRadius: '11px',
+                            background: 'rgba(212, 175, 55, 0.14)',
+                            color: '#D4AF37',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
                           }}
                         >
-                          {ch.handle}
-                        </span>
-                      </div>
-                    </a>
-                  ))}
+                          {ch.svg}
+                        </div>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontSize: '12.5px', fontWeight: 700, lineHeight: 1.2 }}>{ch.name}</div>
+                          <span
+                            style={{
+                              display: 'block',
+                              fontSize: '11px',
+                              color: textSub,
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              marginTop: '2px',
+                            }}
+                          >
+                            {ch.handle}
+                          </span>
+                        </div>
+                      </a>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              </BlurReveal>
             </div>
           </div>
 
-          {/* Subtle Oversized Editorial Watermark + Bottom Copyright Strip */}
+          {/* Oversized Watermark + Bottom Strip */}
           <div style={{ position: 'relative', overflow: 'hidden', borderTop: `1px solid ${hairline}` }}>
-            <div
-              aria-hidden="true"
-              style={{
-                textAlign: 'center',
-                fontFamily: "'Rozha One', 'Playfair Display', serif",
-                fontSize: 'clamp(56px, 13vw, 170px)',
-                lineHeight: 0.85,
-                letterSpacing: '0.04em',
-                color: isDarkMode ? 'rgba(212, 175, 55, 0.05)' : 'rgba(139, 30, 36, 0.055)',
-                userSelect: 'none',
-                pointerEvents: 'none',
-                paddingTop: '14px',
-              }}
-            >
-              संRACHNA
-            </div>
+            <BlurReveal>
+              <div
+                aria-hidden="true"
+                style={{
+                  textAlign: 'center',
+                  fontFamily: "'Noto Serif Devanagari', 'Rozha One', serif",
+                  fontSize: 'clamp(56px, 13vw, 172px)',
+                  lineHeight: 0.9,
+                  letterSpacing: '0.04em',
+                  color: isDarkMode ? 'rgba(212, 175, 55, 0.055)' : 'rgba(139, 30, 36, 0.055)',
+                  userSelect: 'none',
+                  pointerEvents: 'none',
+                  paddingTop: '14px',
+                }}
+              >
+                संRACHNA
+              </div>
+            </BlurReveal>
 
             <div
               className="gp-inner"
@@ -2971,7 +3578,7 @@ export default function GuidelinesPage({
       </main>
 
       {/* ================================================================= */}
-      {/* FROSTED-GLASS SPOTLIGHT MODAL + ANIMATE DIGITS (VIDEO 3 EFFECT)   */}
+      {/* FROSTED-GLASS SPOTLIGHT MODAL + LIVE ROLLING WORD/LINE COUNTER    */}
       {/* ================================================================= */}
       {modalCat && (() => {
         const ModalIcon = modalCat.icon;
@@ -3023,7 +3630,6 @@ export default function GuidelinesPage({
                 position: 'relative',
               }}
             >
-              {/* Header Bar */}
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                   <div
@@ -3031,9 +3637,9 @@ export default function GuidelinesPage({
                       width: '52px',
                       height: '52px',
                       borderRadius: '16px',
-                      background: 'linear-gradient(135deg, #8B1E24 0%, #521014 100%)',
+                      background: 'linear-gradient(135deg, #8B1E24 0%, #1E3A5F 100%)',
                       border: '1px solid rgba(212,175,55,0.7)',
-                      color: '#F6E05E',
+                      color: '#F5E6B8',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -3043,8 +3649,8 @@ export default function GuidelinesPage({
                     <ModalIcon size={24} />
                   </div>
                   <div>
-                    <div style={{ fontSize: '11px', fontWeight: 800, letterSpacing: '1.6px', textTransform: 'uppercase', color: '#D4AF37' }}>
-                      Category {modalCat.number} • {modalCat.domain}
+                    <div style={{ fontSize: '11px', fontWeight: 800, letterSpacing: '1.5px', textTransform: 'uppercase', color: '#D4AF37' }}>
+                      {modalCat.domain} • {modalCat.limitLabel}
                     </div>
                     <h3
                       style={{
@@ -3053,7 +3659,7 @@ export default function GuidelinesPage({
                         fontSize: 'clamp(26px, 3.6vw, 36px)',
                         fontWeight: 700,
                         color: textMain,
-                        lineHeight: 1.1,
+                        lineHeight: 1.15,
                       }}
                     >
                       {modalCat.name}{' '}
@@ -3108,7 +3714,6 @@ export default function GuidelinesPage({
                 {modalCat.summary}
               </p>
 
-              {/* Special Notice if present */}
               {modalCat.specialNote && (
                 <div
                   style={{
@@ -3129,10 +3734,9 @@ export default function GuidelinesPage({
                 </div>
               )}
 
-              {/* Split Body: Left Topics + Rolling Odometer Counter | Right Readiness Checklist */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '24px' }}>
                 <div>
-                  <div style={{ fontSize: '11px', fontWeight: 800, letterSpacing: '1.5px', textTransform: 'uppercase', color: '#D4AF37', marginBottom: '10px' }}>
+                  <div style={{ fontSize: '11.5px', fontWeight: 800, letterSpacing: '1.3px', textTransform: 'uppercase', color: '#D4AF37', marginBottom: '10px' }}>
                     Accepted Topics &amp; Scope
                   </div>
                   <ul style={{ margin: '0 0 22px 0', padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -3144,7 +3748,6 @@ export default function GuidelinesPage({
                     ))}
                   </ul>
 
-                  {/* Video 3 Effect: Live Rolling Odometer Word / Line Counter */}
                   {modalCat.unit !== 'nos' ? (
                     <div
                       style={{
@@ -3156,8 +3759,8 @@ export default function GuidelinesPage({
                     >
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
                         <div>
-                          <div style={{ fontSize: '10.5px', fontWeight: 800, letterSpacing: '1.3px', textTransform: 'uppercase', color: '#D4AF37' }}>
-                            Live {modalCat.unit === 'lines' ? 'Line' : 'Word'} Odometer
+                          <div style={{ fontSize: '11px', fontWeight: 800, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#D4AF37' }}>
+                            Draft {modalCat.unit === 'lines' ? 'Line' : 'Word'} Counter
                           </div>
                           <div style={{ fontSize: '12px', color: textSub }}>
                             Target: <strong>{modalCat.limitLabel}</strong>
@@ -3173,7 +3776,7 @@ export default function GuidelinesPage({
                               liveCount === 0
                                 ? textMain
                                 : liveCount > modalCat.max
-                                ? '#EF4444'
+                                ? '#E11D48'
                                 : liveCount >= modalCat.min
                                 ? '#22C55E'
                                 : '#D4AF37'
@@ -3191,8 +3794,8 @@ export default function GuidelinesPage({
                         onChange={(e) => setDraftMap((prev) => ({ ...prev, [modalCat.id]: e.target.value }))}
                         placeholder={
                           modalCat.unit === 'lines'
-                            ? 'Paste your poem here to watch the live odometer count lines...'
-                            : `Paste your ${modalCat.name.toLowerCase()} draft here to count words live...`
+                            ? 'Paste your poem here to count non-empty lines live...'
+                            : `Paste your ${modalCat.name.toLowerCase()} draft here to check word count...`
                         }
                         style={{
                           width: '100%',
@@ -3217,7 +3820,7 @@ export default function GuidelinesPage({
                             borderRadius: '999px',
                             background:
                               liveCount > modalCat.max
-                                ? '#EF4444'
+                                ? '#E11D48'
                                 : liveCount >= modalCat.min
                                 ? 'linear-gradient(90deg, #16A34A, #22C55E)'
                                 : 'linear-gradient(90deg, #8B1E24, #D4AF37)',
@@ -3246,14 +3849,14 @@ export default function GuidelinesPage({
                   )}
                 </div>
 
-                {/* Right Side: Interactive Checklist + Portal CTA */}
+                {/* Right Side: Before You Upload Checklist + Portal Launch */}
                 <div
                   style={{
                     padding: '22px',
                     borderRadius: '22px',
                     border: `1px solid ${allReady ? 'rgba(34,197,94,0.55)' : 'rgba(212,175,55,0.35)'}`,
                     background: isDarkMode
-                      ? 'linear-gradient(155deg, rgba(139,30,36,0.16) 0%, rgba(14,20,40,0.72) 100%)'
+                      ? 'linear-gradient(155deg, rgba(139,30,36,0.18) 0%, rgba(14,22,44,0.78) 100%)'
                       : 'linear-gradient(155deg, rgba(255,255,255,0.94) 0%, rgba(244,236,225,0.88) 100%)',
                     display: 'flex',
                     flexDirection: 'column',
@@ -3262,11 +3865,11 @@ export default function GuidelinesPage({
                 >
                   <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                      <span style={{ fontSize: '11px', fontWeight: 800, letterSpacing: '1.4px', textTransform: 'uppercase', color: '#D4AF37' }}>
-                        Pre-Flight Checklist
+                      <span style={{ fontSize: '11.5px', fontWeight: 800, letterSpacing: '1.3px', textTransform: 'uppercase', color: '#D4AF37' }}>
+                        Before You Upload
                       </span>
                       <span style={{ fontSize: '12px', fontWeight: 800, color: allReady ? '#22C55E' : textSub }}>
-                        {doneCount}/{modalCat.checklist.length} Ready
+                        {doneCount}/{modalCat.checklist.length} Checked
                       </span>
                     </div>
 
