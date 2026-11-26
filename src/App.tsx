@@ -2371,7 +2371,7 @@ const is404Route =
         <header className="editorial-header">
           <div className="header-content-wrapper">
             <div className="header-logos">
-              <img src="/gec-logo.png" alt="GEC Godda Logo" className="header-logo-img" />
+              <img loading="lazy" decoding="async" src="/gec-logo.png" alt="GEC Godda Logo" className="header-logo-img" />
               <div className="header-separator" />
               <div className="sanrachna-logo-wrapper">
                 <img
