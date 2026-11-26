@@ -375,7 +375,7 @@ function AnimatedSectionTitle({
 }
 
 // ===========================================================================
-// 4. KINETIC HERO WORD REVEAL (ZERO CLIPPING • ZERO THEME GLITCH)
+// 4. KINETIC HERO WORD REVEAL
 // ===========================================================================
 const HERO_CYCLE_WORDS = ['poetry.', 'stories.', 'frames.', 'ideas.'];
 
@@ -470,7 +470,7 @@ function AnimateDigits({
 }
 
 // ===========================================================================
-// 6. SLIDING SPRING PILL SWITCHER
+// 6. SINGLE-ROW HORIZONTAL SLIDING PILL TABS (ZERO MOBILE WRAP OVERLAP)
 // ===========================================================================
 function SlidingPillTabs<T extends string>({
   items,
@@ -495,6 +495,10 @@ function SlidingPillTabs<T extends string>({
       const wrap = wrapRef.current;
       if (!btn || !wrap) return;
       setPill({ left: btn.offsetLeft, width: btn.offsetWidth, ready: true });
+
+      // Keep active tab smoothly scrolled into view on narrow phones
+      const targetScroll = btn.offsetLeft - wrap.clientWidth / 2 + btn.offsetWidth / 2;
+      wrap.scrollTo({ left: Math.max(0, targetScroll), behavior: 'smooth' });
     };
     sync();
     window.addEventListener('resize', sync);
@@ -504,15 +508,18 @@ function SlidingPillTabs<T extends string>({
   return (
     <div
       ref={wrapRef}
+      className="gp-no-scrollbar"
       style={{
         position: 'relative',
         display: 'inline-flex',
         alignItems: 'center',
-        flexWrap: 'wrap',
+        flexWrap: 'nowrap',
+        maxWidth: '100%',
+        overflowX: 'auto',
         gap: '4px',
         padding: compact ? '4px' : '5px',
         borderRadius: '999px',
-        background: isDarkMode ? 'rgba(13, 20, 42, 0.72)' : 'rgba(255, 255, 255, 0.78)',
+        background: isDarkMode ? 'rgba(13, 20, 42, 0.74)' : 'rgba(255, 255, 255, 0.82)',
         border: `1px solid ${isDarkMode ? 'rgba(212, 175, 55, 0.24)' : 'rgba(139, 30, 36, 0.16)'}`,
         backdropFilter: 'blur(16px)',
         WebkitBackdropFilter: 'blur(16px)',
@@ -551,6 +558,7 @@ function SlidingPillTabs<T extends string>({
             style={{
               position: 'relative',
               zIndex: 1,
+              flexShrink: 0,
               border: 'none',
               background: 'transparent',
               padding: compact ? '7px 14px' : '9px 18px',
@@ -1680,7 +1688,6 @@ function BentoCategoryTile({
       return;
     }
 
-    // 1. One-time 3D unfold reveal
     const revealObs = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
@@ -1691,7 +1698,6 @@ function BentoCategoryTile({
       { threshold: 0.08, rootMargin: '0px 0px -30px 0px' }
     );
 
-    // 2. Subtle scroll-hover wave when card crosses the middle band of viewport
     const focusObs = new IntersectionObserver(
       ([entry]) => {
         setScrollFocused(entry.isIntersecting);
@@ -1816,7 +1822,6 @@ function BentoCategoryTile({
         {cat.number}
       </span>
 
-      {/* Top Row: Animated Category Icon Badge + Limit Pill */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', position: 'relative', zIndex: 2 }}>
         <span
           className={`gp-icon-badge ${inView ? 'gp-icon-loaded' : ''}`}
@@ -1857,7 +1862,6 @@ function BentoCategoryTile({
         </span>
       </div>
 
-      {/* Middle Row: Title + Summary */}
       <div style={{ margin: '18px 0 16px 0', position: 'relative', zIndex: 2 }}>
         <div style={{ fontSize: '10.5px', fontWeight: 800, letterSpacing: '1.4px', textTransform: 'uppercase', color: isDarkMode ? '#D4AF37' : '#8B1E24', opacity: 0.88 }}>
           {cat.domain}
@@ -1893,7 +1897,6 @@ function BentoCategoryTile({
         </p>
       </div>
 
-      {/* Bottom Row */}
       <div
         style={{
           display: 'flex',
@@ -1928,7 +1931,7 @@ function BentoCategoryTile({
 }
 
 // ===========================================================================
-// 12. MAIN PREMIUM GUIDELINES PAGE
+// 12. UNLUMEN-STYLE COORDINATED FLIP / TRAJECTORY MORPHING NAVIGATION
 // ===========================================================================
 const RAIL_NAV_ITEMS: { id: NavSectionId; label: string; icon: LucideIcon }[] = [
   { id: 'bento-categories', label: 'Categories', icon: LayoutGrid },
@@ -1954,15 +1957,48 @@ export default function GuidelinesPage({
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [scrollProgress, setScrollProgress] = useState(0);
   const [isDocked, setIsDocked] = useState(false);
-  const [railHovered, setRailHovered] = useState(false);
   const [checklistShake, setChecklistShake] = useState(false);
   const [showLockHint, setShowLockHint] = useState(false);
+
+  // Measure horizontal slot positions inside the top capsule so each tab physically
+  // arcs along a spring trajectory from its top slot to its left-side vertical stack!
+  const topSlotRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const [morphDeltas, setMorphDeltas] = useState<Record<string, { dx: number; dy: number }>>({});
+
+  useEffect(() => {
+    const computeTrajectories = () => {
+      const targetLeft = 24;
+      const targetStartTop = 148;
+      const targetStepY = 46;
+      const next: Record<string, { dx: number; dy: number }> = {};
+
+      RAIL_NAV_ITEMS.forEach((item, idx) => {
+        const slot = topSlotRefs.current[item.id];
+        if (!slot) return;
+        const rect = slot.getBoundingClientRect();
+        // When docked, target viewport coords are (targetLeft, targetStartTop + idx * targetStepY)
+        next[item.id] = {
+          dx: targetLeft - rect.left,
+          dy: targetStartTop + idx * targetStepY - rect.top,
+        };
+      });
+
+      setMorphDeltas(next);
+    };
+
+    computeTrajectories();
+    const t = window.setTimeout(computeTrajectories, 150);
+    window.addEventListener('resize', computeTrajectories);
+    return () => {
+      window.clearTimeout(t);
+      window.removeEventListener('resize', computeTrajectories);
+    };
+  }, []);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
   }, []);
 
-  // Scroll progress + Active section + Smooth Left-Rail Dock transition
   useEffect(() => {
     const sections: NavSectionId[] = [
       'bento-categories',
@@ -1975,7 +2011,7 @@ export default function GuidelinesPage({
       const y = window.scrollY;
       const maxScroll = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
       setScrollProgress(Math.min(100, Math.max(0, (y / maxScroll) * 100)));
-      setIsDocked(y > 180);
+      setIsDocked(y > 140);
 
       const marker = window.innerHeight * 0.35;
       for (let i = sections.length - 1; i >= 0; i--) {
@@ -2072,7 +2108,7 @@ export default function GuidelinesPage({
       handle: 'gecgodda.ac.in',
       href: 'https://gecgodda.ac.in',
       svg: (
-        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="12" cy="12" r="10" />
           <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
         </svg>
@@ -2083,7 +2119,7 @@ export default function GuidelinesPage({
       handle: '@sanrachna.magazine',
       href: 'https://instagram.com/sanrachna.magazine',
       svg: (
-        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
           <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
           <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
@@ -2095,7 +2131,7 @@ export default function GuidelinesPage({
       handle: '@sanrachna.magazine',
       href: 'https://youtube.com/@sanrachna.magazine',
       svg: (
-        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33 2.78 2.78 0 0 0 1.94 2c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.33 29 29 0 0 0-.46-5.33z" />
           <polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02" />
         </svg>
@@ -2106,7 +2142,7 @@ export default function GuidelinesPage({
       handle: '@sanrachna.magazine',
       href: 'https://linkedin.com/company/sanrachna-magazine',
       svg: (
-        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" />
           <rect width="4" height="12" x="2" y="9" />
           <circle cx="4" cy="4" r="2" />
@@ -2135,11 +2171,18 @@ export default function GuidelinesPage({
       }}
     >
       <style>{`
-        
+        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,600;1,700&family=Noto+Serif+Devanagari:wght@600;700&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,500&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Rozha+One&display=swap');
 
         .san-awwwards-gp * { box-sizing: border-box; }
 
-        /* Pure CSS Gradient Text Classes — Immune to Theme Switch Box Glitch */
+        .gp-no-scrollbar {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+        .gp-no-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+
         .royal-accent-text-dark {
           display: inline-block;
           font-style: italic;
@@ -2205,7 +2248,7 @@ export default function GuidelinesPage({
           50% { opacity: 0.78; transform: translateX(-50%) scale(1.08); }
         }
 
-        /* Bespoke Category Icon Load & Idle Micro-Animations */
+        /* Category Icon Load & Idle Micro-Animations */
         @keyframes iconDrawPop {
           0% { opacity: 0; transform: scale(0.55) rotate(-14deg); }
           65% { opacity: 1; transform: scale(1.1) rotate(4deg); }
@@ -2250,7 +2293,6 @@ export default function GuidelinesPage({
         .icon-anim-flame { animation: animFlame 2.4s ease-in-out infinite; }
         .icon-anim-float { animation: animFloat 3.2s ease-in-out infinite; }
 
-        /* Modal Checklist Shake when locked button is clicked */
         @keyframes lockedShake {
           0%, 100% { transform: translateX(0); }
           20% { transform: translateX(-7px); }
@@ -2263,36 +2305,25 @@ export default function GuidelinesPage({
         }
 
         .gp-inner {
-          max-width: 1200px;
+          max-width: 1160px;
           margin: 0 auto;
           padding: 0 36px;
         }
 
-        /* Extra left breathing room on desktop so left rail NEVER overlaps content */
-        @media (min-width: 1120px) and (max-width: 1460px) {
+        @media (min-width: 1120px) and (max-width: 1520px) {
           .gp-inner {
-            padding-left: 96px;
+            padding-left: 195px;
             padding-right: 36px;
           }
         }
 
-        /* Top Capsule Header (Morphs away smoothly on desktop when docked to left rail) */
+        /* Top Capsule Shell — Smoothly shrinks into Left Brand Pill on Desktop Scroll */
         .gp-capsule-wrap {
           position: sticky;
           top: 14px;
           z-index: 80;
           padding: 0 20px;
           pointer-events: none;
-          transition: transform 0.55s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.45s ease, filter 0.45s ease;
-        }
-
-        @media (min-width: 1120px) {
-          .gp-capsule-wrap.is-docked {
-            opacity: 0;
-            filter: blur(8px);
-            transform: translate3d(-48px, -18px, 0) scale(0.94);
-            pointer-events: none;
-          }
         }
 
         .gp-capsule-nav {
@@ -2305,63 +2336,111 @@ export default function GuidelinesPage({
           align-items: center;
           justify-content: space-between;
           gap: 12px;
-          background: ${isDarkMode ? 'rgba(9, 14, 30, 0.82)' : 'rgba(255, 253, 249, 0.88)'};
+          background: ${isDarkMode ? 'rgba(9, 14, 30, 0.84)' : 'rgba(255, 253, 249, 0.9)'};
           backdrop-filter: blur(24px) saturate(190%);
           -webkit-backdrop-filter: blur(24px) saturate(190%);
           border: 1px solid rgba(212, 175, 55, 0.42);
           box-shadow: ${isDarkMode
             ? '0 18px 46px rgba(0, 0, 0, 0.56), inset 0 1px 1px rgba(255,255,255,0.14)'
             : '0 16px 40px rgba(30, 58, 95, 0.11), inset 0 1px 2px rgba(255,255,255,1)'};
-        }
-
-        /* DESKTOP LEFT-SHIFT FLOATING VERTICAL GLASS RAIL */
-        .gp-left-rail {
-          display: none;
-        }
-        .gp-topright-dock {
-          display: none;
+          transition: background 0.45s ease, border-color 0.45s ease, box-shadow 0.45s ease;
         }
 
         @media (min-width: 1120px) {
-          .gp-left-rail {
-            position: fixed;
-            left: 18px;
-            top: 50%;
-            z-index: 95;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            padding: 12px 10px;
-            border-radius: 28px;
-            background: ${isDarkMode ? 'rgba(9, 14, 30, 0.86)' : 'rgba(255, 253, 249, 0.92)'};
-            backdrop-filter: blur(24px) saturate(190%);
-            -webkit-backdrop-filter: blur(24px) saturate(190%);
-            border: 1px solid rgba(212, 175, 55, 0.45);
-            box-shadow: ${isDarkMode
-              ? '0 22px 54px rgba(0, 0, 0, 0.58), inset 0 1px 1px rgba(255,255,255,0.14)'
-              : '0 18px 44px rgba(30, 58, 95, 0.14), inset 0 1px 2px rgba(255,255,255,1)'};
-            transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.45s ease, width 0.42s cubic-bezier(0.16, 1, 0.3, 1);
+          .gp-capsule-wrap.is-docked .gp-capsule-nav {
+            background: transparent;
+            border-color: transparent;
+            box-shadow: none;
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
           }
+        }
 
-          .gp-topright-dock {
-            position: fixed;
-            top: 16px;
-            right: 22px;
-            z-index: 95;
-            display: flex;
-            align-items: center;
-            gap: 9px;
-            padding: 7px 10px;
-            border-radius: 999px;
-            background: ${isDarkMode ? 'rgba(9, 14, 30, 0.86)' : 'rgba(255, 253, 249, 0.92)'};
-            backdrop-filter: blur(24px) saturate(190%);
-            -webkit-backdrop-filter: blur(24px) saturate(190%);
-            border: 1px solid rgba(212, 175, 55, 0.46);
-            box-shadow: ${isDarkMode
-              ? '0 18px 42px rgba(0, 0, 0, 0.55), inset 0 1px 1px rgba(255,255,255,0.14)'
-              : '0 14px 36px rgba(30, 58, 95, 0.14), inset 0 1px 2px rgba(255,255,255,1)'};
-            transition: transform 0.55s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s ease;
+        .gp-brand-cluster {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 4px 12px 4px 4px;
+          border-radius: 999px;
+          transition: all 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @media (min-width: 1120px) {
+          .gp-capsule-wrap.is-docked .gp-brand-cluster {
+            background: ${isDarkMode ? 'rgba(9, 14, 30, 0.88)' : 'rgba(255, 253, 249, 0.94)'};
+            backdrop-filter: blur(22px);
+            -webkit-backdrop-filter: blur(22px);
+            border: 1px solid rgba(212, 175, 55, 0.45);
+            box-shadow: 0 14px 34px rgba(0, 0, 0, 0.18);
           }
+          .gp-capsule-wrap.is-docked .gp-right-cluster {
+            background: ${isDarkMode ? 'rgba(9, 14, 30, 0.88)' : 'rgba(255, 253, 249, 0.94)'};
+            backdrop-filter: blur(22px);
+            -webkit-backdrop-filter: blur(22px);
+            border: 1px solid rgba(212, 175, 55, 0.45);
+            box-shadow: 0 14px 34px rgba(0, 0, 0, 0.18);
+            padding: 5px 8px;
+            border-radius: 999px;
+          }
+        }
+
+        .gp-right-cluster {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          transition: all 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        /* UNLUMEN-STYLE COORDINATED TRAJECTORY MORPHING LINKS (DESKTOP) */
+        .gp-morph-track {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+        .gp-morph-slot {
+          position: relative;
+          height: 36px;
+        }
+        .gp-morph-item {
+          position: relative;
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          height: 36px;
+          padding: 0 15px;
+          border-radius: 999px;
+          border: 1px solid transparent;
+          background: transparent;
+          font-family: inherit;
+          font-size: 13px;
+          font-weight: 700;
+          letter-spacing: 0.2px;
+          color: ${textSub};
+          cursor: pointer;
+          white-space: nowrap;
+          will-change: transform;
+          transition:
+            transform 0.72s cubic-bezier(0.22, 1, 0.36, 1),
+            background 0.35s ease,
+            color 0.3s ease,
+            border-color 0.35s ease,
+            box-shadow 0.35s ease;
+        }
+        .gp-morph-item:hover {
+          color: ${isDarkMode ? '#FAF9F5' : '#8B1E24'};
+        }
+        .gp-morph-item.is-active {
+          color: #FAF9F5;
+          background: linear-gradient(135deg, #8B1E24 0%, #5A1220 55%, #1E3A5F 100%);
+          border-color: rgba(212, 175, 55, 0.68);
+          box-shadow: 0 8px 20px rgba(139, 30, 36, 0.32);
+        }
+        .gp-morph-item.is-docked:not(.is-active) {
+          background: ${isDarkMode ? 'rgba(9, 14, 30, 0.82)' : 'rgba(255, 253, 249, 0.9)'};
+          backdrop-filter: blur(18px);
+          -webkit-backdrop-filter: blur(18px);
+          border-color: ${hairline};
+          box-shadow: 0 8px 22px rgba(0, 0, 0, 0.1);
         }
 
         .gp-brand-wordmark {
@@ -2526,8 +2605,8 @@ export default function GuidelinesPage({
         .gp-social-chip {
           display: flex;
           align-items: center;
-          gap: 11px;
-          padding: 12px 14px;
+          gap: 10px;
+          padding: 11px 13px;
           border-radius: 16px;
           border: 1px solid ${hairline};
           background: ${isDarkMode ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.78)'};
@@ -2600,12 +2679,16 @@ export default function GuidelinesPage({
             padding: 0 18px;
           }
           .bento-grid,
-          .gp-folders-grid,
-          .gp-footer-socials-grid {
+          .gp-folders-grid {
             grid-template-columns: 1fr;
           }
           .bento-span-2 {
             grid-column: span 1;
+          }
+          /* Keep 2x2 grid on mobile for the 4 social links so footer stays compact */
+          .gp-footer-socials-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
           }
           .gp-hide-sm {
             display: none !important;
@@ -2652,178 +2735,12 @@ export default function GuidelinesPage({
       </div>
 
       {/* ================================================================= */}
-      {/* DESKTOP LEFT-SHIFT FLOATING VERTICAL CAPSULE RAIL (ON SCROLL)     */}
-      {/* ================================================================= */}
-      <aside
-        className="gp-left-rail"
-        onMouseEnter={() => setRailHovered(true)}
-        onMouseLeave={() => setRailHovered(false)}
-        style={{
-          width: railHovered ? '196px' : '62px',
-          opacity: isDocked ? 1 : 0,
-          transform: isDocked ? 'translate3d(0, -50%, 0) scale(1)' : 'translate3d(-90px, -50%, 0) scale(0.9)',
-          pointerEvents: isDocked ? 'auto' : 'none',
-        }}
-      >
-        {/* Home + Logo Row */}
-        <button
-          type="button"
-          onClick={onBack}
-          title="Back to Main Portal"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            padding: '6px',
-            borderRadius: '18px',
-            border: `1px solid ${hairline}`,
-            background: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(139,30,36,0.05)',
-            color: textMain,
-            cursor: 'pointer',
-            overflow: 'hidden',
-            fontFamily: 'inherit',
-            transition: 'all 0.28s ease',
-          }}
-        >
-          <img
-            src="/sanrachna-official-logo.png"
-            alt="Sanrachna Logo"
-            style={{
-              width: '30px',
-              height: '30px',
-              borderRadius: '50%',
-              objectFit: 'contain',
-              backgroundColor: '#FFFFFF',
-              padding: '3px',
-              border: '1px solid rgba(212, 175, 55, 0.7)',
-              flexShrink: 0,
-            }}
-          />
-          <div
-            style={{
-              opacity: railHovered ? 1 : 0,
-              transform: railHovered ? 'translateX(0)' : 'translateX(-8px)',
-              transition: 'opacity 0.25s ease, transform 0.3s ease',
-              whiteSpace: 'nowrap',
-              textAlign: 'left',
-            }}
-          >
-            <div style={{ fontSize: '12px', fontWeight: 800, color: isDarkMode ? '#EBD28C' : '#8B1E24', lineHeight: 1.1 }}>
-              संRACHNA
-            </div>
-            <div style={{ fontSize: '10px', fontWeight: 700, color: textSub }}>← Back Home</div>
-          </div>
-        </button>
-
-        <div style={{ height: '1px', background: hairline, margin: '2px 4px' }} />
-
-        {/* Vertical Animated Section Nav Buttons */}
-        {RAIL_NAV_ITEMS.map((item) => {
-          const Icon = item.icon;
-          const isActive = activeNav === item.id;
-          return (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => scrollToAnchor(item.id)}
-              title={item.label}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '11px',
-                padding: '10px',
-                borderRadius: '16px',
-                border: isActive ? '1px solid rgba(212, 175, 55, 0.72)' : '1px solid transparent',
-                background: isActive
-                  ? 'linear-gradient(135deg, #8B1E24 0%, #5A1220 55%, #1E3A5F 100%)'
-                  : 'transparent',
-                color: isActive ? '#FAF9F5' : textSub,
-                boxShadow: isActive ? '0 8px 20px rgba(139, 30, 36, 0.32)' : 'none',
-                cursor: 'pointer',
-                overflow: 'hidden',
-                fontFamily: 'inherit',
-                transition: 'all 0.32s cubic-bezier(0.16, 1, 0.3, 1)',
-              }}
-            >
-              <span style={{ display: 'inline-flex', flexShrink: 0 }}>
-                <Icon size={18} />
-              </span>
-              <span
-                style={{
-                  fontSize: '12.5px',
-                  fontWeight: 700,
-                  whiteSpace: 'nowrap',
-                  opacity: railHovered ? 1 : 0,
-                  transform: railHovered ? 'translateX(0)' : 'translateX(-8px)',
-                  transition: 'opacity 0.25s ease, transform 0.3s ease',
-                }}
-              >
-                {item.label}
-              </span>
-            </button>
-          );
-        })}
-
-        {/* Vertical Scroll Progress Mini Gauge */}
-        <div style={{ padding: '4px 6px 2px 6px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div style={{ flex: 1, height: '4px', borderRadius: '999px', background: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(139,30,36,0.12)', overflow: 'hidden' }}>
-            <div
-              style={{
-                height: '100%',
-                width: `${scrollProgress}%`,
-                background: 'linear-gradient(90deg, #8B1E24, #D4AF37)',
-                borderRadius: '999px',
-                transition: 'width 0.15s linear',
-              }}
-            />
-          </div>
-          {railHovered && (
-            <span style={{ fontSize: '10px', fontWeight: 800, color: '#D4AF37', fontVariantNumeric: 'tabular-nums' }}>
-              {Math.round(scrollProgress)}%
-            </span>
-          )}
-        </div>
-      </aside>
-
-      {/* ================================================================= */}
-      {/* DESKTOP PERSISTENT TOP-RIGHT ACTION PILL (THEME + SUBMIT)         */}
-      {/* ================================================================= */}
-      <div
-        className="gp-topright-dock"
-        style={{
-          opacity: isDocked ? 1 : 0,
-          transform: isDocked ? 'translate3d(0, 0, 0) scale(1)' : 'translate3d(20px, -16px, 0) scale(0.92)',
-          pointerEvents: isDocked ? 'auto' : 'none',
-        }}
-      >
-        <button
-          type="button"
-          onClick={onToggleTheme}
-          aria-label="Toggle Theme"
-          className="gp-glass-pill"
-          style={{ width: '38px', height: '38px', padding: 0 }}
-          title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-        >
-          <AnimatedThemeIcon isDark={isDarkMode} maskId="gp-moon-dock" />
-        </button>
-
-        <button
-          type="button"
-          onClick={onOpenSubmission}
-          className="gp-magnetic-cta"
-          style={{ padding: '9px 18px', fontSize: '11px' }}
-        >
-          <span>Submit</span>
-          <ArrowRight size={13} />
-        </button>
-      </div>
-
-      {/* ================================================================= */}
-      {/* TOP FLOATING CAPSULE HEADER (AT PAGE TOP & ON MOBILE)             */}
+      {/* COORDINATED FLIP / TRAJECTORY MORPHING HEADER (VIDEO_1 EFFECT)    */}
       {/* ================================================================= */}
       <div className={`gp-capsule-wrap ${isDocked ? 'is-docked' : ''}`}>
         <header className="gp-capsule-nav">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '11px' }}>
+          {/* Left Cluster: Back Button + Logo */}
+          <div className="gp-brand-cluster">
             <button
               type="button"
               onClick={onBack}
@@ -2852,22 +2769,43 @@ export default function GuidelinesPage({
             </div>
           </div>
 
-          <div className="gp-hide-md">
-            <SlidingPillTabs<NavSectionId>
-              compact
-              isDarkMode={isDarkMode}
-              activeId={activeNav}
-              onSelect={scrollToAnchor}
-              items={[
-                { id: 'bento-categories', label: 'Categories' },
-                { id: 'glass-folders', label: 'Official Kit' },
-                { id: 'formatting-studio', label: 'Formatting' },
-                { id: 'editorial-ethics', label: 'Rules & Ethics' },
-              ]}
-            />
-          </div>
+          {/* Center Nav Items — Physically Fly & Arc to Left Side Stack on Scroll */}
+          <nav className="gp-morph-track gp-hide-md" aria-label="Guidelines Sections">
+            {RAIL_NAV_ITEMS.map((item, idx) => {
+              const Icon = item.icon;
+              const isActive = activeNav === item.id;
+              const delta = morphDeltas[item.id] ?? { dx: 0, dy: 0 };
+              const staggerDelay = isDocked ? idx * 55 : (RAIL_NAV_ITEMS.length - 1 - idx) * 45;
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              return (
+                <div
+                  key={item.id}
+                  ref={(el) => {
+                    topSlotRefs.current[item.id] = el;
+                  }}
+                  className="gp-morph-slot"
+                >
+                  <button
+                    type="button"
+                    onClick={() => scrollToAnchor(item.id)}
+                    className={`gp-morph-item ${isActive ? 'is-active' : ''} ${isDocked ? 'is-docked' : ''}`}
+                    style={{
+                      transform: isDocked
+                        ? `translate3d(${delta.dx}px, ${delta.dy}px, 0)`
+                        : 'translate3d(0px, 0px, 0)',
+                      transitionDelay: `${staggerDelay}ms`,
+                    }}
+                  >
+                    <Icon size={14} />
+                    <span>{item.label}</span>
+                  </button>
+                </div>
+              );
+            })}
+          </nav>
+
+          {/* Right Cluster: Animated Theme Toggle + Submit CTA (Always Pinned Top-Right) */}
+          <div className="gp-right-cluster">
             <button
               type="button"
               onClick={onToggleTheme}
@@ -2876,7 +2814,7 @@ export default function GuidelinesPage({
               style={{ width: '38px', height: '38px', padding: 0 }}
               title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
             >
-              <AnimatedThemeIcon isDark={isDarkMode} maskId="gp-moon-top" />
+              <AnimatedThemeIcon isDark={isDarkMode} maskId="gp-moon-main" />
             </button>
 
             <button
@@ -3017,7 +2955,7 @@ export default function GuidelinesPage({
         </div>
 
         {/* ================================================================= */}
-        {/* SECTION 01: 12 WAYS TO CONTRIBUTE (BENTO + ANIMATED ICONS)        */}
+        {/* SECTION 01: 12 WAYS TO CONTRIBUTE (SINGLE-ROW PILLS + BENTO)      */}
         {/* ================================================================= */}
         <section id="bento-categories" className="gp-inner" style={{ paddingTop: '78px', paddingBottom: '88px' }}>
           <div
@@ -3034,7 +2972,7 @@ export default function GuidelinesPage({
             <AnimatedSearchInput value={searchQuery} onChange={setSearchQuery} isDarkMode={isDarkMode} />
           </div>
 
-          <div style={{ marginBottom: '18px', textAlign: 'left' }}>
+          <div style={{ marginBottom: '18px', textAlign: 'left', maxWidth: '100%' }}>
             <SlidingPillTabs<CategoryGroup>
               isDarkMode={isDarkMode}
               activeId={activeGroup}
@@ -3532,7 +3470,7 @@ export default function GuidelinesPage({
         </section>
 
         {/* ================================================================= */}
-        {/* BALANCED FULL-BLEED CINEMATIC FOOTER (FIXED ANUSWAR + ZERO GAPS)  */}
+        {/* BALANCED FULL-BLEED CINEMATIC FOOTER                              */}
         {/* ================================================================= */}
         <footer
           style={{
@@ -3564,7 +3502,6 @@ export default function GuidelinesPage({
             }}
           />
 
-          {/* Closing Editorial Quote + CTA */}
           <div className="gp-inner" style={{ position: 'relative', zIndex: 2, textAlign: 'center', paddingBottom: '60px' }}>
             <BlurReveal>
               <h2
@@ -3604,10 +3541,8 @@ export default function GuidelinesPage({
             <div className="gp-divider" />
           </div>
 
-          {/* Perfectly Balanced 3-Column Footer Grid */}
           <div className="gp-inner" style={{ position: 'relative', zIndex: 2, paddingTop: '52px', paddingBottom: '44px' }}>
             <div className="gp-footer-cols">
-              {/* Column 1: Untouched Logos + || सृजन से निर्माण तक || + Poetic Motto */}
               <BlurReveal delay={0}>
                 <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '100%', textAlign: 'left', gap: '16px' }}>
                   <div>
@@ -3682,7 +3617,6 @@ export default function GuidelinesPage({
                 </div>
               </BlurReveal>
 
-              {/* Column 2: Quick Navigation + Glass PDF Cards */}
               <BlurReveal delay={100}>
                 <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '100%', textAlign: 'left', gap: '16px' }}>
                   <div>
@@ -3727,14 +3661,12 @@ export default function GuidelinesPage({
                 </div>
               </BlurReveal>
 
-              {/* Column 3: Perfectly Symmetrical Channels (Full-Width Email + 2x2 Socials) */}
               <BlurReveal delay={180}>
                 <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '100%', textAlign: 'left', gap: '12px' }}>
                   <div style={{ fontSize: '12px', fontWeight: 800, letterSpacing: '1.4px', textTransform: 'uppercase', color: '#D4AF37', marginBottom: '2px' }}>
                     Official Channels &amp; Editorial Desk
                   </div>
 
-                  {/* Full-width Official Email Card */}
                   <a href="mailto:sanrachna.gecgodda@gmail.com" className="gp-social-chip">
                     <div
                       style={{
@@ -3759,7 +3691,6 @@ export default function GuidelinesPage({
                     </div>
                   </a>
 
-                  {/* Symmetrical 2x2 Social & College Website Grid (Zero Orphan Card!) */}
                   <div className="gp-footer-socials-grid">
                     {socialChannels.map((ch) => (
                       <a
@@ -3771,8 +3702,8 @@ export default function GuidelinesPage({
                       >
                         <div
                           style={{
-                            width: '34px',
-                            height: '34px',
+                            width: '32px',
+                            height: '32px',
                             borderRadius: '10px',
                             background: 'rgba(212, 175, 55, 0.14)',
                             color: '#D4AF37',
@@ -3785,11 +3716,11 @@ export default function GuidelinesPage({
                           {ch.svg}
                         </div>
                         <div style={{ minWidth: 0 }}>
-                          <div style={{ fontSize: '12px', fontWeight: 700, lineHeight: 1.2 }}>{ch.name}</div>
+                          <div style={{ fontSize: '11.5px', fontWeight: 700, lineHeight: 1.2 }}>{ch.name}</div>
                           <span
                             style={{
                               display: 'block',
-                              fontSize: '10.5px',
+                              fontSize: '10px',
                               color: textSub,
                               whiteSpace: 'nowrap',
                               overflow: 'hidden',
@@ -3808,7 +3739,6 @@ export default function GuidelinesPage({
             </div>
           </div>
 
-          {/* Fixed Oversized संRACHNA Watermark (Full Top Breathing Room — Anuswar 100% Visible) */}
           <div style={{ position: 'relative', overflow: 'visible', borderTop: `1px solid ${hairline}` }}>
             <BlurReveal>
               <div
@@ -3816,7 +3746,7 @@ export default function GuidelinesPage({
                 style={{
                   textAlign: 'center',
                   fontFamily: "'Noto Serif Devanagari', 'Rozha One', serif",
-                  fontSize: 'clamp(52px, 11.5vw, 148px)',
+                  fontSize: 'clamp(46px, 11.5vw, 148px)',
                   fontWeight: 700,
                   lineHeight: 1.28,
                   letterSpacing: '0.04em',
@@ -4157,7 +4087,6 @@ export default function GuidelinesPage({
                   )}
                 </div>
 
-                {/* Right Side: Strict 4-Checkbox Gate + Progress Bar */}
                 <div
                   className={checklistShake ? 'gp-shake' : ''}
                   style={{
@@ -4189,7 +4118,6 @@ export default function GuidelinesPage({
                       </span>
                     </div>
 
-                    {/* Checklist Completion Bar */}
                     <div style={{ height: '5px', width: '100%', borderRadius: '999px', background: isDarkMode ? 'rgba(255,255,255,0.09)' : 'rgba(139,30,36,0.1)', overflow: 'hidden', marginBottom: '14px' }}>
                       <div
                         style={{
@@ -4275,7 +4203,6 @@ export default function GuidelinesPage({
                     )}
                   </div>
 
-                  {/* Strictly Gated Submit Button */}
                   <button
                     type="button"
                     onClick={handleAttemptSubmit}
