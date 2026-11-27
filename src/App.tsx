@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import SubmissionForm from './components/ui/SubmissionForm';
 import ReviewDashboard from './components/ReviewDashboard';
+import CreatorPassModal, { useCreatorPassTrigger } from './components/CreatorPassModal';
 import GuidelinesPage from './GuidelinesPage';
 import { supabase } from './lib/supabase';
 
@@ -1419,6 +1420,11 @@ export default function App() {
   const [hasEntered, setHasEntered] = useState(false);
   const [showFloatingActions, setShowFloatingActions] = useState(false);
   const [openSubmissionPortal, setOpenSubmissionPortal] = useState(false);
+  const [creatorPassOpen, setCreatorPassOpen] = useState(false);
+const creatorPassTrigger = useCreatorPassTrigger(() => {
+  setMenuOpen(false);
+  setCreatorPassOpen(true);
+}, 10000, 3000);
  const [openReviewDesk, setOpenReviewDesk] = useState(
     () =>
       window.location.hash.toLowerCase() === '#review' ||
@@ -2800,7 +2806,35 @@ export default function App() {
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px' }}>
-            <span className="explore-text-shine">Explore संRACHNA</span>
+            <span
+  {...creatorPassTrigger.bind}
+  className="explore-text-shine"
+  style={{
+    position: 'relative',
+    display: 'inline-block',
+    userSelect: 'none',
+    WebkitUserSelect: 'none',
+    touchAction: 'none',
+    paddingBottom: '5px',
+  }}
+>
+  Explore संRACHNA
+  {creatorPassTrigger.chargeRatio > 0 && (
+    <span
+      aria-hidden="true"
+      style={{
+        position: 'absolute',
+        left: 0,
+        bottom: 0,
+        height: '2px',
+        width: `${Math.round(creatorPassTrigger.chargeRatio * 100)}%`,
+        borderRadius: '999px',
+        background: 'linear-gradient(90deg, #A81D32, #D4AF37)',
+        boxShadow: '0 0 10px rgba(212, 175, 55, 0.85)',
+      }}
+    />
+  )}
+</span>
             <button aria-label="Close Sidebar" onClick={() => setMenuOpen(false)} className="animated-close-btn">✕</button>
           </div>
           
@@ -2996,6 +3030,7 @@ export default function App() {
           }}
         />
       )}
+      <CreatorPassModal open={creatorPassOpen} onClose={() => setCreatorPassOpen(false)} />
     </>
   );
 }
