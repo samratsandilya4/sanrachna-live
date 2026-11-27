@@ -1424,7 +1424,7 @@ export default function App() {
 const creatorPassTrigger = useCreatorPassTrigger(() => {
   setMenuOpen(false);
   setCreatorPassOpen(true);
-}, 10000, 3000);
+}, 10000, 2500);
  const [openReviewDesk, setOpenReviewDesk] = useState(
     () =>
       window.location.hash.toLowerCase() === '#review' ||
