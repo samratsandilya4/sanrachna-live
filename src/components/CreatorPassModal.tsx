@@ -1,1350 +1,2583 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, {
+  useEffect,
+  useRef,
+  useState,
+  useCallback,
+  useMemo,
+} from 'react';
+import {
+  motion,
+  AnimatePresence,
+  useMotionValue,
+  useSpring,
+} from 'framer-motion';
 
-interface CreatorPassModalProps {
-  open: boolean;
+/* ============================================================================
+   TYPES, CONSTANTS & EDITORIAL PALETTES
+   ============================================================================ */
+
+export interface CreatorPassModalProps {
+  isOpen?: boolean;
   onClose: () => void;
+  isDarkMode?: boolean;
 }
 
-const LINKEDIN_URL = 'https://www.linkedin.com/in/samrat-sandilya';
-const INSTAGRAM_URL = 'https://www.instagram.com/samrat.tiwary';
+type ShaderMode = 'OBSIDIAN' | 'BLUEPRINT' | 'INK';
+type PhysicsMode = 'FLUID' | 'VORTEX' | 'SWARM';
 
-// Exact 310x470 side-notched press pass path (center punches + bottom stub notches)
-const NOTCHED_PATH =
-  'M 18 1 H 292 A 17 17 0 0 1 309 18 V 220 A 18 18 0 0 0 309 256 V 379 A 7 7 0 0 0 309 393 V 452 A 17 17 0 0 1 292 469 H 18 A 17 17 0 0 1 1 452 V 393 A 7 7 0 0 0 1 379 V 256 A 18 18 0 0 0 1 220 V 18 A 17 17 0 0 1 18 1 Z';
+interface RGB {
+  r: number;
+  g: number;
+  b: number;
+}
 
-const CARD_MASK_SVG = encodeURIComponent(
-  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 310 470"><path d="${NOTCHED_PATH}" fill="white"/><circle cx="155" cy="28" r="10" fill="black"/></svg>`
-);
+interface ThemeTokens {
+  bgHex: string;
+  bgRgb: RGB;
+  particleRgb: RGB;
+  accentRgb: RGB;
+  gridRgb: RGB;
+  textPrimary: string;
+  textMuted: string;
+  glassBg: string;
+  glassBorder: string;
+  pillActiveBg: string;
+  pillActiveText: string;
+  vignette: string;
+  isLight: boolean;
+}
 
-const CARD_MASK_URL = `url("data:image/svg+xml,${CARD_MASK_SVG}")`;
+const CREATOR_EMAIL = 'samratsandilya4@gmail.com';
+const CREATOR_INSTAGRAM_URL = 'https://www.instagram.com/samrat.tiwary';
+const CREATOR_INSTAGRAM_HANDLE = '@samrat.tiwary';
+const CREATOR_LINKEDIN_URL = 'https://www.linkedin.com/in/samrat-sandilya';
+const CREATOR_LINKEDIN_HANDLE = 'in/samrat-sandilya';
 
-const LINEN_TEXTURE_SVG = encodeURIComponent(
-  `<svg xmlns="http://www.w3.org/2000/svg" width="6" height="6" viewBox="0 0 6 6"><path d="M0 0h6v1H0zM0 0h1v6H0z" fill="rgba(255,255,255,0.035)"/></svg>`
-);
+const CINEMA_EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
+const SCRAMBLE_GLYPHS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/+#*<>';
 
-// ===========================================================================
-// 1. STEALTH 10-SECOND HOLD TRIGGER HOOK (0-3s INVISIBLE, 3-10s CHARGE)
-// ===========================================================================
-export function useCreatorPassTrigger(
-  onUnlock: () => void,
-  holdMs = 10000,
-  stealthMs = 3000
-) {
-  const [chargeRatio, setChargeRatio] = useState(0); // 0 during stealth (0-3s), ramps 0->1 from 3s-10s
-  const rafRef = useRef<number | null>(null);
-  const startRef = useRef<number | null>(null);
-  const unlockedRef = useRef(false);
-  const onUnlockRef = useRef(onUnlock);
-  onUnlockRef.current = onUnlock;
+const THEMES: Record<ShaderMode, ThemeTokens> = {
+  OBSIDIAN: {
+    bgHex: '#060608',
+    bgRgb: { r: 6, g: 6, b: 8 },
+    particleRgb: { r: 244, g: 242, b: 236 },
+    accentRgb: { r: 196, g: 204, b: 218 },
+    gridRgb: { r: 255, g: 255, b: 255 },
+    textPrimary: '#F4F2EC',
+    textMuted: 'rgba(244, 242, 236, 0.52)',
+    glassBg: 'rgba(14, 15, 20, 0.62)',
+    glassBorder: 'rgba(255, 255, 255, 0.13)',
+    pillActiveBg: 'rgba(244, 242, 236, 0.14)',
+    pillActiveText: '#FFFFFF',
+    vignette:
+      'radial-gradient(ellipse at center, transparent 42%, rgba(0,0,0,0.72) 100%)',
+    isLight: false,
+  },
+  BLUEPRINT: {
+    bgHex: '#040B16',
+    bgRgb: { r: 4, g: 11, b: 22 },
+    particleRgb: { r: 214, g: 240, b: 255 },
+    accentRgb: { r: 56, g: 189, b: 248 },
+    gridRgb: { r: 56, g: 189, b: 248 },
+    textPrimary: '#E0F2FE',
+    textMuted: 'rgba(125, 211, 252, 0.62)',
+    glassBg: 'rgba(6, 20, 40, 0.66)',
+    glassBorder: 'rgba(56, 189, 248, 0.28)',
+    pillActiveBg: 'rgba(56, 189, 248, 0.22)',
+    pillActiveText: '#F0F9FF',
+    vignette:
+      'radial-gradient(ellipse at center, transparent 38%, rgba(2,6,14,0.82) 100%)',
+    isLight: false,
+  },
+  INK: {
+    bgHex: '#F4F1EA',
+    bgRgb: { r: 244, g: 241, b: 234 },
+    particleRgb: { r: 12, g: 12, b: 15 },
+    accentRgb: { r: 72, g: 68, b: 62 },
+    gridRgb: { r: 14, g: 14, b: 18 },
+    textPrimary: '#0A0A0C',
+    textMuted: 'rgba(10, 10, 12, 0.54)',
+    glassBg: 'rgba(250, 248, 242, 0.72)',
+    glassBorder: 'rgba(10, 10, 12, 0.14)',
+    pillActiveBg: 'rgba(10, 10, 12, 0.1)',
+    pillActiveText: '#0A0A0C',
+    vignette:
+      'radial-gradient(ellipse at center, transparent 48%, rgba(20,18,14,0.12) 100%)',
+    isLight: true,
+  },
+};
 
-  const cancelHold = useCallback(() => {
-    if (rafRef.current !== null) {
-      cancelAnimationFrame(rafRef.current);
-      rafRef.current = null;
+/* ============================================================================
+   DYNAMIC EDITORIAL FONT LOADER (ZERO CONFIG)
+   ============================================================================ */
+
+let fontsInjected = false;
+function ensureEditorialFonts() {
+  if (fontsInjected || typeof document === 'undefined') return;
+  fontsInjected = true;
+  const id = 'monolith-editorial-fonts';
+  if (document.getElementById(id)) return;
+  const link = document.createElement('link');
+  link.id = id;
+  link.rel = 'stylesheet';
+  link.href =
+    'https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,400&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap';
+  document.head.appendChild(link);
+}
+
+/* ============================================================================
+   WEB AUDIO API SYNTHESIZER (ZERO EXTERNAL AUDIO FILES)
+   ============================================================================ */
+
+class MonolithAudioEngine {
+  private ctx: AudioContext | null = null;
+  public muted = false;
+
+  private ensureContext(): AudioContext | null {
+    if (this.muted || typeof window === 'undefined') return null;
+    try {
+      if (!this.ctx) {
+        const AudioCtx =
+          window.AudioContext ||
+          (window as unknown as { webkitAudioContext?: typeof AudioContext })
+            .webkitAudioContext;
+        if (!AudioCtx) return null;
+        this.ctx = new AudioCtx();
+      }
+      if (this.ctx.state === 'suspended') {
+        this.ctx.resume().catch(() => {});
+      }
+      return this.ctx;
+    } catch {
+      return null;
     }
-    startRef.current = null;
-    unlockedRef.current = false;
-    setChargeRatio(0);
-  }, []);
+  }
 
-  const startHold = useCallback(
-    (e: React.PointerEvent) => {
-      if (e.pointerType === 'mouse' && e.button !== 0) return;
-      cancelHold();
-      startRef.current = performance.now();
+  public playEntryBass() {
+    const ctx = this.ensureContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const filter = ctx.createBiquadFilter();
 
-      const tick = (now: number) => {
-        if (startRef.current === null || unlockedRef.current) return;
-        const elapsed = now - startRef.current;
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(118, now);
+    osc.frequency.exponentialRampToValueAtTime(34, now + 0.55);
 
-        if (elapsed >= holdMs) {
-          unlockedRef.current = true;
-          if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-            try {
-              navigator.vibrate([18, 35, 28]);
-            } catch {
-              // ignore unsupported vibrate
-            }
-          }
-          setChargeRatio(0);
-          startRef.current = null;
-          rafRef.current = null;
-          onUnlockRef.current();
-          return;
-        }
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(240, now);
 
-        if (elapsed > stealthMs) {
-          const visible = Math.min(1, (elapsed - stealthMs) / (holdMs - stealthMs));
-          setChargeRatio(visible);
-        }
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.linearRampToValueAtTime(0.18, now + 0.04);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.65);
 
-        rafRef.current = requestAnimationFrame(tick);
-      };
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.68);
+  }
 
-      rafRef.current = requestAnimationFrame(tick);
+  public playMechanicalTick(pitch = 920) {
+    const ctx = this.ensureContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(pitch, now);
+    osc.frequency.exponentialRampToValueAtTime(pitch * 0.32, now + 0.028);
+
+    gain.gain.setValueAtTime(0.048, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.032);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.035);
+  }
+
+  public playSoftHover() {
+    const ctx = this.ensureContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(520, now);
+    osc.frequency.exponentialRampToValueAtTime(680, now + 0.025);
+
+    gain.gain.setValueAtTime(0.018, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.03);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.032);
+  }
+
+  public playHarmonicChime() {
+    const ctx = this.ensureContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    const notes = [523.25, 659.25, 783.99, 1046.5];
+    notes.forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const start = now + idx * 0.035;
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, start);
+
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.linearRampToValueAtTime(0.045 / (idx * 0.4 + 1), start + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.48);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + 0.5);
+    });
+  }
+
+  public playGravityPulse(dropping: boolean) {
+    const ctx = this.ensureContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'sine';
+    if (dropping) {
+      osc.frequency.setValueAtTime(160, now);
+      osc.frequency.exponentialRampToValueAtTime(38, now + 0.34);
+    } else {
+      osc.frequency.setValueAtTime(48, now);
+      osc.frequency.exponentialRampToValueAtTime(220, now + 0.32);
+    }
+
+    gain.gain.setValueAtTime(0.001, now);
+    gain.gain.linearRampToValueAtTime(0.11, now + 0.03);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.36);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.38);
+  }
+
+  public playShockwaveRelease() {
+    const ctx = this.ensureContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(92, now);
+    osc.frequency.exponentialRampToValueAtTime(28, now + 0.36);
+
+    gain.gain.setValueAtTime(0.13, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.38);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.4);
+  }
+
+  public playImplosionExit() {
+    const ctx = this.ensureContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(42, now);
+    osc.frequency.exponentialRampToValueAtTime(190, now + 0.36);
+
+    gain.gain.setValueAtTime(0.001, now);
+    gain.gain.linearRampToValueAtTime(0.14, now + 0.24);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.4);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.42);
+  }
+
+  public dispose() {
+    if (this.ctx) {
+      this.ctx.close().catch(() => {});
+      this.ctx = null;
+    }
+  }
+}
+
+/* ============================================================================
+   MAGNETIC TACTILE BUTTON WITH SPECULAR LIGHT SHEEN & SLOT-ROLL
+   ============================================================================ */
+
+interface MagneticButtonProps {
+  children: React.ReactNode;
+  onClick?: (e: React.MouseEvent<HTMLElement>) => void;
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
+  href?: string;
+  target?: string;
+  rel?: string;
+  className?: string;
+  style?: React.CSSProperties;
+  strength?: number;
+  title?: string;
+  buttonRef?: React.RefObject<HTMLButtonElement | null>;
+}
+
+const MagneticButton: React.FC<MagneticButtonProps> = ({
+  children,
+  onClick,
+  onMouseEnter,
+  onMouseLeave,
+  href,
+  target,
+  rel,
+  className = '',
+  style,
+  strength = 0.28,
+  title,
+  buttonRef,
+}) => {
+  const internalRef = useRef<HTMLElement | null>(null);
+  const mx = useMotionValue(0);
+  const my = useMotionValue(0);
+  const sx = useSpring(mx, { stiffness: 320, damping: 22, mass: 0.4 });
+  const sy = useSpring(my, { stiffness: 320, damping: 22, mass: 0.4 });
+  const [sheen, setSheen] = useState({ x: 50, y: 50, active: false });
+
+  const setRefs = useCallback(
+    (node: HTMLElement | null) => {
+      internalRef.current = node;
+      if (buttonRef && 'current' in buttonRef) {
+        (
+          buttonRef as React.MutableRefObject<HTMLButtonElement | null>
+        ).current = node as HTMLButtonElement | null;
+      }
     },
-    [cancelHold, holdMs, stealthMs]
+    [buttonRef]
   );
 
-  useEffect(() => cancelHold, [cancelHold]);
-
-  const bind = {
-    onPointerDown: startHold,
-    onPointerUp: cancelHold,
-    onPointerLeave: cancelHold,
-    onPointerCancel: cancelHold,
-    onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
+  const handleMove = (e: React.MouseEvent<HTMLElement>) => {
+    const el = internalRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const dx = e.clientX - (rect.left + rect.width / 2);
+    const dy = e.clientY - (rect.top + rect.height / 2);
+    mx.set(dx * strength);
+    my.set(dy * strength);
+    setSheen({
+      x: ((e.clientX - rect.left) / rect.width) * 100,
+      y: ((e.clientY - rect.top) / rect.height) * 100,
+      active: true,
+    });
   };
 
-  return { bind, chargeRatio };
-}
+  const handleLeave = () => {
+    mx.set(0);
+    my.set(0);
+    setSheen((prev) => ({ ...prev, active: false }));
+    onMouseLeave?.();
+  };
 
-// ===========================================================================
-// 2. ISOLATED STUDIO GOLD DUST CANVAS (RUNS ONLY WHILE MODAL IS OPEN)
-// ===========================================================================
-function StudioDustCanvas() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const innerContent = (
+    <>
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 rounded-[inherit] transition-opacity duration-300"
+        style={{
+          opacity: sheen.active ? 1 : 0,
+          background: `radial-gradient(120px circle at ${sheen.x}% ${sheen.y}%, rgba(255,255,255,0.22), transparent 68%)`,
+        }}
+      />
+      <span className="relative z-10 flex items-center gap-2">{children}</span>
+    </>
+  );
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d', { alpha: true });
-    if (!ctx) return;
+  const sharedMotionProps = {
+    style: { x: sx, y: sy, ...style },
+    onMouseMove: handleMove,
+    onMouseEnter: () => {
+      setSheen((prev) => ({ ...prev, active: true }));
+      onMouseEnter?.();
+    },
+    onMouseLeave: handleLeave,
+    whileTap: { scale: 0.96 },
+    transition: { type: 'spring' as const, stiffness: 420, damping: 28 },
+    className: `relative overflow-hidden select-none cursor-pointer ${className}`,
+    title,
+  };
 
-    let mounted = true;
-    let rafId: number | null = null;
-    let w = window.innerWidth;
-    let h = window.innerHeight;
-
-    const resize = () => {
-      w = window.innerWidth;
-      h = window.innerHeight;
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      canvas.width = Math.round(w * dpr);
-      canvas.height = Math.round(h * dpr);
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    };
-    resize();
-
-    const count = w < 768 ? 28 : 64;
-    const specks = Array.from({ length: count }, () => ({
-      x: Math.random() * w,
-      y: Math.random() * h,
-      r: 0.7 + Math.random() * 1.9,
-      vy: 0.14 + Math.random() * 0.32,
-      vx: (Math.random() - 0.5) * 0.22,
-      alpha: 0.14 + Math.random() * 0.36,
-      gold: Math.random() > 0.28,
-    }));
-
-    const frame = () => {
-      if (!mounted) return;
-      ctx.clearRect(0, 0, w, h);
-      for (const s of specks) {
-        s.y -= s.vy;
-        s.x += s.vx;
-        if (s.y < -10) {
-          s.y = h + 10;
-          s.x = Math.random() * w;
-        }
-        ctx.beginPath();
-        ctx.fillStyle = s.gold
-          ? `rgba(218, 182, 102, ${s.alpha})`
-          : `rgba(190, 38, 62, ${s.alpha * 0.85})`;
-        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      rafId = requestAnimationFrame(frame);
-    };
-
-    window.addEventListener('resize', resize);
-    rafId = requestAnimationFrame(frame);
-
-    return () => {
-      mounted = false;
-      if (rafId !== null) cancelAnimationFrame(rafId);
-      window.removeEventListener('resize', resize);
-    };
-  }, []);
+  if (href) {
+    return (
+      <motion.a
+        ref={setRefs as React.Ref<HTMLAnchorElement>}
+        href={href}
+        target={target}
+        rel={rel}
+        onClick={onClick}
+        {...sharedMotionProps}
+      >
+        {innerContent}
+      </motion.a>
+    );
+  }
 
   return (
-    <canvas
-      ref={canvasRef}
-      aria-hidden="true"
-      style={{
-        position: 'fixed',
-        inset: 0,
-        width: '100vw',
-        height: '100vh',
-        pointerEvents: 'none',
-        zIndex: 1,
-      }}
-    />
+    <motion.button
+      ref={setRefs as React.Ref<HTMLButtonElement>}
+      type="button"
+      onClick={onClick}
+      {...sharedMotionProps}
+    >
+      {innerContent}
+    </motion.button>
   );
+};
+
+/* ============================================================================
+   VERTICAL SLOT-ROLL LINK LABEL (PRIMARY -> EXACT HANDLE REVEAL)
+   ============================================================================ */
+
+interface SlotRollLabelProps {
+  primary: string;
+  secondary: string;
+  hovered: boolean;
+  underlineColor: string;
 }
 
-// ===========================================================================
-// 3. MAIN 3D PHYSICS HANGING CREATOR PASS MODAL (VARIANT 3A)
-// ===========================================================================
-export default function CreatorPassModal({ open, onClose }: CreatorPassModalProps) {
-  const [closing, setClosing] = useState(false);
-  const [flipped, setFlipped] = useState(false);
-  const [hoveredSocial, setHoveredSocial] = useState<'linkedin' | 'instagram' | null>(null);
-  const [gyroNeedsPermission, setGyroNeedsPermission] = useState(false);
-  const [gyroEnabled, setGyroEnabled] = useState(false);
+const SlotRollLabel: React.FC<SlotRollLabelProps> = ({
+  primary,
+  secondary,
+  hovered,
+  underlineColor,
+}) => {
+  return (
+    <span className="relative inline-flex flex-col overflow-hidden h-[1.25em] leading-[1.25em]">
+      <motion.span
+        animate={{
+          y: hovered ? '-105%' : '0%',
+          opacity: hovered ? 0 : 1,
+          filter: hovered ? 'blur(4px)' : 'blur(0px)',
+        }}
+        transition={{ duration: 0.34, ease: CINEMA_EASE }}
+        className="inline-flex items-center gap-1 whitespace-nowrap"
+      >
+        {primary}
+      </motion.span>
+      <motion.span
+        animate={{
+          y: hovered ? '-100%' : '15%',
+          opacity: hovered ? 1 : 0,
+          filter: hovered ? 'blur(0px)' : 'blur(4px)',
+        }}
+        transition={{ duration: 0.34, ease: CINEMA_EASE }}
+        className="inline-flex items-center gap-1 whitespace-nowrap"
+      >
+        {secondary}
+      </motion.span>
+      <motion.span
+        aria-hidden="true"
+        animate={{ scaleX: hovered ? 1 : 0 }}
+        transition={{ duration: 0.32, ease: CINEMA_EASE }}
+        style={{
+          originX: 0,
+          backgroundColor: underlineColor,
+        }}
+        className="absolute bottom-0 left-0 right-0 h-[1px]"
+      />
+    </span>
+  );
+};
 
-  // Direct DOM refs for butter-smooth 60fps physics without React re-renders
-  const rigRef = useRef<HTMLDivElement>(null);
-  const card3DRef = useRef<HTMLDivElement>(null);
-  const sheenFrontRef = useRef<HTMLDivElement>(null);
-  const sheenBackRef = useRef<HTMLDivElement>(null);
-  const spotlightRef = useRef<HTMLDivElement>(null);
-  const strapOuterRef = useRef<SVGPathElement>(null);
-  const strapStripeRef = useRef<SVGPathElement>(null);
-  const strapWeaveRef = useRef<SVGPathElement>(null);
+/* ============================================================================
+   SELF-DRAWING FOUNTAIN-PEN SVG SIGNATURE
+   ============================================================================ */
 
-  const flippedRef = useRef(false);
-  flippedRef.current = flipped;
+const CreatorSignatureSVG: React.FC<{
+  color: string;
+  accent: string;
+  active: boolean;
+}> = ({ color, accent, active }) => {
+  return (
+    <div className="relative flex items-center justify-center pointer-events-none select-none">
+      <svg
+        viewBox="0 0 360 96"
+        className="w-[210px] sm:w-[270px] h-auto overflow-visible"
+        fill="none"
+        aria-label="Samrat Signature"
+      >
+        <defs>
+          <filter id="monolith-ink-glow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="2.2" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+        {/* Main calligraphic stroke: S-a-m-r-a-t */}
+        <motion.path
+          d="M 54 30 C 30 22, 18 42, 42 52 C 68 62, 54 84, 24 76 C 14 73, 18 62, 34 62 C 58 62, 82 40, 96 42 C 106 43, 92 64, 102 64 C 110 64, 118 46, 126 46 C 132 46, 126 64, 134 64 C 142 64, 148 47, 155 47 C 161 47, 156 64, 165 64 C 174 64, 182 46, 190 46 C 198 46, 194 64, 204 64 C 214 64, 224 44, 232 45 C 238 46, 230 64, 242 64 C 254 64, 270 30, 278 22 C 272 42, 266 66, 280 65 C 296 64, 314 54, 336 52"
+          stroke={color}
+          strokeWidth="2.1"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          filter="url(#monolith-ink-glow)"
+          initial={{ pathLength: 0, opacity: 0 }}
+          animate={
+            active
+              ? { pathLength: 1, opacity: 0.94 }
+              : { pathLength: 0, opacity: 0 }
+          }
+          transition={{ duration: 2.1, ease: CINEMA_EASE, delay: 0.15 }}
+        />
+        {/* T-crossbar flourish */}
+        <motion.path
+          d="M 254 36 C 274 34, 294 31, 316 32"
+          stroke={accent}
+          strokeWidth="1.4"
+          strokeLinecap="round"
+          initial={{ pathLength: 0, opacity: 0 }}
+          animate={
+            active
+              ? { pathLength: 1, opacity: 0.85 }
+              : { pathLength: 0, opacity: 0 }
+          }
+          transition={{ duration: 0.65, ease: CINEMA_EASE, delay: 1.85 }}
+        />
+        {/* Editorial underline sweep */}
+        <motion.path
+          d="M 68 82 C 138 75, 226 73, 304 77"
+          stroke={color}
+          strokeOpacity="0.35"
+          strokeWidth="1"
+          strokeLinecap="round"
+          initial={{ pathLength: 0, opacity: 0 }}
+          animate={
+            active
+              ? { pathLength: 1, opacity: 0.55 }
+              : { pathLength: 0, opacity: 0 }
+          }
+          transition={{ duration: 0.9, ease: CINEMA_EASE, delay: 2.05 }}
+        />
+      </svg>
+    </div>
+  );
+};
 
-  // Physics + Isolated Gyro + Pointer state
-  const physRef = useRef({
-    x: 0,
-    y: -520,
-    vx: 0,
-    vy: 0,
-    swing: -11,
-    vSwing: 0,
-    rotX: 0,
-    rotY: 0,
-    targetRotX: 0,
-    targetRotY: 0,
-    gyroX: 0,
-    gyroY: 0,
-    glareX: 50,
-    glareY: 30,
-    dragging: false,
-    dragStartX: 0,
-    dragStartY: 0,
-    dragOriginX: 0,
-    dragOriginY: 0,
-    movedDist: 0,
-    pointerId: -1,
-    exiting: false,
+/* ============================================================================
+   MAIN COMPONENT: THE ARCHITECT'S MONOLITH (CREATOR PASS MODAL)
+   ============================================================================ */
+
+export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
+  isOpen = true,
+  onClose,
+  isDarkMode = true,
+}) => {
+  // Core modal & choreography states
+  const [shaderMode, setShaderMode] = useState<ShaderMode>(
+    isDarkMode ? 'OBSIDIAN' : 'INK'
+  );
+  const [physicsMode, setPhysicsMode] = useState<PhysicsMode>('FLUID');
+  const [gravityOn, setGravityOn] = useState(false);
+  const [audioMuted, setAudioMuted] = useState(false);
+  const [xrayEnabled, setXrayEnabled] = useState(true);
+  const [bulletTime, setBulletTime] = useState(false);
+  const [isHoldingVortex, setIsHoldingVortex] = useState(false);
+  const [isImploding, setIsImploding] = useState(false);
+
+  // 0.8s Architectural Telemetry Intro Flash
+  const [introActive, setIntroActive] = useState(true);
+  const [introPercent, setIntroPercent] = useState(0);
+
+  // Scroll-driven Rack Focus (0 = Hero Monolith sharp, 1 = Signature/Telemetry sharp)
+  const [scrollStage, setScrollStage] = useState(0);
+
+  // Live Telemetry (Real DOM + Viewport + IST + FPS + Cursor)
+  const [telemetry, setTelemetry] = useState({
+    fps: 60,
+    domNodes: 0,
+    viewport: '0 × 0',
+    istTime: '--:--:-- IST',
+    cursorX: 0,
+    cursorY: 0,
+    particles: 0,
   });
 
-  const handleClose = useCallback(() => {
-    if (closing) return;
-    setClosing(true);
-    physRef.current.exiting = true;
-    window.setTimeout(() => {
-      setClosing(false);
-      setFlipped(false);
-      onClose();
-    }, 340);
-  }, [closing, onClose]);
+  // Contact Dock interactive states
+  const [emailDisplay, setEmailDisplay] = useState(CREATOR_EMAIL);
+  const [emailCopied, setEmailCopied] = useState(false);
+  const [instaHovered, setInstaHovered] = useState(false);
+  const [linkedinHovered, setLinkedinHovered] = useState(false);
+  const [isTouchDevice, setIsTouchDevice] = useState(false);
 
-  // Body scroll lock & Escape handler while open
+  // Gyroscope subtle tilt for mobile specular reflection & drift
+  const [gyroTilt, setGyroTilt] = useState({ x: 0, y: 0 });
+
+  // DOM & Engine Refs
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const dockRef = useRef<HTMLDivElement | null>(null);
+  const closeBtnRef = useRef<HTMLButtonElement | null>(null);
+  const xrayLayerRef = useRef<HTMLDivElement | null>(null);
+  const xrayRingRef = useRef<HTMLDivElement | null>(null);
+  const audioRef = useRef<MonolithAudioEngine | null>(null);
+  const scrambleTimerRef = useRef<number | null>(null);
+  const copiedTimerRef = useRef<number | null>(null);
+
+  // Live mutable state bridge for 60fps Canvas RAF (zero React re-renders per frame)
+  const engineStateRef = useRef({
+    shaderMode: (isDarkMode ? 'OBSIDIAN' : 'INK') as ShaderMode,
+    physicsMode: 'FLUID' as PhysicsMode,
+    gravityOn: false,
+    bulletTime: false,
+    imploding: false,
+    implodeTarget: { x: 0, y: 0 },
+    pointer: {
+      x: -9999,
+      y: -9999,
+      vx: 0,
+      vy: 0,
+      down: false,
+      active: false,
+    },
+    lens: { x: -400, y: -400, radius: 118 },
+    gyro: { x: 0, y: 0 },
+    scrollTarget: 0,
+    scrollCurrent: 0,
+    shockwaves: [] as Array<{
+      x: number;
+      y: number;
+      radius: number;
+      maxRadius: number;
+      strength: number;
+      alpha: number;
+    }>,
+    fps: 60,
+    particleCount: 0,
+  });
+
+  const theme = THEMES[shaderMode];
+
+  // Sync with parent app's `isDarkMode` live
   useEffect(() => {
-    if (!open) return;
+    const mapped: ShaderMode = isDarkMode ? 'OBSIDIAN' : 'INK';
+    setShaderMode(mapped);
+    engineStateRef.current.shaderMode = mapped;
+  }, [isDarkMode]);
+
+  useEffect(() => {
+    engineStateRef.current.shaderMode = shaderMode;
+  }, [shaderMode]);
+
+  useEffect(() => {
+    engineStateRef.current.physicsMode = physicsMode;
+  }, [physicsMode]);
+
+  useEffect(() => {
+    engineStateRef.current.gravityOn = gravityOn;
+  }, [gravityOn]);
+
+  useEffect(() => {
+    engineStateRef.current.bulletTime = bulletTime;
+  }, [bulletTime]);
+
+  // Inject editorial fonts & detect touch device
+  useEffect(() => {
+    ensureEditorialFonts();
+    if (typeof window !== 'undefined') {
+      const coarse = window.matchMedia('(pointer: coarse)').matches;
+      setIsTouchDevice(coarse);
+      if (coarse) setXrayEnabled(false);
+    }
+  }, []);
+
+  // Init Web Audio Synth + Lock Body Scroll + 0.8s Telemetry Entry Flash
+  useEffect(() => {
+    if (!isOpen) return;
+
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
 
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') handleClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => {
-      document.body.style.overflow = prevOverflow;
-      window.removeEventListener('keydown', onKey);
-    };
-  }, [open, handleClose]);
+    const audio = new MonolithAudioEngine();
+    audio.muted = audioMuted;
+    audioRef.current = audio;
+    audio.playEntryBass();
 
-  // ISOLATED GYROSCOPE: Strictly active ONLY while modal is open; zero effect on website
-  useEffect(() => {
-    if (!open) return;
+    setIsImploding(false);
+    engineStateRef.current.imploding = false;
+    setIntroActive(true);
+    setIntroPercent(0);
 
-    const DOE = window.DeviceOrientationEvent as unknown as {
-      requestPermission?: () => Promise<'granted' | 'denied'>;
-    };
+    const startTime = performance.now();
+    const duration = 760;
+    let rafIntro = 0;
 
-    if (DOE && typeof DOE.requestPermission === 'function' && !gyroEnabled) {
-      setGyroNeedsPermission(true);
-      return;
-    }
-
-    const onOrientation = (e: DeviceOrientationEvent) => {
-      if (e.beta === null || e.gamma === null) return;
-      const clampedGamma = Math.max(-28, Math.min(28, e.gamma));
-      const clampedBeta = Math.max(-24, Math.min(24, e.beta - 45));
-      physRef.current.gyroY = (clampedGamma / 28) * 16;
-      physRef.current.gyroX = -(clampedBeta / 24) * 13;
-    };
-
-    window.addEventListener('deviceorientation', onOrientation, { passive: true });
-    return () => {
-      window.removeEventListener('deviceorientation', onOrientation);
-      physRef.current.gyroX = 0;
-      physRef.current.gyroY = 0;
-    };
-  }, [open, gyroEnabled]);
-
-  const requestIOSGyro = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    const DOE = window.DeviceOrientationEvent as unknown as {
-      requestPermission?: () => Promise<'granted' | 'denied'>;
-    };
-    try {
-      const res = await DOE?.requestPermission?.();
-      if (res === 'granted') {
-        setGyroEnabled(true);
-        setGyroNeedsPermission(false);
-      }
-    } catch {
-      setGyroNeedsPermission(false);
-    }
-  };
-
-  // Main 60fps Spring-Pendulum + Lanyard Physics Loop
-  useEffect(() => {
-    if (!open) return;
-
-    // Reset drop-in initial state for dramatic gravity entrance
-    const p = physRef.current;
-    p.x = 18;
-    p.y = -480;
-    p.vx = -2.2;
-    p.vy = 14;
-    p.swing = -10;
-    p.vSwing = 0.6;
-    p.rotX = 12;
-    p.rotY = -10;
-    p.targetRotX = 0;
-    p.targetRotY = 0;
-    p.dragging = false;
-    p.exiting = false;
-
-    let mounted = true;
-    let rafId: number | null = null;
-
-    const step = () => {
-      if (!mounted) return;
-
-      const vw = window.innerWidth;
-      const vh = window.innerHeight;
-      const isCompact = vh < 700 || vw < 420;
-      const restTop = isCompact ? Math.max(88, vh * 0.14) : Math.max(122, vh * 0.18);
-
-      if (p.exiting) {
-        p.vy -= 4.2;
-        p.y += p.vy;
-        p.x *= 0.92;
-        p.swing *= 0.9;
-      } else if (!p.dragging) {
-        // Spring return to equilibrium (0, 0)
-        const k = 0.085;
-        const damp = 0.86;
-        const ax = -p.x * k;
-        const ay = -p.y * k;
-        p.vx = (p.vx + ax) * damp;
-        p.vy = (p.vy + ay) * damp;
-        p.x += p.vx;
-        p.y += p.vy;
-
-        // Coupled pendulum swing from horizontal acceleration & position
-        const targetSwing = Math.max(-22, Math.min(22, -p.x * 0.095 - p.vx * 0.55));
-        p.vSwing = (p.vSwing + (targetSwing - p.swing) * 0.11) * 0.85;
-        p.swing += p.vSwing;
+    const tickIntro = (now: number) => {
+      const progress = Math.min(1, (now - startTime) / duration);
+      // Fast architectural counter ease
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setIntroPercent(Math.round(eased * 100));
+      if (progress < 1) {
+        rafIntro = requestAnimationFrame(tickIntro);
       } else {
-        const targetSwing = Math.max(-24, Math.min(24, -p.x * 0.1));
-        p.swing += (targetSwing - p.swing) * 0.18;
+        window.setTimeout(() => setIntroActive(false), 90);
       }
-
-      // Blend hover tilt + isolated mobile gyro
-      const goalX = p.targetRotX + p.gyroX;
-      const goalY = p.targetRotY + p.gyroY;
-      p.rotX += (goalX - p.rotX) * 0.12;
-      p.rotY += (goalY - p.rotY) * 0.12;
-
-      const flipY = flippedRef.current ? 180 : 0;
-
-      // Apply card rig translation + pendulum swing
-      if (rigRef.current) {
-        rigRef.current.style.transform = `translate3d(${p.x}px, ${restTop + p.y}px, 0) rotate(${p.swing}deg)`;
-      }
-
-      // Apply 3D tilt + flip
-      if (card3DRef.current) {
-        card3DRef.current.style.transform = `rotateX(${p.rotX}deg) rotateY(${p.rotY + flipY}deg)`;
-      }
-
-      // Dynamic holographic gold-crimson sheen follows tilt & cursor
-      const gx = Math.max(0, Math.min(100, p.glareX + p.rotY * 1.8));
-      const gy = Math.max(0, Math.min(100, p.glareY - p.rotX * 1.8));
-      const sheenBg = `radial-gradient(360px circle at ${gx}% ${gy}%, rgba(255, 245, 224, 0.22) 0%, rgba(212, 175, 55, 0.14) 26%, rgba(168, 29, 50, 0.11) 52%, transparent 74%)`;
-      if (sheenFrontRef.current) sheenFrontRef.current.style.background = sheenBg;
-      if (sheenBackRef.current) sheenBackRef.current.style.background = sheenBg;
-
-      // Overhead studio spotlight subtly tracks the swinging pass
-      if (spotlightRef.current) {
-        spotlightRef.current.style.transform = `translate3d(calc(-50% + ${p.x * 0.32}px), 0, 0) rotate(${p.swing * 0.35}deg)`;
-      }
-
-      // Dynamic curved woven lanyard ribbon connecting top-center to moving clasp
-      const anchorX = vw / 2;
-      const claspX = vw / 2 + p.x;
-      const claspY = restTop + p.y + 8;
-      const ctrlX = anchorX + p.x * 0.35;
-      const ctrlY = Math.max(20, claspY * 0.56);
-      const pathD = `M ${anchorX} -40 Q ${ctrlX} ${ctrlY} ${claspX} ${claspY}`;
-
-      if (strapOuterRef.current) strapOuterRef.current.setAttribute('d', pathD);
-      if (strapStripeRef.current) strapStripeRef.current.setAttribute('d', pathD);
-      if (strapWeaveRef.current) strapWeaveRef.current.setAttribute('d', pathD);
-
-      rafId = requestAnimationFrame(step);
     };
+    rafIntro = requestAnimationFrame(tickIntro);
 
-    rafId = requestAnimationFrame(step);
     return () => {
-      mounted = false;
-      if (rafId !== null) cancelAnimationFrame(rafId);
+      cancelAnimationFrame(rafIntro);
+      document.body.style.overflow = prevOverflow;
+      audio.dispose();
+      audioRef.current = null;
     };
-  }, [open]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
-  if (!open) return null;
-
-  // Pointer drag + 3D hover handlers on card
-  const onCardPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    const target = e.target as HTMLElement;
-    if (target.closest('a') || target.closest('button')) return;
-
-    e.currentTarget.setPointerCapture(e.pointerId);
-    const p = physRef.current;
-    p.dragging = true;
-    p.pointerId = e.pointerId;
-    p.dragStartX = e.clientX;
-    p.dragStartY = e.clientY;
-    p.dragOriginX = p.x;
-    p.dragOriginY = p.y;
-    p.movedDist = 0;
-  };
-
-  const onCardPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const nx = (e.clientX - rect.left) / rect.width;
-    const ny = (e.clientY - rect.top) / rect.height;
-
-    const p = physRef.current;
-    p.glareX = nx * 100;
-    p.glareY = ny * 100;
-    p.targetRotY = (nx - 0.5) * 24;
-    p.targetRotX = -(ny - 0.5) * 18;
-
-    if (p.dragging && p.pointerId === e.pointerId) {
-      const dx = e.clientX - p.dragStartX;
-      const dy = e.clientY - p.dragStartY;
-      p.movedDist = Math.hypot(dx, dy);
-
-      // Soft elastic clamp so lanyard feels taut & physical
-      const maxX = Math.min(220, window.innerWidth * 0.36);
-      const maxY = Math.min(170, window.innerHeight * 0.24);
-      const nextX = p.dragOriginX + dx * 0.82;
-      const nextY = p.dragOriginY + dy * 0.72;
-
-      p.vx = nextX - p.x;
-      p.vy = nextY - p.y;
-      p.x = Math.max(-maxX, Math.min(maxX, nextX));
-      p.y = Math.max(-90, Math.min(maxY, nextY));
+  // Sync mute state
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.muted = audioMuted;
     }
-  };
+  }, [audioMuted]);
 
-  const onCardPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    const p = physRef.current;
-    if (!p.dragging || p.pointerId !== e.pointerId) return;
-    p.dragging = false;
-    p.pointerId = -1;
-    try {
-      e.currentTarget.releasePointerCapture(e.pointerId);
-    } catch {
-      // ignore release error
-    }
-
-    // Crisp click/tap (< 8px movement) flips the card 180°
-    if (p.movedDist < 8) {
-      setFlipped((prev) => !prev);
-      p.vSwing += flippedRef.current ? -2.4 : 2.4;
-    }
-  };
-
-  const onCardPointerLeave = () => {
-    const p = physRef.current;
-    if (!p.dragging) {
-      p.targetRotX = 0;
-      p.targetRotY = 0;
-      p.glareX = 50;
-      p.glareY = 30;
-    }
-  };
-
-  const cardSurfaceStyle: React.CSSProperties = {
-    position: 'absolute',
-    inset: 0,
-    backfaceVisibility: 'hidden',
-    WebkitBackfaceVisibility: 'hidden',
-    WebkitMaskImage: CARD_MASK_URL,
-    maskImage: CARD_MASK_URL,
-    WebkitMaskSize: '100% 100%',
-    maskSize: '100% 100%',
-    WebkitMaskRepeat: 'no-repeat',
-    maskRepeat: 'no-repeat',
-    backgroundColor: '#16171B',
-    backgroundImage: `url("data:image/svg+xml,${LINEN_TEXTURE_SVG}"), linear-gradient(155deg, #24262C 0%, #17181D 46%, #0E0F13 100%)`,
-    overflow: 'hidden',
-    color: '#F3F1EC',
-  };
-
-  const renderNotchedRimSvg = (idSuffix: string) => (
-    <svg
-      viewBox="0 0 310 470"
-      aria-hidden="true"
-      style={{
-        position: 'absolute',
-        inset: 0,
-        width: '100%',
-        height: '100%',
-        pointerEvents: 'none',
-        zIndex: 8,
-      }}
-    >
-      <defs>
-        <linearGradient id={`cp-rim-${idSuffix}`} x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="rgba(224, 191, 128, 0.72)" />
-          <stop offset="35%" stopColor="rgba(255, 255, 255, 0.22)" />
-          <stop offset="68%" stopColor="rgba(168, 29, 50, 0.55)" />
-          <stop offset="100%" stopColor="rgba(212, 175, 55, 0.58)" />
-        </linearGradient>
-      </defs>
-      <path d={NOTCHED_PATH} fill="none" stroke={`url(#cp-rim-${idSuffix})`} strokeWidth="2" />
-      {/* Top Metallic Grommet Ring */}
-      <circle cx="155" cy="28" r="14.5" fill="none" stroke="#3B3E47" strokeWidth="5.5" />
-      <circle cx="155" cy="28" r="16.5" fill="none" stroke="rgba(255,255,255,0.28)" strokeWidth="1" />
-      <circle cx="155" cy="28" r="11.5" fill="none" stroke="rgba(0,0,0,0.78)" strokeWidth="1.5" />
-    </svg>
+  // Fire physical shockwave across the 10,000-particle canvas
+  const triggerShockwave = useCallback(
+    (x?: number, y?: number, strength = 24) => {
+      const w = typeof window !== 'undefined' ? window.innerWidth : 1200;
+      const h = typeof window !== 'undefined' ? window.innerHeight : 800;
+      engineStateRef.current.shockwaves.push({
+        x: x ?? w / 2,
+        y: y ?? h / 2,
+        radius: 12,
+        maxRadius: Math.hypot(w, h) * 0.72,
+        strength,
+        alpha: 0.95,
+      });
+    },
+    []
   );
 
+  // Implosion Exit Choreography (0.42s suck-in to Close button + reverse bass sweep)
+  const handleImplosionClose = useCallback(() => {
+    if (isImploding) return;
+    setIsImploding(true);
+    const btnRect = closeBtnRef.current?.getBoundingClientRect();
+    engineStateRef.current.implodeTarget = btnRect
+      ? {
+          x: btnRect.left + btnRect.width / 2,
+          y: btnRect.top + btnRect.height / 2,
+        }
+      : {
+          x: window.innerWidth - 54,
+          y: 44,
+        };
+    engineStateRef.current.imploding = true;
+    engineStateRef.current.gravityOn = false;
+    setGravityOn(false);
+    audioRef.current?.playImplosionExit();
+
+    window.setTimeout(() => {
+      onClose();
+    }, 420);
+  }, [isImploding, onClose]);
+
+  // Keyboard shortcuts: ESC (Implode Close), G (Gravity Collapse), Spacebar Hold (0.1x Bullet-Time)
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        handleImplosionClose();
+        return;
+      }
+      if (
+        (e.key === 'g' || e.key === 'G') &&
+        !e.repeat &&
+        !e.metaKey &&
+        !e.ctrlKey
+      ) {
+        setGravityOn((prev) => {
+          const next = !prev;
+          audioRef.current?.playGravityPulse(next);
+          if (!next) triggerShockwave(window.innerWidth / 2, window.innerHeight * 0.55, 16);
+          return next;
+        });
+      }
+      if (e.code === 'Space' && !e.repeat) {
+        e.preventDefault();
+        setBulletTime(true);
+        audioRef.current?.playMechanicalTick(420);
+      }
+    };
+
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        setBulletTime(false);
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+    };
+  }, [isOpen, handleImplosionClose, triggerShockwave]);
+
+  // Mobile Gyroscope Tilt Physics & Specular Reflection
+  useEffect(() => {
+    if (!isOpen || typeof window === 'undefined') return;
+    const handleOrientation = (e: DeviceOrientationEvent) => {
+      const gamma = Math.max(-35, Math.min(35, e.gamma ?? 0)) / 35; // left-right (-1..1)
+      const beta = Math.max(-35, Math.min(35, (e.beta ?? 45) - 45)) / 35; // front-back (-1..1)
+      engineStateRef.current.gyro.x = gamma;
+      engineStateRef.current.gyro.y = beta;
+      setGyroTilt({ x: gamma, y: beta });
+    };
+    window.addEventListener('deviceorientation', handleOrientation, {
+      passive: true,
+    });
+    return () => {
+      window.removeEventListener('deviceorientation', handleOrientation);
+    };
+  }, [isOpen]);
+
+  // Real-Time Site Telemetry Scanner (Live DOM count, Viewport, IST Clock, FPS, Cursor XY)
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const updateTelemetry = () => {
+      const now = new Date();
+      const istTime =
+        new Intl.DateTimeFormat('en-IN', {
+          timeZone: 'Asia/Kolkata',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false,
+        }).format(now) + ' IST';
+
+      setTelemetry({
+        fps: Math.round(engineStateRef.current.fps),
+        domNodes: document.getElementsByTagName('*').length,
+        viewport: `${window.innerWidth} × ${window.innerHeight}`,
+        istTime,
+        cursorX: Math.max(0, Math.round(engineStateRef.current.pointer.x)),
+        cursorY: Math.max(0, Math.round(engineStateRef.current.pointer.y)),
+        particles: engineStateRef.current.particleCount,
+      });
+    };
+
+    updateTelemetry();
+    const timer = window.setInterval(updateTelemetry, 220);
+    return () => window.clearInterval(timer);
+  }, [isOpen]);
+
+  // Scroll listener -> Drives both 3D Z-Axis Fly-Through & DSLR Rack-Focus Blur
+  const handleScroll = useCallback(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const maxScroll = el.scrollHeight - el.clientHeight;
+    const raw = maxScroll > 0 ? Math.min(1, Math.max(0, el.scrollTop / maxScroll)) : 0;
+    engineStateRef.current.scrollTarget = raw;
+    setScrollStage(raw);
+  }, []);
+
+  // Mechanical Cipher Scramble for Email Hover
+  const runEmailScramble = useCallback(() => {
+    if (emailCopied) return;
+    audioRef.current?.playSoftHover();
+    if (scrambleTimerRef.current) window.clearInterval(scrambleTimerRef.current);
+
+    let iteration = 0;
+    const target = CREATOR_EMAIL;
+    scrambleTimerRef.current = window.setInterval(() => {
+      setEmailDisplay(
+        target
+          .split('')
+          .map((char, idx) => {
+            if (char === '@' || char === '.') return char;
+            if (idx < iteration) return target[idx];
+            return SCRAMBLE_GLYPHS[
+              Math.floor(Math.random() * SCRAMBLE_GLYPHS.length)
+            ];
+          })
+          .join('')
+      );
+      iteration += 0.85;
+      if (iteration >= target.length) {
+        if (scrambleTimerRef.current)
+          window.clearInterval(scrambleTimerRef.current);
+        setEmailDisplay(target);
+      }
+    }, 24);
+  }, [emailCopied]);
+
+  // Email Copy + Particle Shockwave + Harmonic Chime
+  const handleCopyEmail = useCallback(
+    (e: React.MouseEvent<HTMLElement>) => {
+      const rect = e.currentTarget.getBoundingClientRect();
+      triggerShockwave(
+        rect.left + rect.width / 2,
+        rect.top + rect.height / 2,
+        28
+      );
+      audioRef.current?.playHarmonicChime();
+
+      const copyFallback = () => {
+        const ta = document.createElement('textarea');
+        ta.value = CREATOR_EMAIL;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        try {
+          document.execCommand('copy');
+        } catch {
+          // ignore
+        }
+        document.body.removeChild(ta);
+      };
+
+      if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(CREATOR_EMAIL).catch(copyFallback);
+      } else {
+        copyFallback();
+      }
+
+      if (scrambleTimerRef.current) window.clearInterval(scrambleTimerRef.current);
+      if (copiedTimerRef.current) window.clearTimeout(copiedTimerRef.current);
+      setEmailCopied(true);
+      setEmailDisplay(CREATOR_EMAIL);
+
+      copiedTimerRef.current = window.setTimeout(() => {
+        setEmailCopied(false);
+      }, 2600);
+    },
+    [triggerShockwave]
+  );
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      if (scrambleTimerRef.current) window.clearInterval(scrambleTimerRef.current);
+      if (copiedTimerRef.current) window.clearTimeout(copiedTimerRef.current);
+    };
+  }, []);
+
+  /* ==========================================================================
+     HIGH-DPI 60FPS CANVAS ENGINE
+     - 10,000-Particle Float32Array Typography ("SAMRAT SANDILYA")
+     - Interactive 3D Dot-Mesh / Magnetic Wireframe Background
+     - FLUID / VORTEX / SWARM Physics
+     - Click & Hold Black-Hole Vortex + Release Explosion Shockwave
+     - Real Gravity Collapse + Dock Bounding-Box Bounce Collision
+     - 3D Z-Axis Fly-Through Camera + 0.1x Bullet-Time + Implosion Exit
+     - Direct RAF X-Ray Blueprint Lens Tracking (Zero Re-renders)
+     ========================================================================== */
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d', { alpha: false });
+    if (!ctx) return;
+
+    let width = window.innerWidth;
+    let height = window.innerHeight;
+    let dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+    // Typed-Array Particle Storage (Zero GC pauses at 10,000 particles)
+    let count = 0;
+    let px = new Float32Array(0);
+    let py = new Float32Array(0);
+    let pz = new Float32Array(0);
+    let vx = new Float32Array(0);
+    let vy = new Float32Array(0);
+    let vz = new Float32Array(0);
+    let tx = new Float32Array(0);
+    let ty = new Float32Array(0);
+    let tz = new Float32Array(0);
+    let pSize = new Float32Array(0);
+    let pAlpha = new Float32Array(0);
+    let pSeed = new Float32Array(0);
+    let pBounce = new Float32Array(0);
+
+    // Smoothly interpolated RGB values so shader mode switching never flickers
+    const initialTheme = THEMES[engineStateRef.current.shaderMode];
+    const curBg = { ...initialTheme.bgRgb };
+    const curPart = { ...initialTheme.particleRgb };
+    const curAccent = { ...initialTheme.accentRgb };
+    const curGrid = { ...initialTheme.gridRgb };
+
+    const sampleTypographyParticles = (isInitialBurst: boolean) => {
+      width = window.innerWidth;
+      height = window.innerHeight;
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+      canvas.width = Math.floor(width * dpr);
+      canvas.height = Math.floor(height * dpr);
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+
+      const off = document.createElement('canvas');
+      off.width = width;
+      off.height = height;
+      const octx = off.getContext('2d');
+      if (!octx) return;
+
+      const isMobile = width < 640;
+      const fontSize = isMobile
+        ? Math.min(width * 0.185, 86)
+        : Math.min(width * 0.128, 178);
+
+      octx.clearRect(0, 0, width, height);
+      octx.fillStyle = '#FFFFFF';
+      octx.textAlign = 'center';
+      octx.textBaseline = 'middle';
+      octx.font = `500 ${fontSize}px "Instrument Serif", "Cormorant Garamond", Georgia, serif`;
+
+      const centerY = height * (isMobile ? 0.44 : 0.47);
+      const lineGap = fontSize * 0.88;
+      octx.fillText('SAMRAT', width / 2, centerY - lineGap * 0.5);
+      octx.fillText('SANDILYA', width / 2, centerY + lineGap * 0.52);
+
+      const img = octx.getImageData(0, 0, width, height).data;
+      const points: number[] = [];
+
+      // Adaptive sampling step targeting ~8,500-10,500 particles on desktop, ~4,200 on mobile
+      const targetMax = isMobile ? 4600 : 10200;
+      let step = isMobile ? 3 : 3;
+
+      // Quick density probe
+      let roughHits = 0;
+      for (let y = 0; y < height; y += 6) {
+        for (let x = 0; x < width; x += 6) {
+          if (img[(y * width + x) * 4 + 3] > 120) roughHits++;
+        }
+      }
+      const estimatedAtStep3 = roughHits * 4;
+      if (estimatedAtStep3 > targetMax * 1.35) step = 4;
+      if (estimatedAtStep3 < targetMax * 0.55 && !isMobile) step = 2;
+
+      for (let y = 0; y < height; y += step) {
+        for (let x = 0; x < width; x += step) {
+          const alpha = img[(y * width + x) * 4 + 3];
+          if (alpha > 115) {
+            points.push(x, y, alpha / 255);
+          }
+        }
+      }
+
+      // Cap cleanly to targetMax via deterministic stride
+      const totalFound = points.length / 3;
+      const stride = totalFound > targetMax ? totalFound / targetMax : 1;
+      const finalCount = Math.min(targetMax, Math.floor(totalFound / stride));
+
+      const nextPx = new Float32Array(finalCount);
+      const nextPy = new Float32Array(finalCount);
+      const nextPz = new Float32Array(finalCount);
+      const nextVx = new Float32Array(finalCount);
+      const nextVy = new Float32Array(finalCount);
+      const nextVz = new Float32Array(finalCount);
+      const nextTx = new Float32Array(finalCount);
+      const nextTy = new Float32Array(finalCount);
+      const nextTz = new Float32Array(finalCount);
+      const nextSize = new Float32Array(finalCount);
+      const nextAlpha = new Float32Array(finalCount);
+      const nextSeed = new Float32Array(finalCount);
+      const nextBounce = new Float32Array(finalCount);
+
+      for (let i = 0; i < finalCount; i++) {
+        const srcIdx = Math.floor(i * stride) * 3;
+        const x = points[srcIdx] + (Math.random() - 0.5) * 1.1;
+        const y = points[srcIdx + 1] + (Math.random() - 0.5) * 1.1;
+        const z = (Math.random() - 0.5) * 46;
+        const a = points[srcIdx + 2];
+
+        nextTx[i] = x;
+        nextTy[i] = y;
+        nextTz[i] = z;
+
+        if (!isInitialBurst && i < count) {
+          nextPx[i] = px[i];
+          nextPy[i] = py[i];
+          nextPz[i] = pz[i];
+          nextVx[i] = vx[i];
+          nextVy[i] = vy[i];
+          nextVz[i] = vz[i];
+        } else {
+          // Dramatic radial reality-tear entry scatter
+          const angle = Math.random() * Math.PI * 2;
+          const dist = 120 + Math.random() * Math.max(width, height) * 0.45;
+          nextPx[i] = width / 2 + Math.cos(angle) * dist;
+          nextPy[i] = height / 2 + Math.sin(angle) * dist;
+          nextPz[i] = (Math.random() - 0.5) * 320;
+          nextVx[i] = 0;
+          nextVy[i] = 0;
+          nextVz[i] = 0;
+        }
+
+        nextSize[i] = isMobile
+          ? 1.15 + Math.random() * 1.05
+          : 1.05 + Math.random() * 1.25;
+        nextAlpha[i] = 0.58 + a * 0.42;
+        nextSeed[i] = Math.random() * Math.PI * 2;
+        nextBounce[i] = 0.42 + Math.random() * 0.28;
+      }
+
+      count = finalCount;
+      px = nextPx;
+      py = nextPy;
+      pz = nextPz;
+      vx = nextVx;
+      vy = nextVy;
+      vz = nextVz;
+      tx = nextTx;
+      ty = nextTy;
+      tz = nextTz;
+      pSize = nextSize;
+      pAlpha = nextAlpha;
+      pSeed = nextSeed;
+      pBounce = nextBounce;
+
+      engineStateRef.current.particleCount = count;
+    };
+
+    sampleTypographyParticles(true);
+
+    // Re-sample smoothly once Instrument Serif loads for crisp editorial strokes
+    if (document.fonts?.ready) {
+      document.fonts.ready.then(() => {
+        sampleTypographyParticles(false);
+      });
+    }
+
+    let resizeTimer = 0;
+    const handleResize = () => {
+      window.clearTimeout(resizeTimer);
+      resizeTimer = window.setTimeout(() => {
+        sampleTypographyParticles(false);
+      }, 160);
+    };
+    window.addEventListener('resize', handleResize);
+
+    // Animation loop state
+    let rafId = 0;
+    let lastTime = performance.now();
+    let frameAccumulator = 0;
+    let frameCount = 0;
+    let simTime = 0;
+    let currentTimeScale = 1;
+
+    const animate = (now: number) => {
+      rafId = requestAnimationFrame(animate);
+
+      const rawDt = Math.min(0.05, Math.max(0.004, (now - lastTime) / 1000));
+      lastTime = now;
+
+      // FPS measurement
+      frameAccumulator += rawDt;
+      frameCount++;
+      if (frameAccumulator >= 0.35) {
+        engineStateRef.current.fps = frameCount / frameAccumulator;
+        frameAccumulator = 0;
+        frameCount = 0;
+      }
+
+      const st = engineStateRef.current;
+
+      // Smooth Bullet-Time interpolation (Spacebar hold -> 0.1x slow motion)
+      const targetScale = st.bulletTime ? 0.1 : 1.0;
+      currentTimeScale += (targetScale - currentTimeScale) * 0.14;
+      const dt = rawDt * currentTimeScale;
+      const stepFactor = dt * 60;
+      simTime += dt;
+
+      // Smooth Scroll Inertia (for 3D Z-Axis Fly-Through)
+      st.scrollCurrent += (st.scrollTarget - st.scrollCurrent) * 0.085;
+      const scrollP = st.scrollCurrent;
+
+      // Smooth Color Interpolation between OBSIDIAN / BLUEPRINT / INK
+      const targetTheme = THEMES[st.shaderMode];
+      const colorLerp = 0.09;
+      curBg.r += (targetTheme.bgRgb.r - curBg.r) * colorLerp;
+      curBg.g += (targetTheme.bgRgb.g - curBg.g) * colorLerp;
+      curBg.b += (targetTheme.bgRgb.b - curBg.b) * colorLerp;
+
+      curPart.r += (targetTheme.particleRgb.r - curPart.r) * colorLerp;
+      curPart.g += (targetTheme.particleRgb.g - curPart.g) * colorLerp;
+      curPart.b += (targetTheme.particleRgb.b - curPart.b) * colorLerp;
+
+      curAccent.r += (targetTheme.accentRgb.r - curAccent.r) * colorLerp;
+      curAccent.g += (targetTheme.accentRgb.g - curAccent.g) * colorLerp;
+      curAccent.b += (targetTheme.accentRgb.b - curAccent.b) * colorLerp;
+
+      curGrid.r += (targetTheme.gridRgb.r - curGrid.r) * colorLerp;
+      curGrid.g += (targetTheme.gridRgb.g - curGrid.g) * colorLerp;
+      curGrid.b += (targetTheme.gridRgb.b - curGrid.b) * colorLerp;
+
+      // Update X-Ray Blueprint Lens DOM directly in RAF (true 60fps, zero React churn)
+      if (st.pointer.active) {
+        st.lens.x += (st.pointer.x - st.lens.x) * 0.22;
+        st.lens.y += (st.pointer.y - st.lens.y) * 0.22;
+      }
+      if (xrayLayerRef.current) {
+        const rad = st.pointer.active ? (st.pointer.down ? 148 : 118) : 0;
+        st.lens.radius += (rad - st.lens.radius) * 0.18;
+        xrayLayerRef.current.style.clipPath = `circle(${st.lens.radius.toFixed(1)}px at ${st.lens.x.toFixed(1)}px ${st.lens.y.toFixed(1)}px)`;
+      }
+      if (xrayRingRef.current) {
+        const size = st.lens.radius * 2;
+        xrayRingRef.current.style.transform = `translate3d(${(st.lens.x - st.lens.radius).toFixed(1)}px, ${(st.lens.y - st.lens.radius).toFixed(1)}px, 0)`;
+        xrayRingRef.current.style.width = `${size.toFixed(1)}px`;
+        xrayRingRef.current.style.height = `${size.toFixed(1)}px`;
+        xrayRingRef.current.style.opacity =
+          st.lens.radius > 4 ? '1' : '0';
+      }
+
+      ctx.save();
+      ctx.scale(dpr, dpr);
+
+      // 1. Background Fill
+      ctx.fillStyle = `rgb(${Math.round(curBg.r)}, ${Math.round(curBg.g)}, ${Math.round(curBg.b)})`;
+      ctx.fillRect(0, 0, width, height);
+
+      // 2. Interactive 3D Magnetic Dot-Mesh / Wireframe Background
+      const gridSpacing = width < 640 ? 44 : 52;
+      const cols = Math.ceil(width / gridSpacing) + 1;
+      const rows = Math.ceil(height / gridSpacing) + 1;
+      const ptrX = st.pointer.x;
+      const ptrY = st.pointer.y;
+      const ptrSpeed = Math.min(35, Math.hypot(st.pointer.vx, st.pointer.vy));
+      const meshR = Math.round(curGrid.r);
+      const meshG = Math.round(curGrid.g);
+      const meshB = Math.round(curGrid.b);
+      const baseGridAlpha = st.shaderMode === 'BLUEPRINT' ? 0.15 : 0.08;
+
+      ctx.lineWidth = 0.6;
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const gx = c * gridSpacing;
+          const gy = r * gridSpacing;
+          const wave =
+            Math.sin(c * 0.35 + simTime * 0.9) *
+            Math.cos(r * 0.35 + simTime * 0.7) *
+            2.4;
+
+          let dx = gx - ptrX;
+          let dy = gy - ptrY;
+          const distSq = dx * dx + dy * dy;
+          let ox = st.gyro.x * 14;
+          let oy = st.gyro.y * 14 + wave;
+          let glow = 0;
+
+          if (distSq < 210 * 210 && st.pointer.active) {
+            const dist = Math.sqrt(distSq) || 1;
+            const factor = (1 - dist / 210) * (1 + ptrSpeed * 0.025);
+            const dir = st.pointer.down ? -1 : 1;
+            ox += (dx / dist) * factor * 24 * dir;
+            oy += (dy / dist) * factor * 24 * dir;
+            glow = factor;
+          }
+
+          const fx = gx + ox;
+          const fy = gy + oy;
+          const dotAlpha = Math.min(0.75, baseGridAlpha + glow * 0.38);
+
+          ctx.fillStyle = `rgba(${meshR}, ${meshG}, ${meshB}, ${dotAlpha.toFixed(3)})`;
+          ctx.fillRect(fx - 0.85, fy - 0.85, 1.7 + glow * 1.1, 1.7 + glow * 1.1);
+
+          // Subtle magnetic wireframe connection near cursor or in Blueprint mode
+          if (glow > 0.22 || st.shaderMode === 'BLUEPRINT') {
+            const lineAlpha =
+              st.shaderMode === 'BLUEPRINT'
+                ? 0.045 + glow * 0.16
+                : glow * 0.12;
+            ctx.strokeStyle = `rgba(${meshR}, ${meshG}, ${meshB}, ${lineAlpha.toFixed(3)})`;
+            if (c < cols - 1) {
+              ctx.beginPath();
+              ctx.moveTo(fx, fy);
+              ctx.lineTo(fx + gridSpacing, fy);
+              ctx.stroke();
+            }
+            if (r < rows - 1) {
+              ctx.beginPath();
+              ctx.moveTo(fx, fy);
+              ctx.lineTo(fx, fy + gridSpacing);
+              ctx.stroke();
+            }
+          }
+        }
+      }
+
+      // 3. Active Shockwaves Update & Visual Ring Render
+      for (let s = st.shockwaves.length - 1; s >= 0; s--) {
+        const sw = st.shockwaves[s];
+        sw.radius += 22 * stepFactor;
+        sw.alpha = Math.max(0, 1 - sw.radius / sw.maxRadius);
+
+        ctx.beginPath();
+        ctx.arc(sw.x, sw.y, sw.radius, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(${Math.round(curAccent.r)}, ${Math.round(curAccent.g)}, ${Math.round(curAccent.b)}, ${(sw.alpha * 0.34).toFixed(3)})`;
+        ctx.lineWidth = 1.6;
+        ctx.stroke();
+
+        if (sw.radius >= sw.maxRadius) {
+          st.shockwaves.splice(s, 1);
+        }
+      }
+
+      // 4. Read Bottom Glass Dock Bounding Box for Real Gravity Bounce Collision
+      const dockRect =
+        st.gravityOn && dockRef.current
+          ? dockRef.current.getBoundingClientRect()
+          : null;
+
+      // 5. 3D Z-Axis Fly-Through Camera + Particle Physics Update & Render
+      const focalLength = 520;
+      const camZ = scrollP * 430; // Scroll drives camera forward through the monolith
+      const halfW = width * 0.5;
+      const halfH = height * 0.5;
+
+      const pR = Math.round(curPart.r);
+      const pG = Math.round(curPart.g);
+      const pB = Math.round(curPart.b);
+      const aR = Math.round(curAccent.r);
+      const aG = Math.round(curAccent.g);
+      const aB = Math.round(curAccent.b);
+
+      const isImplodingNow = st.imploding;
+      const implodeX = st.implodeTarget.x;
+      const implodeY = st.implodeTarget.y;
+      const pMode = st.physicsMode;
+      const grav = st.gravityOn;
+      const vortexHold = st.pointer.down && st.pointer.active && !isImplodingNow;
+      const gyroX = st.gyro.x * 26;
+      const gyroY = st.gyro.y * 18;
+      const floorY = height - 6;
+
+      // Decay pointer velocity smoothly
+      st.pointer.vx *= 0.88;
+      st.pointer.vy *= 0.88;
+
+      for (let i = 0; i < count; i++) {
+        let x = px[i];
+        let y = py[i];
+        let z = pz[i];
+        let ivx = vx[i];
+        let ivy = vy[i];
+        let ivz = vz[i];
+
+        if (isImplodingNow) {
+          // Implosion Exit: Spiral suck-in towards Close button
+          const dx = implodeX - x;
+          const dy = implodeY - y;
+          const dist = Math.hypot(dx, dy) + 1;
+          const pull = 0.24 * stepFactor;
+          ivx = ivx * 0.86 + (dx * pull - (dy / dist) * 6.5 * stepFactor);
+          ivy = ivy * 0.86 + (dy * pull + (dx / dist) * 6.5 * stepFactor);
+          ivz = ivz * 0.88 + (0 - z) * 0.14 * stepFactor;
+        } else if (grav) {
+          // Real-Time Gravity Collapse + Bottom Glass Dock Collision Physics
+          ivy += 0.68 * stepFactor;
+          ivx += st.gyro.x * 0.28 * stepFactor;
+
+          // Cursor can still scoop & toss fallen particles
+          if (st.pointer.active) {
+            const dx = x - ptrX;
+            const dy = y - ptrY;
+            const d2 = dx * dx + dy * dy;
+            if (d2 < 120 * 120) {
+              const d = Math.sqrt(d2) || 1;
+              const f = ((1 - d / 120) * 2.4) * stepFactor;
+              ivx += (dx / d) * f + st.pointer.vx * 0.08;
+              ivy += (dy / d) * f - 1.2 * stepFactor;
+            }
+          }
+
+          const nextX = x + ivx * stepFactor;
+          const nextY = y + ivy * stepFactor;
+
+          // Collide & bounce on top/sides of the actual Email/Social Glass Dock
+          if (dockRect) {
+            const pad = 3;
+            const withinDockX =
+              nextX >= dockRect.left - pad && nextX <= dockRect.right + pad;
+            const withinDockY =
+              nextY >= dockRect.top - pad && nextY <= dockRect.bottom + pad;
+
+            if (withinDockX && withinDockY) {
+              if (y <= dockRect.top + 8 && ivy > 0) {
+                y = dockRect.top - pad;
+                ivy = -Math.abs(ivy) * pBounce[i];
+                ivx = ivx * 0.86 + (Math.random() - 0.5) * 1.4;
+              } else if (x < dockRect.left) {
+                x = dockRect.left - pad;
+                ivx = -Math.abs(ivx) * 0.6;
+              } else if (x > dockRect.right) {
+                x = dockRect.right + pad;
+                ivx = Math.abs(ivx) * 0.6;
+              }
+            }
+          }
+
+          // Collide with viewport bottom & side walls
+          if (nextY >= floorY) {
+            y = floorY;
+            ivy = -Math.abs(ivy) * (pBounce[i] * 0.82);
+            ivx *= 0.91;
+          }
+          if (nextX < 4) {
+            x = 4;
+            ivx = Math.abs(ivx) * 0.65;
+          } else if (nextX > width - 4) {
+            x = width - 4;
+            ivx = -Math.abs(ivx) * 0.65;
+          }
+
+          ivx *= 0.992;
+          ivy *= 0.996;
+          ivz *= 0.95;
+        } else {
+          // Spring return to SAMRAT SANDILYA target coordinates (+ subtle organic drift)
+          const seed = pSeed[i];
+          let driftX = gyroX;
+          let driftY = gyroY;
+          let driftZ = Math.sin(simTime * 1.2 + seed) * 6;
+
+          if (pMode === 'SWARM') {
+            driftX += Math.cos(simTime * 2.4 + seed * 3) * 5.2;
+            driftY += Math.sin(simTime * 2.1 + seed * 2) * 5.2;
+            driftZ += Math.cos(simTime * 1.8 + seed) * 14;
+          } else if (pMode === 'VORTEX') {
+            const ang = simTime * 1.1 + seed;
+            driftX += Math.cos(ang) * 2.6;
+            driftY += Math.sin(ang) * 2.6;
+          } else {
+            // FLUID ambient breathing
+            driftY += Math.sin(simTime * 1.35 + seed) * 1.4;
+          }
+
+          const springK = pMode === 'SWARM' ? 0.052 : 0.078;
+          ivx += (tx[i] + driftX - x) * springK * stepFactor;
+          ivy += (ty[i] + driftY - y) * springK * stepFactor;
+          ivz += (tz[i] + driftZ - z) * 0.06 * stepFactor;
+
+          // Pointer & Black-Hole Vortex Interaction
+          if (st.pointer.active) {
+            const dx = x - ptrX;
+            const dy = y - ptrY;
+            const distSq = dx * dx + dy * dy;
+
+            if (vortexHold) {
+              // Click & Hold Black-Hole Gravity Vortex (pulls all particles inward in spiral)
+              const dist = Math.sqrt(distSq) + 18;
+              const pull = Math.min(26, 4200 / (dist + 60)) * 0.13 * stepFactor;
+              ivx += (-dx / dist) * pull + (-dy / dist) * pull * 0.72;
+              ivy += (-dy / dist) * pull + (dx / dist) * pull * 0.72;
+              ivz += (120 - z) * 0.025 * stepFactor;
+            } else {
+              const radius = pMode === 'VORTEX' ? 195 : pMode === 'SWARM' ? 175 : 155;
+              if (distSq < radius * radius) {
+                const dist = Math.sqrt(distSq) || 1;
+                const force = (1 - dist / radius) * stepFactor;
+
+                if (pMode === 'FLUID') {
+                  // Fluid Magnetic Repulsion
+                  const push = force * 11.5;
+                  ivx += (dx / dist) * push + st.pointer.vx * force * 0.22;
+                  ivy += (dy / dist) * push + st.pointer.vy * force * 0.22;
+                  ivz += force * 14;
+                } else if (pMode === 'VORTEX') {
+                  // Orbital Swirl Curl Field
+                  const swirl = force * 12.5;
+                  ivx += (-dy / dist) * swirl + (dx / dist) * force * 3.2;
+                  ivy += (dx / dist) * swirl + (dy / dist) * force * 3.2;
+                  ivz += force * 18;
+                } else {
+                  // SWARM Energetic Dispersion + Curl
+                  const burst = force * 9.5;
+                  ivx +=
+                    (dx / dist) * burst +
+                    Math.cos(seed + simTime * 6) * force * 4.5;
+                  ivy +=
+                    (dy / dist) * burst +
+                    Math.sin(seed + simTime * 6) * force * 4.5;
+                  ivz -= force * 16;
+                }
+              }
+            }
+          }
+
+          const damping = Math.pow(pMode === 'SWARM' ? 0.85 : 0.82, stepFactor);
+          ivx *= damping;
+          ivy *= damping;
+          ivz *= damping;
+        }
+
+        // Shockwave Radial Impulse (Email click / Black-Hole release)
+        for (let s = 0; s < st.shockwaves.length; s++) {
+          const sw = st.shockwaves[s];
+          const sdx = x - sw.x;
+          const sdy = y - sw.y;
+          const sdist = Math.hypot(sdx, sdy) || 1;
+          const band = Math.abs(sdist - sw.radius);
+          if (band < 48) {
+            const imp = (1 - band / 48) * sw.strength * sw.alpha * 0.55 * stepFactor;
+            ivx += (sdx / sdist) * imp;
+            ivy += (sdy / sdist) * imp;
+            ivz += imp * 1.4;
+          }
+        }
+
+        x += ivx * stepFactor;
+        y += ivy * stepFactor;
+        z += ivz * stepFactor;
+
+        px[i] = x;
+        py[i] = y;
+        pz[i] = z;
+        vx[i] = ivx;
+        vy[i] = ivy;
+        vz[i] = ivz;
+
+        // 3D Perspective Projection (Scroll drives Z-Axis Fly-Through)
+        const relZ = focalLength + z - camZ;
+        if (relZ <= 24) continue; // Particle flew past camera lens
+
+        const scale = focalLength / relZ;
+        const sx = (x - halfW) * scale + halfW;
+        const sy = (y - halfH) * scale + halfH;
+
+        if (sx < -20 || sx > width + 20 || sy < -20 || sy > height + 20) continue;
+
+        const speed = Math.abs(ivx) + Math.abs(ivy);
+        const energy = Math.min(1, speed * 0.085);
+        const depthFade = Math.min(1, Math.max(0.08, (relZ - 24) / 180));
+        const finalAlpha = Math.min(
+          1,
+          pAlpha[i] * depthFade * (1 - scrollP * 0.58)
+        );
+        const size = Math.min(5.2, pSize[i] * scale * (1 + energy * 0.35));
+
+        const cr = Math.round(pR + (aR - pR) * energy);
+        const cg = Math.round(pG + (aG - pG) * energy);
+        const cb = Math.round(pB + (aB - pB) * energy);
+
+        ctx.fillStyle = `rgba(${cr}, ${cg}, ${cb}, ${finalAlpha.toFixed(3)})`;
+        ctx.fillRect(sx - size * 0.5, sy - size * 0.5, size, size);
+      }
+
+      // Black-hole visual distortion halo while holding
+      if (vortexHold) {
+        const grad = ctx.createRadialGradient(
+          ptrX,
+          ptrY,
+          4,
+          ptrX,
+          ptrY,
+          120
+        );
+        grad.addColorStop(0, `rgba(${aR}, ${aG}, ${aB}, 0.24)`);
+        grad.addColorStop(0.45, `rgba(${aR}, ${aG}, ${aB}, 0.06)`);
+        grad.addColorStop(1, 'transparent');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(ptrX, ptrY, 120, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.restore();
+    };
+
+    rafId = requestAnimationFrame(animate);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      window.clearTimeout(resizeTimer);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [isOpen]);
+
+  // Pointer & Multi-Touch Handlers on Modal Root
+  const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    const ptr = engineStateRef.current.pointer;
+    if (ptr.active) {
+      ptr.vx = e.clientX - ptr.x;
+      ptr.vy = e.clientY - ptr.y;
+    }
+    ptr.x = e.clientX;
+    ptr.y = e.clientY;
+    ptr.active = true;
+  }, []);
+
+  const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    // Ignore vortex hold if user is clicking an interactive button/link
+    const target = e.target as HTMLElement;
+    if (target.closest('button, a')) return;
+
+    const ptr = engineStateRef.current.pointer;
+    ptr.x = e.clientX;
+    ptr.y = e.clientY;
+    ptr.active = true;
+    ptr.down = true;
+    setIsHoldingVortex(true);
+    audioRef.current?.playMechanicalTick(310);
+  }, []);
+
+  const handlePointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    const ptr = engineStateRef.current.pointer;
+    if (ptr.down) {
+      ptr.down = false;
+      setIsHoldingVortex(false);
+      // Release Black-Hole -> Radial Shockwave Explosion back into SAMRAT SANDILYA
+      triggerShockwave(e.clientX, e.clientY, 30);
+      audioRef.current?.playShockwaveRelease();
+    }
+  }, [triggerShockwave]);
+
+  const handlePointerLeave = useCallback(() => {
+    const ptr = engineStateRef.current.pointer;
+    ptr.active = false;
+    ptr.down = false;
+    setIsHoldingVortex(false);
+  }, []);
+
+  // Rack-Focus Computed Values (0 -> 1 scroll)
+  const canvasBlurPx = useMemo(() => scrollStage * 15, [scrollStage]);
+  const stage2Opacity = useMemo(
+    () => Math.min(1, Math.max(0, (scrollStage - 0.18) / 0.52)),
+    [scrollStage]
+  );
+  const stage2BlurPx = useMemo(
+    () => Math.max(0, (1 - stage2Opacity) * 14),
+    [stage2Opacity]
+  );
+  const stage2Y = useMemo(() => (1 - stage2Opacity) * 44, [stage2Opacity]);
+
+  // Mode Switch Handlers with Crisp Synth Feedback
+  const switchShader = (mode: ShaderMode) => {
+    if (mode === shaderMode) return;
+    setShaderMode(mode);
+    audioRef.current?.playMechanicalTick(820);
+  };
+
+  const switchPhysics = (mode: PhysicsMode) => {
+    if (mode === physicsMode) return;
+    setPhysicsMode(mode);
+    if (gravityOn) setGravityOn(false);
+    audioRef.current?.playMechanicalTick(980);
+    triggerShockwave(window.innerWidth / 2, window.innerHeight * 0.47, 14);
+  };
+
+  const toggleGravity = () => {
+    setGravityOn((prev) => {
+      const next = !prev;
+      audioRef.current?.playGravityPulse(next);
+      if (!next) {
+        triggerShockwave(window.innerWidth / 2, window.innerHeight * 0.65, 18);
+      }
+      return next;
+    });
+  };
+
+  const toggleAudio = () => {
+    setAudioMuted((prev) => {
+      const next = !prev;
+      if (!next && audioRef.current) {
+        audioRef.current.muted = false;
+        audioRef.current.playMechanicalTick(1100);
+      }
+      return next;
+    });
+  };
+
+  const toggleXray = () => {
+    setXrayEnabled((prev) => !prev);
+    audioRef.current?.playMechanicalTick(740);
+  };
+
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Samrat Sandilya Founding Architect Pass"
-      onClick={handleClose}
-      className={closing ? 'cp-backdrop cp-backdrop-out' : 'cp-backdrop'}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 10050,
-        background:
-          'radial-gradient(circle at 50% 18%, rgba(30, 22, 26, 0.88) 0%, rgba(7, 10, 18, 0.96) 58%, rgba(3, 5, 11, 0.99) 100%)',
-        backdropFilter: 'blur(22px) saturate(150%)',
-        WebkitBackdropFilter: 'blur(22px) saturate(150%)',
-        overflow: 'hidden',
-        userSelect: 'none',
-        WebkitUserSelect: 'none',
-        fontFamily: "'Plus Jakarta Sans', -apple-system, sans-serif",
-      }}
-    >
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;1,600;1,700&family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Sacramento&display=swap');
-
-        @keyframes cpFadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        @keyframes cpFadeOut {
-          from { opacity: 1; }
-          to { opacity: 0; }
-        }
-        @keyframes cpOrbitSlow {
-          from { transform: translate(-50%, -50%) rotate(0deg); }
-          to { transform: translate(-50%, -50%) rotate(360deg); }
-        }
-        @keyframes cpOrbitReverse {
-          from { transform: translate(-50%, -50%) rotate(360deg); }
-          to { transform: translate(-50%, -50%) rotate(0deg); }
-        }
-
-        .cp-backdrop { animation: cpFadeIn 0.36s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-        .cp-backdrop-out { animation: cpFadeOut 0.34s ease forwards; }
-
-        .cp-social-btn {
-          width: 34px;
-          height: 34px;
-          border-radius: 9px;
-          border: 1px solid rgba(255, 255, 255, 0.2);
-          background: rgba(255, 255, 255, 0.06);
-          color: #F3F1EC;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          text-decoration: none;
-          transition: all 0.26s cubic-bezier(0.16, 1, 0.3, 1);
-          cursor: pointer;
-        }
-        .cp-social-btn:hover {
-          background: #F3F1EC;
-          color: #111318;
-          border-color: #E2C382;
-          transform: translateY(-2px) scale(1.06);
-          box-shadow: 0 8px 18px rgba(0, 0, 0, 0.45);
-        }
-
-        .cp-top-pill {
-          display: inline-flex;
-          align-items: center;
-          gap: 7px;
-          padding: 8px 14px;
-          border-radius: 999px;
-          border: 1px solid rgba(212, 175, 55, 0.32);
-          background: rgba(15, 18, 28, 0.72);
-          color: rgba(243, 241, 236, 0.85);
-          font-family: 'JetBrains Mono', monospace;
-          font-size: 11px;
-          letter-spacing: 0.08em;
-          cursor: pointer;
-          backdrop-filter: blur(12px);
-          transition: all 0.25s ease;
-        }
-        .cp-top-pill:hover {
-          border-color: rgba(212, 175, 55, 0.8);
-          color: #FFFFFF;
-          background: rgba(168, 29, 50, 0.38);
-        }
-      `}</style>
-
-      {/* Floating Studio Gold/Crimson Dust */}
-      <StudioDustCanvas />
-
-      {/* Overhead Volumetric Spotlight Beam */}
-      <div
-        ref={spotlightRef}
-        aria-hidden="true"
-        style={{
-          position: 'fixed',
-          top: '-10%',
-          left: '50%',
-          width: 'min(760px, 130vw)',
-          height: '82vh',
-          transformOrigin: 'top center',
-          background:
-            'conic-gradient(from 180deg at 50% 0%, transparent 142deg, rgba(224, 188, 120, 0.14) 166deg, rgba(255, 246, 224, 0.2) 180deg, rgba(168, 29, 50, 0.11) 194deg, transparent 218deg)',
-          filter: 'blur(26px)',
-          pointerEvents: 'none',
-          zIndex: 2,
-          willChange: 'transform',
-        }}
-      />
-
-      {/* Faint Rotating Shunya (Zero) Orbital Rings */}
-      <div
-        aria-hidden="true"
-        style={{
-          position: 'fixed',
-          top: '54%',
-          left: '50%',
-          width: 'min(540px, 92vw)',
-          height: 'min(540px, 92vw)',
-          borderRadius: '50%',
-          border: '1px solid rgba(212, 175, 55, 0.1)',
-          pointerEvents: 'none',
-          zIndex: 2,
-          animation: 'cpOrbitSlow 52s linear infinite',
-        }}
-      >
-        <span
-          style={{
-            position: 'absolute',
-            top: '-3px',
-            left: '50%',
-            width: '6px',
-            height: '6px',
-            borderRadius: '50%',
-            background: '#D4AF37',
-            boxShadow: '0 0 12px rgba(212, 175, 55, 0.85)',
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          key="architects-monolith-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Architected and Built by Samrat Sandilya"
+          initial={{ opacity: 0 }}
+          animate={{
+            opacity: isImploding ? 0 : 1,
+            scale: isImploding ? 0.985 : 1,
+            filter: isImploding ? 'blur(10px)' : 'blur(0px)',
           }}
-        />
-      </div>
-      <div
-        aria-hidden="true"
-        style={{
-          position: 'fixed',
-          top: '54%',
-          left: '50%',
-          width: 'min(390px, 72vw)',
-          height: 'min(390px, 72vw)',
-          borderRadius: '50%',
-          border: '1px dashed rgba(168, 29, 50, 0.16)',
-          pointerEvents: 'none',
-          zIndex: 2,
-          animation: 'cpOrbitReverse 38s linear infinite',
-        }}
-      />
-
-      {/* Top Controls (Close + Optional iOS Gyro Enable) */}
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          position: 'fixed',
-          top: '18px',
-          right: '18px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-          zIndex: 30,
-        }}
-      >
-        {gyroNeedsPermission && (
-          <button type="button" onClick={requestIOSGyro} className="cp-top-pill">
-            <span>ENABLE TILT</span>
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={handleClose}
-          aria-label="Close Creator Pass"
-          className="cp-top-pill"
-          style={{ padding: '8px 13px' }}
-        >
-          <span>ESC ✕</span>
-        </button>
-      </div>
-
-      {/* Dynamic Physics Woven Charcoal + Crimson Lanyard Strap */}
-      <svg
-        aria-hidden="true"
-        style={{
-          position: 'fixed',
-          inset: 0,
-          width: '100vw',
-          height: '100vh',
-          pointerEvents: 'none',
-          zIndex: 10,
-          overflow: 'visible',
-        }}
-      >
-        {/* Dark Charcoal Outer Ribbon */}
-        <path
-          ref={strapOuterRef}
-          d="M 0 -40 Q 0 50 0 120"
-          fill="none"
-          stroke="#22252C"
-          strokeWidth="36"
-          strokeLinecap="butt"
-          style={{ filter: 'drop-shadow(0 10px 18px rgba(0, 0, 0, 0.65))' }}
-        />
-        {/* Deep Crimson Woven Center Stripe */}
-        <path
-          ref={strapStripeRef}
-          d="M 0 -40 Q 0 50 0 120"
-          fill="none"
-          stroke="#7E1727"
-          strokeWidth="12"
-          strokeLinecap="butt"
-        />
-        {/* Woven Fabric Cross-Ribbing Texture */}
-        <path
-          ref={strapWeaveRef}
-          d="M 0 -40 Q 0 50 0 120"
-          fill="none"
-          stroke="rgba(255, 255, 255, 0.11)"
-          strokeWidth="34"
-          strokeDasharray="2 3"
-          strokeLinecap="butt"
-        />
-      </svg>
-
-      {/* Hanging Rig (Clasp + 3D Flippable Card) */}
-      <div
-        ref={rigRef}
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: '50%',
-          marginLeft: 'calc(min(310px, 84vw) / -2)',
-          width: 'min(310px, 84vw)',
-          transformOrigin: '50% 0%',
-          zIndex: 15,
-          willChange: 'transform',
-        }}
-      >
-        {/* Brushed Gunmetal Swivel Clasp Assembly */}
-        <div
-          aria-hidden="true"
+          exit={{ opacity: 0, filter: 'blur(12px)' }}
+          transition={{ duration: 0.42, ease: CINEMA_EASE }}
+          onPointerMove={handlePointerMove}
+          onPointerDown={handlePointerDown}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+          onPointerLeave={handlePointerLeave}
+          className="fixed inset-0 z-[9999] overflow-hidden select-none"
           style={{
-            position: 'relative',
-            width: '56px',
-            height: '58px',
-            margin: '0 auto -22px auto',
-            zIndex: 20,
-            pointerEvents: 'none',
+            backgroundColor: theme.bgHex,
+            color: theme.textPrimary,
+            fontFamily: '"JetBrains Mono", ui-monospace, monospace',
+            transition: 'background-color 0.55s cubic-bezier(0.22,1,0.36,1), color 0.45s ease',
+            touchAction: 'pan-y',
           }}
         >
-          <svg viewBox="0 0 56 58" width="56" height="58" fill="none">
-            <defs>
-              <linearGradient id="cp-gunmetal" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#1E2026" />
-                <stop offset="35%" stopColor="#5C616E" />
-                <stop offset="65%" stopColor="#262930" />
-                <stop offset="100%" stopColor="#14161A" />
-              </linearGradient>
-            </defs>
-            {/* D-Ring Buckle */}
-            <path
-              d="M 10 6 H 46 C 46 18 39 24 28 24 C 17 24 10 18 10 6 Z"
-              stroke="url(#cp-gunmetal)"
-              strokeWidth="4.5"
-              fill="none"
-            />
-            {/* Swivel Barrel */}
-            <rect x="23" y="22" width="10" height="9" rx="3" fill="url(#cp-gunmetal)" />
-            {/* Lobster Hook */}
-            <path
-              d="M 28 31 C 34 31 36 42 32 51 C 30 55 26 55 24 51 C 21 45 24 38 28 36"
-              stroke="url(#cp-gunmetal)"
-              strokeWidth="4.2"
-              strokeLinecap="round"
-            />
-            <circle cx="28" cy="26.5" r="2" fill="#9CA3AF" />
-          </svg>
-        </div>
-
-        {/* 3D Perspective Stage */}
-        <div
-          onPointerDown={onCardPointerDown}
-          onPointerMove={onCardPointerMove}
-          onPointerUp={onCardPointerUp}
-          onPointerLeave={onCardPointerLeave}
-          style={{
-            width: '100%',
-            aspectRatio: '310 / 470',
-            perspective: '1300px',
-            cursor: 'grab',
-            touchAction: 'none',
-            filter: 'drop-shadow(0 32px 46px rgba(0, 0, 0, 0.72))',
-          }}
-        >
-          <div
-            ref={card3DRef}
+          {/* ================================================================
+              1. LIVE 10,000-PARTICLE CANVAS + DSLR RACK-FOCUS BLUR
+             ================================================================ */}
+          <canvas
+            ref={canvasRef}
+            className="fixed inset-0 w-full h-full pointer-events-none"
             style={{
-              position: 'relative',
-              width: '100%',
-              height: '100%',
-              transformStyle: 'preserve-3d',
-              transition: 'transform 0.55s cubic-bezier(0.22, 1, 0.36, 1)',
-              willChange: 'transform',
+              filter: `blur(${canvasBlurPx.toFixed(1)}px)`,
+              transform: `scale(${(1 + scrollStage * 0.035).toFixed(4)})`,
+              transition: 'filter 0.08s linear',
             }}
-          >
-            {/* ============================================================= */}
-            {/* FRONT FACE — VARIANT 3A                                       */}
-            {/* ============================================================= */}
-            <div style={cardSurfaceStyle}>
-              {renderNotchedRimSvg('front')}
+          />
 
-              {/* Left Matte Panel + Razor-Thin Crimson Vertical Accent Stripe */}
-              <div
-                aria-hidden="true"
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  bottom: 0,
-                  left: 0,
-                  width: '12.5%',
-                  background: 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(0,0,0,0.22) 100%)',
-                  zIndex: 2,
-                }}
-              />
-              <div
-                aria-hidden="true"
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  bottom: 0,
-                  left: '12.5%',
-                  width: '4px',
-                  background: 'linear-gradient(180deg, #C8233C 0%, #8E1628 52%, #B51E35 100%)',
-                  boxShadow: '0 0 12px rgba(181, 30, 53, 0.45)',
-                  zIndex: 3,
-                }}
-              />
+          {/* Subtle Editorial Paper Grain (Archival Ink / Obsidian Depth) */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none fixed inset-0"
+            style={{
+              opacity: theme.isLight ? 0.055 : 0.04,
+              backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
+            }}
+          />
 
-              {/* Cursor / Gyro Reactive Holographic Sheen */}
-              <div
-                ref={sheenFrontRef}
-                aria-hidden="true"
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  pointerEvents: 'none',
-                  zIndex: 6,
-                  mixBlendMode: 'screen',
-                }}
-              />
+          {/* Cinematic Vignette */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none fixed inset-0 transition-all duration-500"
+            style={{ background: theme.vignette }}
+          />
 
-              {/* Front Content */}
+          {/* ================================================================
+              2. X-RAY ARCHITECTURAL CAD BLUEPRINT CURSOR LENS (60FPS RAF)
+             ================================================================ */}
+          {xrayEnabled && !isTouchDevice && (
+            <>
               <div
+                ref={xrayLayerRef}
+                aria-hidden="true"
+                className="pointer-events-none fixed inset-0 z-20 overflow-hidden"
                 style={{
-                  position: 'relative',
-                  zIndex: 7,
-                  height: '100%',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  padding: '20% 9% 6.5% 20.5%',
-                  textAlign: 'left',
+                  clipPath: 'circle(0px at -400px -400px)',
+                  backgroundColor: '#041226',
+                  backgroundImage:
+                    'linear-gradient(rgba(56,189,248,0.16) 1px, transparent 1px), linear-gradient(90deg, rgba(56,189,248,0.16) 1px, transparent 1px), linear-gradient(rgba(56,189,248,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(56,189,248,0.06) 1px, transparent 1px)',
+                  backgroundSize: '120px 120px, 120px 120px, 24px 24px, 24px 24px',
                 }}
               >
-                {/* Upper Metadata Block */}
-                <div>
-                  <div
-                    style={{
-                      fontFamily: "'JetBrains Mono', monospace",
-                      fontSize: '10px',
-                      fontWeight: 600,
-                      letterSpacing: '0.22em',
-                      color: 'rgba(243, 241, 236, 0.78)',
-                      marginBottom: '18px',
-                    }}
-                  >
-                    FOUNDING ARCHITECT
-                  </div>
-
-                  {/* Role Row */}
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: '64px 1fr',
-                      alignItems: 'baseline',
-                      gap: '8px',
-                      paddingBottom: '10px',
-                      borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontFamily: "'JetBrains Mono', monospace",
-                        fontSize: '9px',
-                        letterSpacing: '0.14em',
-                        color: 'rgba(243, 241, 236, 0.45)',
-                      }}
-                    >
-                      ROLE
-                    </span>
-                    <span
-                      style={{
-                        fontSize: '14.5px',
-                        fontWeight: 600,
-                        color: '#F5F3EE',
-                        letterSpacing: '-0.01em',
-                      }}
-                    >
-                      Lead Web Architect
-                    </span>
-                  </div>
-
-                  {/* Pass ID Row */}
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: '64px 1fr',
-                      alignItems: 'baseline',
-                      gap: '8px',
-                      paddingTop: '10px',
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontFamily: "'JetBrains Mono', monospace",
-                        fontSize: '9px',
-                        letterSpacing: '0.14em',
-                        color: 'rgba(243, 241, 236, 0.45)',
-                      }}
-                    >
-                      PASS ID
-                    </span>
-                    <span
-                      style={{
-                        fontFamily: "'JetBrains Mono', monospace",
-                        fontSize: '14px',
-                        fontWeight: 600,
-                        letterSpacing: '0.09em',
-                        color: '#E6D6B3',
-                      }}
-                    >
-                      SR-ARCH-001
-                    </span>
-                  </div>
-                </div>
-
-                {/* Middle Autograph Signature Section */}
-                <div style={{ marginTop: '12px' }}>
-                  <div
-                    style={{
-                      fontFamily: "'JetBrains Mono', monospace",
-                      fontSize: '9.5px',
-                      letterSpacing: '0.2em',
-                      color: 'rgba(243, 241, 236, 0.65)',
-                      marginBottom: '2px',
-                    }}
-                  >
-                    DESIGNED &amp; CRAFTED BY
-                  </div>
-
-                  <div
-                    style={{
-                      fontFamily: "'Sacramento', cursive",
-                      fontSize: 'clamp(40px, 11vw, 50px)',
-                      lineHeight: 0.88,
-                      color: '#F8F6F0',
-                      fontWeight: 400,
-                      margin: '6px 0 12px -4px',
-                      textShadow: '0 2px 14px rgba(255, 255, 255, 0.14)',
-                    }}
-                  >
-                    <span style={{ display: 'block' }}>Samrat</span>
-                    <span style={{ display: 'block', paddingLeft: '14px' }}>Sandilya</span>
-                  </div>
-
-                  {/* Subtitle + Dot Matrix Accent */}
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: '8px',
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontFamily: "'JetBrains Mono', monospace",
-                        fontSize: '8.5px',
-                        letterSpacing: '0.14em',
-                        color: 'rgba(243, 241, 236, 0.5)',
-                      }}
-                    >
-                      WEB ARCHITECT • SANRACHNA
-                    </span>
-                    <span
-                      aria-hidden="true"
-                      style={{
-                        width: '32px',
-                        height: '12px',
-                        backgroundImage:
-                          'radial-gradient(rgba(212, 175, 55, 0.45) 1px, transparent 1px)',
-                        backgroundSize: '4px 4px',
-                        flexShrink: 0,
-                      }}
-                    />
-                  </div>
-                </div>
-
-                {/* Perforated Divider + Connect Stub */}
-                <div>
-                  <div
-                    aria-hidden="true"
-                    style={{
-                      marginLeft: '-26%',
-                      marginRight: '-12%',
-                      borderTop: '1.5px dashed rgba(243, 241, 236, 0.22)',
-                      marginBottom: '13px',
-                    }}
+                {/* Blueprint Pixel Rulers & Bezier Construction Guides */}
+                <svg
+                  className="absolute inset-0 w-full h-full opacity-75"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  {/* Crosshair axes */}
+                  <line
+                    x1="50%"
+                    y1="0"
+                    x2="50%"
+                    y2="100%"
+                    stroke="rgba(56,189,248,0.28)"
+                    strokeDasharray="4 6"
                   />
+                  <line
+                    x1="0"
+                    y1="47%"
+                    x2="100%"
+                    y2="47%"
+                    stroke="rgba(56,189,248,0.28)"
+                    strokeDasharray="4 6"
+                  />
+                  {/* Bezier geometry arcs around the monolith */}
+                  <ellipse
+                    cx="50%"
+                    cy="47%"
+                    rx="34%"
+                    ry="24%"
+                    fill="none"
+                    stroke="rgba(125,211,252,0.34)"
+                    strokeWidth="1"
+                    strokeDasharray="6 6"
+                  />
+                  <rect
+                    x="14%"
+                    y="23%"
+                    width="72%"
+                    height="48%"
+                    fill="none"
+                    stroke="rgba(56,189,248,0.35)"
+                    strokeWidth="0.8"
+                  />
+                  {/* Diagonal construction tangent */}
+                  <line
+                    x1="14%"
+                    y1="23%"
+                    x2="86%"
+                    y2="71%"
+                    stroke="rgba(56,189,248,0.18)"
+                    strokeWidth="0.8"
+                  />
+                </svg>
 
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: '10px',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <a
-                        href={LINKEDIN_URL}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        aria-label="Samrat Sandilya on LinkedIn"
-                        className="cp-social-btn"
-                        onPointerDown={(e) => e.stopPropagation()}
-                        onClick={(e) => e.stopPropagation()}
-                        onMouseEnter={() => setHoveredSocial('linkedin')}
-                        onMouseLeave={() => setHoveredSocial(null)}
-                      >
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.88 8.56a1.68 1.68 0 0 0 1.68-1.68c0-.93-.75-1.69-1.68-1.69a1.69 1.69 0 0 0-1.69 1.69c0 .93.76 1.68 1.69 1.68m1.39 9.94v-8.37H5.5v8.37h2.77z" />
-                        </svg>
-                      </a>
-
-                      <a
-                        href={INSTAGRAM_URL}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        aria-label="Samrat Sandilya on Instagram"
-                        className="cp-social-btn"
-                        onPointerDown={(e) => e.stopPropagation()}
-                        onClick={(e) => e.stopPropagation()}
-                        onMouseEnter={() => setHoveredSocial('instagram')}
-                        onMouseLeave={() => setHoveredSocial(null)}
-                      >
-                        <svg
-                          width="15"
-                          height="15"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
-                          <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
-                          <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
-                        </svg>
-                      </a>
-                    </div>
-
-                    <span
-                      style={{
-                        fontFamily: "'JetBrains Mono', monospace",
-                        fontSize: '9px',
-                        letterSpacing: '0.1em',
-                        color: hoveredSocial ? '#E2C382' : 'rgba(243, 241, 236, 0.42)',
-                        transition: 'color 0.2s ease',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {hoveredSocial === 'linkedin'
-                        ? '/in/samrat-sandilya'
-                        : hoveredSocial === 'instagram'
-                        ? '@samrat.tiwary'
-                        : 'TAP TO FLIP ↻'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* ============================================================= */}
-            {/* BACK FACE — CREATOR MANIFESTO & PERMANENT SPEC                */}
-            {/* ============================================================= */}
-            <div
-              style={{
-                ...cardSurfaceStyle,
-                transform: 'rotateY(180deg)',
-              }}
-            >
-              {renderNotchedRimSvg('back')}
-
-              {/* Mirrored Crimson Accent Stripe on Right Edge */}
-              <div
-                aria-hidden="true"
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  bottom: 0,
-                  right: 0,
-                  width: '12.5%',
-                  background: 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(0,0,0,0.22) 100%)',
-                  zIndex: 2,
-                }}
-              />
-              <div
-                aria-hidden="true"
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  bottom: 0,
-                  right: '12.5%',
-                  width: '4px',
-                  background: 'linear-gradient(180deg, #C8233C 0%, #8E1628 52%, #B51E35 100%)',
-                  boxShadow: '0 0 12px rgba(181, 30, 53, 0.45)',
-                  zIndex: 3,
-                }}
-              />
-
-              <div
-                ref={sheenBackRef}
-                aria-hidden="true"
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  pointerEvents: 'none',
-                  zIndex: 6,
-                  mixBlendMode: 'screen',
-                }}
-              />
-
-              {/* Back Content */}
-              <div
-                style={{
-                  position: 'relative',
-                  zIndex: 7,
-                  height: '100%',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  padding: '20% 20.5% 6.5% 9.5%',
-                  textAlign: 'left',
-                }}
-              >
-                <div>
-                  <div
-                    style={{
-                      fontFamily: "'JetBrains Mono', monospace",
-                      fontSize: '9.5px',
-                      fontWeight: 600,
-                      letterSpacing: '0.2em',
-                      color: '#E2C382',
-                      marginBottom: '16px',
-                    }}
-                  >
-                    CREATOR MANIFESTO // 001
-                  </div>
-
-                  {/* Timeless Editorial Quote */}
-                  <blockquote
-                    style={{
-                      margin: 0,
-                      paddingLeft: '12px',
-                      borderLeft: '2px solid #B51E35',
-                      fontFamily: "'Cormorant Garamond', Georgia, serif",
-                      fontStyle: 'italic',
-                      fontSize: '21px',
-                      lineHeight: 1.32,
-                      color: '#F8F6F0',
-                    }}
-                  >
-                    &ldquo;Architected from Shunya. Built beyond editions.&rdquo;
-                  </blockquote>
-                </div>
-
-                {/* 2-Column Technical Spec Grid */}
+                {/* Hollow CAD Wireframe Overlay Aligned Over Particle Monolith */}
                 <div
+                  className="absolute inset-0 flex flex-col items-center justify-center"
                   style={{
-                    display: 'grid',
-                    gridTemplateColumns: '1fr 1fr',
-                    gap: '14px 12px',
-                    paddingTop: '14px',
-                    paddingBottom: '10px',
-                    borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+                    transform: `translateY(-3%) scale(${(1 + scrollStage * 0.08).toFixed(3)})`,
+                    opacity: Math.max(0.15, 1 - scrollStage * 0.9),
                   }}
                 >
-                  {[
-                    { k: 'STACK', v: 'React • TS • Motion' },
-                    { k: 'SYSTEM', v: 'Sanrachna Portal' },
-                    { k: 'ORIGIN', v: 'GEC Godda • 2026' },
-                    { k: 'STATUS', v: 'Permanent Archive' },
-                  ].map((item) => (
-                    <div key={item.k}>
-                      <div
-                        style={{
-                          fontFamily: "'JetBrains Mono', monospace",
-                          fontSize: '8px',
-                          letterSpacing: '0.16em',
-                          color: 'rgba(243, 241, 236, 0.45)',
-                          marginBottom: '3px',
-                        }}
-                      >
-                        {item.k}
-                      </div>
-                      <div style={{ fontSize: '11.5px', fontWeight: 600, color: '#F3F1EC' }}>
-                        {item.v}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Perforated Bottom Stub — Micro-Barcode + Flip Back */}
-                <div>
                   <div
-                    aria-hidden="true"
+                    className="text-center leading-[0.88] tracking-tight"
                     style={{
-                      marginLeft: '-12%',
-                      marginRight: '-26%',
-                      borderTop: '1.5px dashed rgba(243, 241, 236, 0.22)',
-                      marginBottom: '12px',
-                    }}
-                  />
-
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: '10px',
+                      fontFamily:
+                        '"Instrument Serif", "Cormorant Garamond", Georgia, serif',
+                      fontSize: 'min(12.8vw, 178px)',
+                      color: 'transparent',
+                      WebkitTextStroke: '1px rgba(125, 211, 252, 0.85)',
                     }}
                   >
-                    <div>
-                      {/* Crisp Micro-Barcode */}
-                      <div
-                        aria-hidden="true"
-                        style={{
-                          width: '96px',
-                          height: '18px',
-                          backgroundImage:
-                            'repeating-linear-gradient(90deg, rgba(243,241,236,0.85) 0 2px, transparent 2px 4px, rgba(243,241,236,0.85) 4px 5px, transparent 5px 8px, rgba(226,195,130,0.8) 8px 11px, transparent 11px 13px)',
-                          marginBottom: '4px',
-                        }}
-                      />
-                      <div
-                        style={{
-                          fontFamily: "'JetBrains Mono', monospace",
-                          fontSize: '8px',
-                          letterSpacing: '0.12em',
-                          color: 'rgba(243, 241, 236, 0.5)',
-                        }}
-                      >
-                        SR-ARCH-001 // VERIFIED
-                      </div>
-                    </div>
-
-                    <span
-                      style={{
-                        fontFamily: "'JetBrains Mono', monospace",
-                        fontSize: '9px',
-                        letterSpacing: '0.1em',
-                        color: '#E2C382',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      ↻ FRONT
-                    </span>
+                    <div>SAMRAT</div>
+                    <div>SANDILYA</div>
                   </div>
                 </div>
+
+                {/* X-Ray Architectural Micro-Stamps */}
+                <div className="absolute top-[19%] left-[14.5%] text-[10px] tracking-[0.26em] text-sky-300/90 uppercase">
+                  [01] ARCHITECTED FROM SCRATCH
+                </div>
+                <div className="absolute top-[19%] right-[14.5%] text-[10px] tracking-[0.26em] text-sky-300/90 uppercase">
+                  [02] ZERO TEMPLATES // HAND-CODED
+                </div>
+                <div className="absolute bottom-[24%] left-[14.5%] text-[10px] tracking-[0.26em] text-sky-200/90 uppercase">
+                  BUILT BY SAMRAT — DOM:{telemetry.domNodes} // PARTICLES:{telemetry.particles}
+                </div>
+                <div className="absolute bottom-[24%] right-[14.5%] text-[10px] tracking-[0.26em] text-sky-200/90 uppercase">
+                  CAD X-RAY // {telemetry.viewport} // {telemetry.fps} FPS
+                </div>
+              </div>
+
+              {/* Circular Glass X-Ray Rim Ring */}
+              <div
+                ref={xrayRingRef}
+                aria-hidden="true"
+                className="pointer-events-none fixed top-0 left-0 z-30 rounded-full"
+                style={{
+                  width: 0,
+                  height: 0,
+                  opacity: 0,
+                  border: '1px solid rgba(125, 211, 252, 0.58)',
+                  boxShadow:
+                    'inset 0 0 26px rgba(56, 189, 248, 0.16), 0 0 24px rgba(56, 189, 248, 0.18)',
+                  willChange: 'transform, width, height',
+                }}
+              >
+                <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] tracking-[0.22em] text-sky-300/90 whitespace-nowrap bg-[#041226]/80 px-1.5 py-0.5 rounded border border-sky-400/30">
+                  X-RAY // {telemetry.cursorX},{telemetry.cursorY}
+                </span>
+              </div>
+            </>
+          )}
+
+          {/* ================================================================
+              3. PROGRESSIVE EDGE BLUR MASKS (TOP & BOTTOM — ZERO HARD CUTS)
+             ================================================================ */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none fixed top-0 left-0 right-0 h-28 z-20"
+            style={{
+              backdropFilter: 'blur(12px)',
+              WebkitBackdropFilter: 'blur(12px)',
+              maskImage: 'linear-gradient(to bottom, black 12%, transparent 100%)',
+              WebkitMaskImage:
+                'linear-gradient(to bottom, black 12%, transparent 100%)',
+            }}
+          />
+          <div
+            aria-hidden="true"
+            className="pointer-events-none fixed bottom-0 left-0 right-0 h-32 z-20"
+            style={{
+              backdropFilter: 'blur(14px)',
+              WebkitBackdropFilter: 'blur(14px)',
+              maskImage: 'linear-gradient(to top, black 18%, transparent 100%)',
+              WebkitMaskImage:
+                'linear-gradient(to top, black 18%, transparent 100%)',
+            }}
+          />
+
+          {/* ================================================================
+              4. SCROLL-DRIVEN RACK-FOCUS STAGE (3D FLY-THROUGH + SIGNATURE)
+             ================================================================ */}
+          <div
+            ref={scrollContainerRef}
+            onScroll={handleScroll}
+            className="relative z-10 w-full h-full overflow-y-auto overflow-x-hidden scroll-smooth"
+            style={{ scrollbarWidth: 'none' }}
+          >
+            {/* Track height enables buttery 3D Z-axis fly-through & focus rack */}
+            <div className="relative w-full h-[210vh]">
+              {/* Sticky Stage 1: Minimal Editorial Micro-Label & Scroll Cue */}
+              <div className="sticky top-0 h-screen w-full flex flex-col items-center justify-between pointer-events-none px-4 pt-24 pb-36">
+                <motion.div
+                  initial={{ opacity: 0, y: -12, filter: 'blur(8px)' }}
+                  animate={{
+                    opacity: introActive ? 0 : Math.max(0, 1 - scrollStage * 2.2),
+                    y: introActive ? -12 : -scrollStage * 28,
+                    filter: `blur(${(scrollStage * 10).toFixed(1)}px)`,
+                  }}
+                  transition={{ duration: 0.7, ease: CINEMA_EASE }}
+                  className="flex items-center gap-3 text-[10px] sm:text-[11px] tracking-[0.38em] uppercase"
+                  style={{ color: theme.textMuted }}
+                >
+                  <span
+                    className="inline-block w-1.5 h-1.5 rounded-full animate-pulse"
+                    style={{
+                      backgroundColor:
+                        shaderMode === 'BLUEPRINT'
+                          ? '#38BDF8'
+                          : theme.textPrimary,
+                    }}
+                  />
+                  ARCHITECTED &amp; BUILT BY
+                </motion.div>
+
+                {/* Center Rack-Focus Layer 2: Resolves sharply as Monolith flies past & blurs */}
+                <div
+                  className="flex flex-col items-center justify-center text-center max-w-xl mx-auto px-4"
+                  style={{
+                    opacity: stage2Opacity,
+                    filter: `blur(${stage2BlurPx.toFixed(1)}px)`,
+                    transform: `translate3d(0, ${stage2Y.toFixed(1)}px, 0)`,
+                    pointerEvents: stage2Opacity > 0.5 ? 'auto' : 'none',
+                  }}
+                >
+                  <div
+                    className="text-[10px] tracking-[0.34em] uppercase mb-4"
+                    style={{ color: theme.textMuted }}
+                  >
+                    COLOPHON // SANRACHNA ARCHITECTURE
+                  </div>
+
+                  {/* Self-Drawing Fountain-Pen SVG Signature */}
+                  <CreatorSignatureSVG
+                    color={theme.textPrimary}
+                    accent={
+                      shaderMode === 'BLUEPRINT' ? '#38BDF8' : theme.textMuted
+                    }
+                    active={stage2Opacity > 0.35}
+                  />
+
+                  {/* Crisp Live System Proof Grid (Zero AI Paragraphs) */}
+                  <div
+                    className="mt-7 grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-5 px-5 py-3.5 rounded-2xl border backdrop-blur-xl"
+                    style={{
+                      backgroundColor: theme.glassBg,
+                      borderColor: theme.glassBorder,
+                    }}
+                  >
+                    <div className="text-left">
+                      <div
+                        className="text-[9px] tracking-[0.22em] uppercase"
+                        style={{ color: theme.textMuted }}
+                      >
+                        AUTHOR
+                      </div>
+                      <div className="text-[11px] font-medium mt-0.5 tracking-wider">
+                        SAMRAT S.
+                      </div>
+                    </div>
+                    <div className="text-left">
+                      <div
+                        className="text-[9px] tracking-[0.22em] uppercase"
+                        style={{ color: theme.textMuted }}
+                      >
+                        DOM NODES
+                      </div>
+                      <div className="text-[11px] font-medium mt-0.5 tabular-nums">
+                        {telemetry.domNodes}
+                      </div>
+                    </div>
+                    <div className="text-left">
+                      <div
+                        className="text-[9px] tracking-[0.22em] uppercase"
+                        style={{ color: theme.textMuted }}
+                      >
+                        PARTICLES
+                      </div>
+                      <div className="text-[11px] font-medium mt-0.5 tabular-nums">
+                        {telemetry.particles.toLocaleString()}
+                      </div>
+                    </div>
+                    <div className="text-left">
+                      <div
+                        className="text-[9px] tracking-[0.22em] uppercase"
+                        style={{ color: theme.textMuted }}
+                      >
+                        CLOCK
+                      </div>
+                      <div className="text-[11px] font-medium mt-0.5 tabular-nums">
+                        {telemetry.istTime}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Subtle Interactive Hint Strip (Fades as user scrolls) */}
+                <motion.div
+                  animate={{
+                    opacity: introActive ? 0 : Math.max(0, 0.72 - scrollStage * 2.5),
+                    y: scrollStage * 18,
+                  }}
+                  transition={{ duration: 0.4 }}
+                  className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[9px] sm:text-[10px] tracking-[0.22em] uppercase"
+                  style={{ color: theme.textMuted }}
+                >
+                  <span>HOLD TO VORTEX</span>
+                  <span>·</span>
+                  <span>SCROLL TO FLY-THROUGH</span>
+                  <span className="hidden sm:inline">·</span>
+                  <span className="hidden sm:inline">[G] GRAVITY</span>
+                  <span className="hidden sm:inline">·</span>
+                  <span className="hidden sm:inline">[SPACE] 0.1× SLOW-MO</span>
+                </motion.div>
               </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* Subtle Bottom Hint */}
-      <div
-        aria-hidden="true"
-        style={{
-          position: 'fixed',
-          bottom: '18px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          fontFamily: "'JetBrains Mono', monospace",
-          fontSize: '10.5px',
-          letterSpacing: '0.16em',
-          color: 'rgba(243, 241, 236, 0.45)',
-          whiteSpace: 'nowrap',
-          pointerEvents: 'none',
-          zIndex: 20,
-        }}
-      >
-        DRAG TO SWING • TAP TO FLIP
-      </div>
-    </div>
+          {/* ================================================================
+              5. TOP HUD BAR: LIVE TELEMETRY + MAGNETIC CLOSE BUTTON
+             ================================================================ */}
+          <motion.header
+            initial={{ opacity: 0, y: -16, filter: 'blur(8px)' }}
+            animate={{
+              opacity: introActive ? 0 : 1,
+              y: introActive ? -16 : 0,
+              filter: introActive ? 'blur(8px)' : 'blur(0px)',
+            }}
+            transition={{ duration: 0.6, ease: CINEMA_EASE }}
+            className="fixed top-4 sm:top-6 left-4 sm:left-7 right-4 sm:right-7 z-40 flex items-start justify-between gap-3 pointer-events-none"
+          >
+            {/* Left Live Engineering Telemetry Corner */}
+            <div
+              className="pointer-events-auto flex flex-col gap-1 px-3.5 py-2 rounded-xl border backdrop-blur-xl text-[9px] sm:text-[10px] tracking-[0.18em] uppercase tabular-nums"
+              style={{
+                backgroundColor: theme.glassBg,
+                borderColor: theme.glassBorder,
+              }}
+            >
+              <div className="flex items-center gap-2.5">
+                <span className="inline-flex items-center gap-1.5">
+                  <span
+                    className="w-1.5 h-1.5 rounded-full"
+                    style={{
+                      backgroundColor: bulletTime
+                        ? '#F59E0B'
+                        : isHoldingVortex
+                        ? '#38BDF8'
+                        : '#22C55E',
+                    }}
+                  />
+                  {telemetry.fps} FPS
+                </span>
+                <span style={{ color: theme.textMuted }}>|</span>
+                <span style={{ color: theme.textMuted }}>
+                  XY {telemetry.cursorX},{telemetry.cursorY}
+                </span>
+              </div>
+              <div
+                className="hidden sm:flex items-center gap-2.5 text-[9px]"
+                style={{ color: theme.textMuted }}
+              >
+                <span>{telemetry.viewport}</span>
+                <span>·</span>
+                <span>DOM {telemetry.domNodes}</span>
+                <span>·</span>
+                <span>{telemetry.istTime}</span>
+              </div>
+            </div>
+
+            {/* Right Status Indicators + Magnetic CLOSE Pill */}
+            <div className="pointer-events-auto flex items-center gap-2">
+              <AnimatePresence>
+                {bulletTime && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9, filter: 'blur(6px)' }}
+                    animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+                    exit={{ opacity: 0, scale: 0.9, filter: 'blur(6px)' }}
+                    transition={{ duration: 0.25, ease: CINEMA_EASE }}
+                    className="px-3 py-1.5 rounded-full text-[10px] tracking-[0.22em] uppercase border backdrop-blur-xl text-amber-300 border-amber-400/40 bg-amber-500/10"
+                  >
+                    BULLET-TIME 0.1×
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <MagneticButton
+                buttonRef={closeBtnRef}
+                onClick={handleImplosionClose}
+                onMouseEnter={() => audioRef.current?.playSoftHover()}
+                className="px-4 py-2 rounded-full border backdrop-blur-xl text-[10px] sm:text-[11px] tracking-[0.24em] uppercase"
+                style={{
+                  backgroundColor: theme.glassBg,
+                  borderColor: theme.glassBorder,
+                  color: theme.textPrimary,
+                }}
+              >
+                <span>CLOSE</span>
+                <span className="text-xs leading-none opacity-75">✕</span>
+              </MagneticButton>
+            </div>
+          </motion.header>
+
+          {/* ================================================================
+              6. LIQUID SLIDING PLAYGROUND CONTROLS (layoutId SPRING PILLS)
+             ================================================================ */}
+          <motion.aside
+            initial={{ opacity: 0, y: 18, filter: 'blur(8px)' }}
+            animate={{
+              opacity: introActive ? 0 : 1,
+              y: introActive ? 18 : 0,
+              filter: introActive ? 'blur(8px)' : 'blur(0px)',
+            }}
+            transition={{ duration: 0.65, delay: 0.08, ease: CINEMA_EASE }}
+            className="fixed left-4 sm:left-7 bottom-24 sm:bottom-24 z-40 hidden md:flex flex-col gap-2"
+          >
+            {/* Shader Switcher */}
+            <div
+              className="flex items-center p-1 rounded-full border backdrop-blur-xl"
+              style={{
+                backgroundColor: theme.glassBg,
+                borderColor: theme.glassBorder,
+              }}
+            >
+              {(['OBSIDIAN', 'BLUEPRINT', 'INK'] as ShaderMode[]).map((mode) => {
+                const active = shaderMode === mode;
+                return (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => switchShader(mode)}
+                    className="relative px-2.5 py-1 rounded-full text-[9px] tracking-[0.2em] uppercase cursor-pointer transition-colors"
+                    style={{
+                      color: active ? theme.pillActiveText : theme.textMuted,
+                    }}
+                  >
+                    {active && (
+                      <motion.span
+                        layoutId="monolith-shader-pill"
+                        transition={{
+                          type: 'spring',
+                          stiffness: 420,
+                          damping: 32,
+                        }}
+                        className="absolute inset-0 rounded-full"
+                        style={{ backgroundColor: theme.pillActiveBg }}
+                      />
+                    )}
+                    <span className="relative z-10">{mode}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Physics Switcher */}
+            <div
+              className="flex items-center p-1 rounded-full border backdrop-blur-xl"
+              style={{
+                backgroundColor: theme.glassBg,
+                borderColor: theme.glassBorder,
+              }}
+            >
+              {(['FLUID', 'VORTEX', 'SWARM'] as PhysicsMode[]).map((mode) => {
+                const active = physicsMode === mode && !gravityOn;
+                return (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => switchPhysics(mode)}
+                    className="relative px-2.5 py-1 rounded-full text-[9px] tracking-[0.2em] uppercase cursor-pointer transition-colors"
+                    style={{
+                      color: active ? theme.pillActiveText : theme.textMuted,
+                    }}
+                  >
+                    {active && (
+                      <motion.span
+                        layoutId="monolith-physics-pill"
+                        transition={{
+                          type: 'spring',
+                          stiffness: 420,
+                          damping: 32,
+                        }}
+                        className="absolute inset-0 rounded-full"
+                        style={{ backgroundColor: theme.pillActiveBg }}
+                      />
+                    )}
+                    <span className="relative z-10">{mode}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </motion.aside>
+
+          {/* Right Utility Hardware Toggles (GRAVITY / X-RAY / AUDIO) */}
+          <motion.aside
+            initial={{ opacity: 0, y: 18, filter: 'blur(8px)' }}
+            animate={{
+              opacity: introActive ? 0 : 1,
+              y: introActive ? 18 : 0,
+              filter: introActive ? 'blur(8px)' : 'blur(0px)',
+            }}
+            transition={{ duration: 0.65, delay: 0.1, ease: CINEMA_EASE }}
+            className="fixed right-4 sm:right-7 bottom-24 z-40 hidden md:flex items-center gap-1.5 p-1 rounded-full border backdrop-blur-xl"
+            style={{
+              backgroundColor: theme.glassBg,
+              borderColor: theme.glassBorder,
+            }}
+          >
+            <button
+              type="button"
+              onClick={toggleGravity}
+              className="relative px-2.5 py-1 rounded-full text-[9px] tracking-[0.2em] uppercase cursor-pointer transition-all"
+              style={{
+                backgroundColor: gravityOn ? theme.pillActiveBg : 'transparent',
+                color: gravityOn ? theme.pillActiveText : theme.textMuted,
+              }}
+              title="Toggle Gravity Collapse (Press G)"
+            >
+              GRAVITY {gravityOn ? 'ON' : 'OFF'}
+            </button>
+            <button
+              type="button"
+              onClick={toggleXray}
+              className="relative px-2.5 py-1 rounded-full text-[9px] tracking-[0.2em] uppercase cursor-pointer transition-all"
+              style={{
+                backgroundColor: xrayEnabled
+                  ? theme.pillActiveBg
+                  : 'transparent',
+                color: xrayEnabled ? theme.pillActiveText : theme.textMuted,
+              }}
+              title="Toggle CAD X-Ray Cursor Lens"
+            >
+              X-RAY
+            </button>
+            <button
+              type="button"
+              onClick={toggleAudio}
+              className="relative px-2.5 py-1 rounded-full text-[9px] tracking-[0.2em] uppercase cursor-pointer transition-all"
+              style={{
+                backgroundColor: !audioMuted
+                  ? theme.pillActiveBg
+                  : 'transparent',
+                color: !audioMuted ? theme.pillActiveText : theme.textMuted,
+              }}
+              title="Toggle Synthesized Audio"
+            >
+              {audioMuted ? 'MUTED' : 'SOUND'}
+            </button>
+          </motion.aside>
+
+          {/* Compact Mobile Controls Bar (Visible only on small screens) */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: introActive ? 0 : 1, y: introActive ? 12 : 0 }}
+            transition={{ duration: 0.5, ease: CINEMA_EASE }}
+            className="fixed left-1/2 -translate-x-1/2 bottom-[92px] z-40 flex md:hidden items-center gap-1 p-1 rounded-full border backdrop-blur-xl max-w-[94vw] overflow-x-auto"
+            style={{
+              backgroundColor: theme.glassBg,
+              borderColor: theme.glassBorder,
+            }}
+          >
+            {(['OBSIDIAN', 'BLUEPRINT', 'INK'] as ShaderMode[]).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => switchShader(mode)}
+                className="px-2 py-1 rounded-full text-[8px] tracking-[0.16em] uppercase whitespace-nowrap"
+                style={{
+                  backgroundColor:
+                    shaderMode === mode ? theme.pillActiveBg : 'transparent',
+                  color:
+                    shaderMode === mode
+                      ? theme.pillActiveText
+                      : theme.textMuted,
+                }}
+              >
+                {mode}
+              </button>
+            ))}
+            <span className="opacity-25 text-[10px]">|</span>
+            <button
+              type="button"
+              onClick={toggleGravity}
+              className="px-2 py-1 rounded-full text-[8px] tracking-[0.16em] uppercase whitespace-nowrap"
+              style={{
+                backgroundColor: gravityOn ? theme.pillActiveBg : 'transparent',
+                color: gravityOn ? theme.pillActiveText : theme.textMuted,
+              }}
+            >
+              GRAV
+            </button>
+            <button
+              type="button"
+              onClick={toggleAudio}
+              className="px-2 py-1 rounded-full text-[8px] tracking-[0.16em] uppercase whitespace-nowrap"
+              style={{
+                color: !audioMuted ? theme.pillActiveText : theme.textMuted,
+              }}
+            >
+              {audioMuted ? 'MUTE' : 'SFX'}
+            </button>
+          </motion.div>
+
+          {/* ================================================================
+              7. FLOATING LIQUID-GLASS COMMAND DOCK (COLLISION SURFACE)
+                 - Email Cipher Scramble + Shockwave Copy + MAIL ↗
+                 - INSTAGRAM ↗ (@samrat.tiwary) + LINKEDIN ↗ (in/samrat-sandilya)
+             ================================================================ */}
+          <motion.nav
+            ref={dockRef}
+            aria-label="Creator Direct Contact"
+            initial={{ opacity: 0, y: 28, filter: 'blur(12px)' }}
+            animate={{
+              opacity: introActive ? 0 : 1,
+              y: introActive ? 28 : 0,
+              filter: introActive ? 'blur(12px)' : 'blur(0px)',
+            }}
+            transition={{ duration: 0.72, delay: 0.12, ease: CINEMA_EASE }}
+            className="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-40 max-w-[95vw]"
+          >
+            <div
+              className="relative flex flex-wrap sm:flex-nowrap items-center justify-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-2 rounded-2xl sm:rounded-full border backdrop-blur-2xl shadow-2xl overflow-hidden"
+              style={{
+                backgroundColor: theme.glassBg,
+                borderColor: theme.glassBorder,
+                boxShadow: theme.isLight
+                  ? '0 18px 50px -12px rgba(10,10,12,0.14), inset 0 1px 0 rgba(255,255,255,0.8)'
+                  : '0 22px 60px -12px rgba(0,0,0,0.75), inset 0 1px 0 rgba(255,255,255,0.14)',
+              }}
+            >
+              {/* Gyroscope & Ambient Specular Glass Shine Strip */}
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 opacity-40"
+                style={{
+                  background: `linear-gradient(${105 + gyroTilt.x * 35}deg, transparent 20%, rgba(255,255,255,${theme.isLight ? '0.55' : '0.16'}) 50%, transparent 80%)`,
+                }}
+              />
+
+              {/* Direct Email Copy Button with Cipher Scramble & Blur-Morph */}
+              <MagneticButton
+                onClick={handleCopyEmail}
+                onMouseEnter={runEmailScramble}
+                strength={0.2}
+                className="px-3 sm:px-4 py-1.5 rounded-full text-[10px] sm:text-[11px] tracking-[0.14em]"
+                style={{ color: theme.textPrimary }}
+                title="Click to copy email"
+              >
+                <AnimatePresence mode="wait">
+                  {emailCopied ? (
+                    <motion.span
+                      key="copied"
+                      initial={{ opacity: 0, y: 6, filter: 'blur(5px)' }}
+                      animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                      exit={{ opacity: 0, y: -6, filter: 'blur(5px)' }}
+                      transition={{ duration: 0.28, ease: CINEMA_EASE }}
+                      className="inline-flex items-center gap-1.5 font-medium tracking-[0.2em] uppercase"
+                      style={{
+                        color:
+                          shaderMode === 'BLUEPRINT'
+                            ? '#38BDF8'
+                            : theme.textPrimary,
+                      }}
+                    >
+                      DIRECT LINE COPIED ✦
+                    </motion.span>
+                  ) : (
+                    <motion.span
+                      key="email"
+                      initial={{ opacity: 0, y: 6, filter: 'blur(5px)' }}
+                      animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                      exit={{ opacity: 0, y: -6, filter: 'blur(5px)' }}
+                      transition={{ duration: 0.25, ease: CINEMA_EASE }}
+                      className="inline-flex items-center gap-2 whitespace-nowrap"
+                    >
+                      <span
+                        className="w-1.5 h-1.5 rounded-full"
+                        style={{
+                          backgroundColor:
+                            shaderMode === 'BLUEPRINT'
+                              ? '#38BDF8'
+                              : theme.textPrimary,
+                        }}
+                      />
+                      <span>{emailDisplay}</span>
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </MagneticButton>
+
+              {/* Direct Mailto Trigger */}
+              <MagneticButton
+                href={`mailto:${CREATOR_EMAIL}`}
+                onMouseEnter={() => audioRef.current?.playSoftHover()}
+                onClick={() => audioRef.current?.playMechanicalTick(950)}
+                strength={0.25}
+                className="px-2.5 py-1.5 rounded-full text-[9px] sm:text-[10px] tracking-[0.2em] uppercase border"
+                style={{
+                  borderColor: theme.glassBorder,
+                  color: theme.textMuted,
+                }}
+                title="Open Mail App"
+              >
+                MAIL ↗
+              </MagneticButton>
+
+              {/* Hairline Divider */}
+              <span
+                aria-hidden="true"
+                className="hidden sm:inline-block w-[1px] h-4 mx-1"
+                style={{ backgroundColor: theme.glassBorder }}
+              />
+
+              {/* Instagram Link with Vertical Slot-Roll Handle Reveal */}
+              <MagneticButton
+                href={CREATOR_INSTAGRAM_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                onMouseEnter={() => {
+                  setInstaHovered(true);
+                  audioRef.current?.playMechanicalTick(1040);
+                }}
+                onMouseLeave={() => setInstaHovered(false)}
+                strength={0.24}
+                className="px-3 py-1.5 rounded-full text-[10px] sm:text-[11px] tracking-[0.16em] uppercase"
+                style={{ color: theme.textPrimary }}
+              >
+                <SlotRollLabel
+                  primary="INSTAGRAM ↗"
+                  secondary={`${CREATOR_INSTAGRAM_HANDLE} ↗`}
+                  hovered={instaHovered}
+                  underlineColor={
+                    shaderMode === 'BLUEPRINT' ? '#38BDF8' : theme.textPrimary
+                  }
+                />
+              </MagneticButton>
+
+              {/* LinkedIn Link with Vertical Slot-Roll Handle Reveal */}
+              <MagneticButton
+                href={CREATOR_LINKEDIN_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                onMouseEnter={() => {
+                  setLinkedinHovered(true);
+                  audioRef.current?.playMechanicalTick(1120);
+                }}
+                onMouseLeave={() => setLinkedinHovered(false)}
+                strength={0.24}
+                className="px-3 py-1.5 rounded-full text-[10px] sm:text-[11px] tracking-[0.16em] uppercase"
+                style={{ color: theme.textPrimary }}
+              >
+                <SlotRollLabel
+                  primary="LINKEDIN ↗"
+                  secondary={`${CREATOR_LINKEDIN_HANDLE} ↗`}
+                  hovered={linkedinHovered}
+                  underlineColor={
+                    shaderMode === 'BLUEPRINT' ? '#38BDF8' : theme.textPrimary
+                  }
+                />
+              </MagneticButton>
+            </div>
+          </motion.nav>
+
+          {/* ================================================================
+              8. REALITY-TEAR KINETIC SHUTTER + 0.8S ARCHITECTURAL TELEMETRY FLASH
+             ================================================================ */}
+          <AnimatePresence>
+            {introActive && (
+              <motion.div
+                key="monolith-intro-curtain"
+                initial={{ opacity: 1 }}
+                exit={{ opacity: 0, filter: 'blur(14px)', scale: 1.04 }}
+                transition={{ duration: 0.48, ease: CINEMA_EASE }}
+                className="fixed inset-0 z-50 pointer-events-none flex items-center justify-center overflow-hidden"
+              >
+                {/* Top & Bottom Kinetic Split Shutters */}
+                <motion.div
+                  initial={{ scaleY: 1 }}
+                  animate={{ scaleY: 0 }}
+                  transition={{ duration: 0.62, delay: 0.14, ease: CINEMA_EASE }}
+                  style={{ originY: 0, backgroundColor: theme.bgHex }}
+                  className="absolute top-0 left-0 right-0 h-1/2 border-b border-white/10"
+                />
+                <motion.div
+                  initial={{ scaleY: 1 }}
+                  animate={{ scaleY: 0 }}
+                  transition={{ duration: 0.62, delay: 0.14, ease: CINEMA_EASE }}
+                  style={{ originY: 1, backgroundColor: theme.bgHex }}
+                  className="absolute bottom-0 left-0 right-0 h-1/2 border-t border-white/10"
+                />
+
+                {/* Chromatic Reality-Tear Ripple Line */}
+                <motion.div
+                  initial={{ scaleX: 0, opacity: 0.9 }}
+                  animate={{ scaleX: 1, opacity: 0 }}
+                  transition={{ duration: 0.55, ease: CINEMA_EASE }}
+                  className="absolute left-0 right-0 h-[2px]"
+                  style={{
+                    background:
+                      'linear-gradient(90deg, transparent, #38BDF8, #FFFFFF, #F43F5E, transparent)',
+                    boxShadow: '0 0 28px rgba(56,189,248,0.8)',
+                  }}
+                />
+
+                {/* 0.8s Razor-Sharp Architectural Telemetry Flash */}
+                <div className="relative z-10 flex flex-col items-center gap-2 text-center px-6">
+                  <div className="flex items-center gap-4 text-[10px] sm:text-[11px] tracking-[0.34em] uppercase">
+                    <span>SYSTEM // SANRACHNA</span>
+                    <span className="opacity-35">·</span>
+                    <span>CRAFT // HAND-CODED</span>
+                  </div>
+                  <div
+                    className="text-4xl sm:text-5xl tabular-nums tracking-tight"
+                    style={{
+                      fontFamily:
+                        '"Instrument Serif", "Cormorant Garamond", Georgia, serif',
+                    }}
+                  >
+                    {String(introPercent).padStart(2, '0')}%
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
-}
+};
+
+export default CreatorPassModal;
