@@ -278,26 +278,27 @@ function ensureMonolithAssets() {
 }
 
 /* ============================================================================
-   SECRET HOLD-TO-CHARGE TRIGGER HOOK (COMPATIBLE WITH App.tsx)
+   SECRET HOLD-TO-CHARGE TRIGGER HOOK (SUPPORTS {...trigger.bind} & {...trigger})
    ============================================================================ */
 
-export type CreatorPassTriggerResult = ((
-  arg?: HTMLElement | React.SyntheticEvent | Event | null
-) => void) & {
-  chargeRatio: number;
-  isCharging: boolean;
-  onPointerDown: (e?: React.PointerEvent | PointerEvent) => void;
+export interface CreatorPassTriggerHandlers {
+  onPointerDown: (e: React.PointerEvent<HTMLElement>) => void;
   onPointerUp: () => void;
-  onPointerLeave: () => void;
+  onPointerLeave: (e: React.PointerEvent<HTMLElement>) => void;
   onPointerCancel: () => void;
-  onMouseDown: (e?: React.MouseEvent | MouseEvent) => void;
+  onMouseDown: (e: React.MouseEvent<HTMLElement>) => void;
   onMouseUp: () => void;
-  onMouseLeave: () => void;
-  onTouchStart: (e?: React.TouchEvent | TouchEvent) => void;
+  onTouchStart: () => void;
   onTouchEnd: () => void;
   onTouchCancel: () => void;
-  onContextMenu: (e: React.MouseEvent | Event) => void;
-};
+  onContextMenu: (e: React.MouseEvent<HTMLElement>) => void;
+}
+
+export interface CreatorPassTriggerResult extends CreatorPassTriggerHandlers {
+  bind: CreatorPassTriggerHandlers;
+  chargeRatio: number;
+  isCharging: boolean;
+}
 
 export function useCreatorPassTrigger(
   onTrigger?: () => void,
@@ -314,7 +315,6 @@ export function useCreatorPassTrigger(
   const chargeRafRef = useRef<number>(0);
   const chargeStartRef = useRef<number>(0);
   const chargeActiveRef = useRef<boolean>(false);
-  const attachedElRef = useRef<HTMLElement | null>(null);
 
   const [chargeRatio, setChargeRatio] = useState(0);
   const [isCharging, setIsCharging] = useState(false);
@@ -376,47 +376,11 @@ export function useCreatorPassTrigger(
     chargeRafRef.current = requestAnimationFrame(tick);
   }, [totalHoldMs, delayMs]);
 
-  const startChargeRef = useRef(startCharge);
-  startChargeRef.current = startCharge;
-
-  const stableDownHandler = useCallback(() => {
-    startChargeRef.current();
-  }, []);
-
-  const stableCtxHandler = useCallback((e: Event) => {
-    e.preventDefault();
-  }, []);
-
-  const detachFromElement = useCallback(() => {
-    const el = attachedElRef.current;
-    if (!el) return;
-    el.removeEventListener('pointerdown', stableDownHandler);
-    el.removeEventListener('mousedown', stableDownHandler);
-    el.removeEventListener('touchstart', stableDownHandler);
-    el.removeEventListener('contextmenu', stableCtxHandler);
-    attachedElRef.current = null;
-  }, [stableDownHandler, stableCtxHandler]);
-
-  const attachToElement = useCallback(
-    (node: HTMLElement | null) => {
-      if (node === attachedElRef.current) return;
-      detachFromElement();
-      if (!node) return;
-      attachedElRef.current = node;
-      node.addEventListener('pointerdown', stableDownHandler);
-      node.addEventListener('mousedown', stableDownHandler);
-      node.addEventListener('touchstart', stableDownHandler);
-      node.addEventListener('contextmenu', stableCtxHandler);
-    },
-    [detachFromElement, stableDownHandler, stableCtxHandler]
-  );
-
   useEffect(() => {
     return () => {
       cancelChargeRef.current();
-      detachFromElement();
     };
-  }, [detachFromElement]);
+  }, []);
 
   // Keyboard secret ("samrat" or Ctrl+Shift+S)
   useEffect(() => {
@@ -452,45 +416,53 @@ export function useCreatorPassTrigger(
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
-  return useMemo(() => {
-    const fn = ((arg?: HTMLElement | React.SyntheticEvent | Event | null) => {
-      if (arg === null) {
-        attachToElement(null);
-        return;
-      }
-      if (typeof HTMLElement !== 'undefined' && arg instanceof HTMLElement) {
-        attachToElement(arg);
-        return;
-      }
-      if (arg && typeof arg === 'object' && 'type' in arg) {
-        const evtType = String(arg.type);
-        if (
-          evtType === 'pointerdown' ||
-          evtType === 'mousedown' ||
-          evtType === 'touchstart'
-        ) {
-          startCharge();
+  const handlers = useMemo<CreatorPassTriggerHandlers>(
+    () => ({
+      onPointerDown: (e: React.PointerEvent<HTMLElement>) => {
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
+        try {
+          e.currentTarget.setPointerCapture(e.pointerId);
+        } catch {
+          // ignore if capture is unsupported
         }
-      }
-    }) as CreatorPassTriggerResult;
-
-    Object.assign(fn, {
-      onPointerDown: () => startCharge(),
+        startCharge();
+      },
       onPointerUp: () => cancelCharge(),
-      onPointerLeave: () => cancelCharge(),
+      onPointerLeave: (e: React.PointerEvent<HTMLElement>) => {
+        let captured = false;
+        try {
+          captured = e.currentTarget.hasPointerCapture(e.pointerId);
+        } catch {
+          captured = false;
+        }
+        if (!captured && e.pointerType === 'mouse') {
+          cancelCharge();
+        }
+      },
       onPointerCancel: () => cancelCharge(),
-      onMouseDown: () => startCharge(),
+      onMouseDown: (e: React.MouseEvent<HTMLElement>) => {
+        if (e.button !== 0) return;
+        startCharge();
+      },
       onMouseUp: () => cancelCharge(),
-      onMouseLeave: () => cancelCharge(),
       onTouchStart: () => startCharge(),
       onTouchEnd: () => cancelCharge(),
       onTouchCancel: () => cancelCharge(),
-      onContextMenu: (e: React.MouseEvent | Event) => {
+      onContextMenu: (e: React.MouseEvent<HTMLElement>) => {
         e.preventDefault();
       },
-    });
+    }),
+    [startCharge, cancelCharge]
+  );
 
-    Object.defineProperties(fn, {
+  return useMemo(() => {
+    const result = { ...handlers } as CreatorPassTriggerResult;
+    Object.defineProperties(result, {
+      bind: {
+        value: handlers,
+        enumerable: false,
+        configurable: true,
+      },
       chargeRatio: {
         value: chargeRatio,
         enumerable: false,
@@ -502,9 +474,8 @@ export function useCreatorPassTrigger(
         configurable: true,
       },
     });
-
-    return fn;
-  }, [attachToElement, startCharge, cancelCharge, chargeRatio, isCharging]);
+    return result;
+  }, [handlers, chargeRatio, isCharging]);
 }
 
 /* ============================================================================
