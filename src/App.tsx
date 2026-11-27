@@ -3032,7 +3032,7 @@ const creatorPassTrigger = useCreatorPassTrigger(() => {
       )}
       {creatorPassOpen && (
   <CreatorPassModal
-    onClose={() => setOpenCreatorPass(false)}
+    onClose={() => setCreatorPassOpen(false)}
     isDarkMode={isDarkMode}
   />
 )}
