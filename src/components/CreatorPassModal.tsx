@@ -104,14 +104,88 @@ const THEMES: Record<ShaderMode, ThemeTokens> = {
    COMPATIBLE SECRET TRIGGER HOOK (FOR App.tsx IMPORT)
    - Supports secret typing ("samrat"), Ctrl+Shift+S, or rapid multi-click
    ============================================================================ */
+export type CreatorPassTriggerResult = (() => void) & {
+  chargeRatio: number;
+  isCharging: boolean;
+};
 
-export function useCreatorPassTrigger(onTrigger?: () => void) {
-  const callbackRef = useRef(onTrigger);
-  callbackRef.current = onTrigger;
+export function useCreatorPassTrigger(
+  ...args: unknown[]
+): CreatorPassTriggerResult {
+  const onTriggerArg = args.find(
+    (a): a is () => void => typeof a === 'function'
+  );
+  const targetRefArg = args.find(
+    (a): a is React.RefObject<HTMLElement | null> =>
+      Boolean(a && typeof a === 'object' && 'current' in a)
+  );
+  const holdMsArg = args.find((a): a is number => typeof a === 'number');
+  const secretStrArg = args.find((a): a is string => typeof a === 'string');
+
+  const holdMs = holdMsArg && holdMsArg > 100 ? holdMsArg : 1200;
+  const callbackRef = useRef(onTriggerArg);
+  callbackRef.current = onTriggerArg;
+
   const clickTimestampsRef = useRef<number[]>([]);
+  const [chargeRatio, setChargeRatio] = useState(0);
+  const [isCharging, setIsCharging] = useState(false);
 
+  // Hold-to-charge support jab DOM ref pass ho
+  useEffect(() => {
+    const el = targetRefArg?.current;
+    if (!el) return;
+
+    let rafId = 0;
+    let startTime = 0;
+    let active = false;
+
+    const cancelCharge = () => {
+      active = false;
+      cancelAnimationFrame(rafId);
+      setIsCharging(false);
+      setChargeRatio(0);
+    };
+
+    const tick = (now: number) => {
+      if (!active) return;
+      const ratio = Math.min(1, (now - startTime) / holdMs);
+      setChargeRatio(ratio);
+      if (ratio >= 1) {
+        cancelCharge();
+        callbackRef.current?.();
+        return;
+      }
+      rafId = requestAnimationFrame(tick);
+    };
+
+    const onDown = () => {
+      active = true;
+      startTime = performance.now();
+      setIsCharging(true);
+      rafId = requestAnimationFrame(tick);
+    };
+
+    el.addEventListener('pointerdown', onDown);
+    el.addEventListener('pointerup', cancelCharge);
+    el.addEventListener('pointerleave', cancelCharge);
+    el.addEventListener('pointercancel', cancelCharge);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      el.removeEventListener('pointerdown', onDown);
+      el.removeEventListener('pointerup', cancelCharge);
+      el.removeEventListener('pointerleave', cancelCharge);
+      el.removeEventListener('pointercancel', cancelCharge);
+    };
+  }, [targetRefArg, holdMs]);
+
+  // Keyboard secret ("samrat" / Ctrl+Shift+S)
   useEffect(() => {
     let buffer = '';
+    const customSecret =
+      secretStrArg && secretStrArg.length >= 3
+        ? secretStrArg.toLowerCase()
+        : null;
 
     const onKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
@@ -131,8 +205,11 @@ export function useCreatorPassTrigger(onTrigger?: () => void) {
       }
 
       if (e.key.length === 1) {
-        buffer = (buffer + e.key.toLowerCase()).slice(-8);
-        if (buffer.includes('samrat')) {
+        buffer = (buffer + e.key.toLowerCase()).slice(-12);
+        if (
+          buffer.includes('samrat') ||
+          (customSecret && buffer.includes(customSecret))
+        ) {
           buffer = '';
           callbackRef.current?.();
         }
@@ -141,7 +218,7 @@ export function useCreatorPassTrigger(onTrigger?: () => void) {
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, []);
+  }, [secretStrArg]);
 
   const handleSecretClick = useCallback(() => {
     const now = Date.now();
@@ -149,13 +226,19 @@ export function useCreatorPassTrigger(onTrigger?: () => void) {
       (t) => now - t < 1600
     );
     clickTimestampsRef.current.push(now);
+    const ratio = Math.min(1, clickTimestampsRef.current.length / 5);
+    setChargeRatio(ratio);
     if (clickTimestampsRef.current.length >= 5) {
       clickTimestampsRef.current = [];
+      setChargeRatio(0);
       callbackRef.current?.();
     }
   }, []);
 
-  return handleSecretClick;
+  return useMemo(() => {
+    const fn = () => handleSecretClick();
+    return Object.assign(fn, { chargeRatio, isCharging });
+  }, [handleSecretClick, chargeRatio, isCharging]);
 }
 
 /* ============================================================================
