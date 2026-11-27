@@ -278,51 +278,64 @@ function ensureMonolithAssets() {
 }
 
 /* ============================================================================
-   COMPATIBLE SECRET TRIGGER HOOK (FOR App.tsx IMPORT)
+   SECRET HOLD-TO-CHARGE TRIGGER HOOK (COMPATIBLE WITH App.tsx)
    ============================================================================ */
 
-export type CreatorPassTriggerResult = (() => void) & {
+export type CreatorPassTriggerResult = ((
+  arg?: HTMLElement | React.SyntheticEvent | Event | null
+) => void) & {
   chargeRatio: number;
   isCharging: boolean;
-  onPointerDown: () => void;
+  onPointerDown: (e?: React.PointerEvent | PointerEvent) => void;
   onPointerUp: () => void;
   onPointerLeave: () => void;
   onPointerCancel: () => void;
-  onTouchStart: () => void;
+  onMouseDown: (e?: React.MouseEvent | MouseEvent) => void;
+  onMouseUp: () => void;
+  onMouseLeave: () => void;
+  onTouchStart: (e?: React.TouchEvent | TouchEvent) => void;
   onTouchEnd: () => void;
+  onTouchCancel: () => void;
+  onContextMenu: (e: React.MouseEvent | Event) => void;
 };
 
 export function useCreatorPassTrigger(
-  ...args: unknown[]
+  onTrigger?: () => void,
+  holdMs = 10000,
+  revealDelayMs = 3000
 ): CreatorPassTriggerResult {
-  const onTriggerArg = args.find(
-    (a): a is () => void => typeof a === 'function'
-  );
-  const targetRefArg = args.find(
-    (a): a is React.RefObject<HTMLElement | null> =>
-      Boolean(a && typeof a === 'object' && 'current' in a)
-  );
-  const holdMsArg = args.find((a): a is number => typeof a === 'number');
-  const secretStrArg = args.find((a): a is string => typeof a === 'string');
+  const totalHoldMs = Math.max(400, holdMs);
+  const delayMs =
+    revealDelayMs >= 0 && revealDelayMs < totalHoldMs ? revealDelayMs : 0;
 
-  const holdMs = holdMsArg && holdMsArg > 100 ? holdMsArg : 1200;
-  const callbackRef = useRef(onTriggerArg);
-  callbackRef.current = onTriggerArg;
+  const callbackRef = useRef(onTrigger);
+  callbackRef.current = onTrigger;
 
-  const clickTimestampsRef = useRef<number[]>([]);
   const chargeRafRef = useRef<number>(0);
   const chargeStartRef = useRef<number>(0);
   const chargeActiveRef = useRef<boolean>(false);
+  const attachedElRef = useRef<HTMLElement | null>(null);
 
   const [chargeRatio, setChargeRatio] = useState(0);
   const [isCharging, setIsCharging] = useState(false);
 
+  const cancelChargeRef = useRef<() => void>(() => {});
+
   const cancelCharge = useCallback(() => {
+    if (!chargeActiveRef.current) return;
     chargeActiveRef.current = false;
     cancelAnimationFrame(chargeRafRef.current);
+    window.removeEventListener('pointerup', cancelChargeRef.current);
+    window.removeEventListener('pointercancel', cancelChargeRef.current);
+    window.removeEventListener('mouseup', cancelChargeRef.current);
+    window.removeEventListener('touchend', cancelChargeRef.current);
+    window.removeEventListener('touchcancel', cancelChargeRef.current);
+    window.removeEventListener('blur', cancelChargeRef.current);
     setIsCharging(false);
     setChargeRatio(0);
   }, []);
+
+  cancelChargeRef.current = cancelCharge;
 
   const startCharge = useCallback(() => {
     if (chargeActiveRef.current) return;
@@ -330,46 +343,84 @@ export function useCreatorPassTrigger(
     chargeStartRef.current = performance.now();
     setIsCharging(true);
 
+    window.addEventListener('pointerup', cancelChargeRef.current);
+    window.addEventListener('pointercancel', cancelChargeRef.current);
+    window.addEventListener('mouseup', cancelChargeRef.current);
+    window.addEventListener('touchend', cancelChargeRef.current);
+    window.addEventListener('touchcancel', cancelChargeRef.current);
+    window.addEventListener('blur', cancelChargeRef.current);
+
     const tick = (now: number) => {
       if (!chargeActiveRef.current) return;
-      const ratio = Math.min(1, (now - chargeStartRef.current) / holdMs);
-      setChargeRatio(ratio);
-      if (ratio >= 1) {
-        cancelCharge();
+      const elapsed = now - chargeStartRef.current;
+
+      if (elapsed >= totalHoldMs) {
+        cancelChargeRef.current();
         callbackRef.current?.();
         return;
       }
+
+      if (elapsed >= delayMs) {
+        const ratio = Math.min(
+          1,
+          (elapsed - delayMs) / (totalHoldMs - delayMs)
+        );
+        setChargeRatio(ratio);
+      } else {
+        setChargeRatio(0);
+      }
+
       chargeRafRef.current = requestAnimationFrame(tick);
     };
+
     chargeRafRef.current = requestAnimationFrame(tick);
-  }, [holdMs, cancelCharge]);
+  }, [totalHoldMs, delayMs]);
 
-  // Bind hold-to-charge if DOM ref is passed
-  useEffect(() => {
-    const el = targetRefArg?.current;
+  const startChargeRef = useRef(startCharge);
+  startChargeRef.current = startCharge;
+
+  const stableDownHandler = useCallback(() => {
+    startChargeRef.current();
+  }, []);
+
+  const stableCtxHandler = useCallback((e: Event) => {
+    e.preventDefault();
+  }, []);
+
+  const detachFromElement = useCallback(() => {
+    const el = attachedElRef.current;
     if (!el) return;
+    el.removeEventListener('pointerdown', stableDownHandler);
+    el.removeEventListener('mousedown', stableDownHandler);
+    el.removeEventListener('touchstart', stableDownHandler);
+    el.removeEventListener('contextmenu', stableCtxHandler);
+    attachedElRef.current = null;
+  }, [stableDownHandler, stableCtxHandler]);
 
-    el.addEventListener('pointerdown', startCharge);
-    el.addEventListener('pointerup', cancelCharge);
-    el.addEventListener('pointerleave', cancelCharge);
-    el.addEventListener('pointercancel', cancelCharge);
+  const attachToElement = useCallback(
+    (node: HTMLElement | null) => {
+      if (node === attachedElRef.current) return;
+      detachFromElement();
+      if (!node) return;
+      attachedElRef.current = node;
+      node.addEventListener('pointerdown', stableDownHandler);
+      node.addEventListener('mousedown', stableDownHandler);
+      node.addEventListener('touchstart', stableDownHandler);
+      node.addEventListener('contextmenu', stableCtxHandler);
+    },
+    [detachFromElement, stableDownHandler, stableCtxHandler]
+  );
 
+  useEffect(() => {
     return () => {
-      cancelCharge();
-      el.removeEventListener('pointerdown', startCharge);
-      el.removeEventListener('pointerup', cancelCharge);
-      el.removeEventListener('pointerleave', cancelCharge);
-      el.removeEventListener('pointercancel', cancelCharge);
+      cancelChargeRef.current();
+      detachFromElement();
     };
-  }, [targetRefArg, startCharge, cancelCharge]);
+  }, [detachFromElement]);
 
   // Keyboard secret ("samrat" or Ctrl+Shift+S)
   useEffect(() => {
     let buffer = '';
-    const customSecret =
-      secretStrArg && secretStrArg.length >= 3
-        ? secretStrArg.toLowerCase()
-        : null;
 
     const onKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
@@ -390,10 +441,7 @@ export function useCreatorPassTrigger(
 
       if (e.key.length === 1) {
         buffer = (buffer + e.key.toLowerCase()).slice(-12);
-        if (
-          buffer.includes('samrat') ||
-          (customSecret && buffer.includes(customSecret))
-        ) {
+        if (buffer.includes('samrat')) {
           buffer = '';
           callbackRef.current?.();
         }
@@ -402,36 +450,61 @@ export function useCreatorPassTrigger(
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [secretStrArg]);
-
-  const handleSecretClick = useCallback(() => {
-    const now = Date.now();
-    clickTimestampsRef.current = clickTimestampsRef.current.filter(
-      (t) => now - t < 1600
-    );
-    clickTimestampsRef.current.push(now);
-    const ratio = Math.min(1, clickTimestampsRef.current.length / 5);
-    setChargeRatio(ratio);
-    if (clickTimestampsRef.current.length >= 5) {
-      clickTimestampsRef.current = [];
-      setChargeRatio(0);
-      callbackRef.current?.();
-    }
   }, []);
 
   return useMemo(() => {
-    const fn = () => handleSecretClick();
-    return Object.assign(fn, {
-      chargeRatio,
-      isCharging,
-      onPointerDown: startCharge,
-      onPointerUp: cancelCharge,
-      onPointerLeave: cancelCharge,
-      onPointerCancel: cancelCharge,
-      onTouchStart: startCharge,
-      onTouchEnd: cancelCharge,
+    const fn = ((arg?: HTMLElement | React.SyntheticEvent | Event | null) => {
+      if (arg === null) {
+        attachToElement(null);
+        return;
+      }
+      if (typeof HTMLElement !== 'undefined' && arg instanceof HTMLElement) {
+        attachToElement(arg);
+        return;
+      }
+      if (arg && typeof arg === 'object' && 'type' in arg) {
+        const evtType = String(arg.type);
+        if (
+          evtType === 'pointerdown' ||
+          evtType === 'mousedown' ||
+          evtType === 'touchstart'
+        ) {
+          startCharge();
+        }
+      }
+    }) as CreatorPassTriggerResult;
+
+    Object.assign(fn, {
+      onPointerDown: () => startCharge(),
+      onPointerUp: () => cancelCharge(),
+      onPointerLeave: () => cancelCharge(),
+      onPointerCancel: () => cancelCharge(),
+      onMouseDown: () => startCharge(),
+      onMouseUp: () => cancelCharge(),
+      onMouseLeave: () => cancelCharge(),
+      onTouchStart: () => startCharge(),
+      onTouchEnd: () => cancelCharge(),
+      onTouchCancel: () => cancelCharge(),
+      onContextMenu: (e: React.MouseEvent | Event) => {
+        e.preventDefault();
+      },
     });
-  }, [handleSecretClick, chargeRatio, isCharging, startCharge, cancelCharge]);
+
+    Object.defineProperties(fn, {
+      chargeRatio: {
+        value: chargeRatio,
+        enumerable: false,
+        configurable: true,
+      },
+      isCharging: {
+        value: isCharging,
+        enumerable: false,
+        configurable: true,
+      },
+    });
+
+    return fn;
+  }, [attachToElement, startCharge, cancelCharge, chargeRatio, isCharging]);
 }
 
 /* ============================================================================
@@ -975,7 +1048,12 @@ const CreatorSignatureSVG: React.FC<{
     >
       <svg
         viewBox="0 0 360 96"
-        style={{ width: '240px', maxWidth: '72vw', height: 'auto', overflow: 'visible' }}
+        style={{
+          width: '240px',
+          maxWidth: '72vw',
+          height: 'auto',
+          overflow: 'visible',
+        }}
         fill="none"
         aria-label="Samrat Signature"
       >
