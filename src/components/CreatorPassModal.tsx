@@ -5,12 +5,6 @@ import React, {
   useCallback,
   useMemo,
 } from 'react';
-import {
-  motion,
-  AnimatePresence,
-  useMotionValue,
-  useSpring,
-} from 'framer-motion';
 
 /* ============================================================================
    TYPES, CONSTANTS & EDITORIAL PALETTES
@@ -53,7 +47,6 @@ const CREATOR_INSTAGRAM_HANDLE = '@samrat.tiwary';
 const CREATOR_LINKEDIN_URL = 'https://www.linkedin.com/in/samrat-sandilya';
 const CREATOR_LINKEDIN_HANDLE = 'in/samrat-sandilya';
 
-const CINEMA_EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
 const SCRAMBLE_GLYPHS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/+#*<>';
 
 const THEMES: Record<ShaderMode, ThemeTokens> = {
@@ -106,6 +99,64 @@ const THEMES: Record<ShaderMode, ThemeTokens> = {
     isLight: true,
   },
 };
+
+/* ============================================================================
+   COMPATIBLE SECRET TRIGGER HOOK (FOR App.tsx IMPORT)
+   - Supports secret typing ("samrat"), Ctrl+Shift+S, or rapid multi-click
+   ============================================================================ */
+
+export function useCreatorPassTrigger(onTrigger?: () => void) {
+  const callbackRef = useRef(onTrigger);
+  callbackRef.current = onTrigger;
+  const clickTimestampsRef = useRef<number[]>([]);
+
+  useEffect(() => {
+    let buffer = '';
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+
+      if (e.ctrlKey && e.shiftKey && (e.key === 'S' || e.key === 's')) {
+        e.preventDefault();
+        callbackRef.current?.();
+        return;
+      }
+
+      if (e.key.length === 1) {
+        buffer = (buffer + e.key.toLowerCase()).slice(-8);
+        if (buffer.includes('samrat')) {
+          buffer = '';
+          callbackRef.current?.();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
+  const handleSecretClick = useCallback(() => {
+    const now = Date.now();
+    clickTimestampsRef.current = clickTimestampsRef.current.filter(
+      (t) => now - t < 1600
+    );
+    clickTimestampsRef.current.push(now);
+    if (clickTimestampsRef.current.length >= 5) {
+      clickTimestampsRef.current = [];
+      callbackRef.current?.();
+    }
+  }, []);
+
+  return handleSecretClick;
+}
 
 /* ============================================================================
    DYNAMIC EDITORIAL FONT LOADER (ZERO CONFIG)
@@ -318,7 +369,7 @@ class MonolithAudioEngine {
 }
 
 /* ============================================================================
-   MAGNETIC TACTILE BUTTON WITH SPECULAR LIGHT SHEEN & SLOT-ROLL
+   MAGNETIC TACTILE BUTTON (PURE GPU CSS + SPECULAR LIGHT SHEEN)
    ============================================================================ */
 
 interface MagneticButtonProps {
@@ -351,10 +402,8 @@ const MagneticButton: React.FC<MagneticButtonProps> = ({
   buttonRef,
 }) => {
   const internalRef = useRef<HTMLElement | null>(null);
-  const mx = useMotionValue(0);
-  const my = useMotionValue(0);
-  const sx = useSpring(mx, { stiffness: 320, damping: 22, mass: 0.4 });
-  const sy = useSpring(my, { stiffness: 320, damping: 22, mass: 0.4 });
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [pressed, setPressed] = useState(false);
   const [sheen, setSheen] = useState({ x: 50, y: 50, active: false });
 
   const setRefs = useCallback(
@@ -375,8 +424,7 @@ const MagneticButton: React.FC<MagneticButtonProps> = ({
     const rect = el.getBoundingClientRect();
     const dx = e.clientX - (rect.left + rect.width / 2);
     const dy = e.clientY - (rect.top + rect.height / 2);
-    mx.set(dx * strength);
-    my.set(dy * strength);
+    setOffset({ x: dx * strength, y: dy * strength });
     setSheen({
       x: ((e.clientX - rect.left) / rect.width) * 100,
       y: ((e.clientY - rect.top) / rect.height) * 100,
@@ -385,19 +433,27 @@ const MagneticButton: React.FC<MagneticButtonProps> = ({
   };
 
   const handleLeave = () => {
-    mx.set(0);
-    my.set(0);
+    setOffset({ x: 0, y: 0 });
+    setPressed(false);
     setSheen((prev) => ({ ...prev, active: false }));
     onMouseLeave?.();
+  };
+
+  const mergedStyle: React.CSSProperties = {
+    ...style,
+    transform: `translate3d(${offset.x.toFixed(1)}px, ${offset.y.toFixed(1)}px, 0) scale(${pressed ? 0.96 : 1})`,
+    transition:
+      'transform 0.32s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.35s ease, border-color 0.35s ease, color 0.35s ease',
   };
 
   const innerContent = (
     <>
       <span
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 rounded-[inherit] transition-opacity duration-300"
+        className="pointer-events-none absolute inset-0 rounded-[inherit]"
         style={{
           opacity: sheen.active ? 1 : 0,
+          transition: 'opacity 0.3s ease',
           background: `radial-gradient(120px circle at ${sheen.x}% ${sheen.y}%, rgba(255,255,255,0.22), transparent 68%)`,
         }}
       />
@@ -405,46 +461,127 @@ const MagneticButton: React.FC<MagneticButtonProps> = ({
     </>
   );
 
-  const sharedMotionProps = {
-    style: { x: sx, y: sy, ...style },
+  const commonProps = {
+    style: mergedStyle,
     onMouseMove: handleMove,
     onMouseEnter: () => {
       setSheen((prev) => ({ ...prev, active: true }));
       onMouseEnter?.();
     },
     onMouseLeave: handleLeave,
-    whileTap: { scale: 0.96 },
-    transition: { type: 'spring' as const, stiffness: 420, damping: 28 },
+    onMouseDown: () => setPressed(true),
+    onMouseUp: () => setPressed(false),
     className: `relative overflow-hidden select-none cursor-pointer ${className}`,
     title,
   };
 
   if (href) {
     return (
-      <motion.a
+      <a
         ref={setRefs as React.Ref<HTMLAnchorElement>}
         href={href}
         target={target}
         rel={rel}
         onClick={onClick}
-        {...sharedMotionProps}
+        {...commonProps}
       >
         {innerContent}
-      </motion.a>
+      </a>
     );
   }
 
   return (
-    <motion.button
+    <button
       ref={setRefs as React.Ref<HTMLButtonElement>}
       type="button"
       onClick={onClick}
-      {...sharedMotionProps}
+      {...commonProps}
     >
       {innerContent}
-    </motion.button>
+    </button>
   );
 };
+
+/* ============================================================================
+   LIQUID SLIDING TOGGLE RAIL (SPRING CAPSULE — ZERO EXTERNAL LIBS)
+   ============================================================================ */
+
+interface SlidingPillGroupProps<T extends string> {
+  options: T[];
+  value: T | null;
+  onChange: (val: T) => void;
+  theme: ThemeTokens;
+}
+
+function SlidingPillGroup<T extends string>({
+  options,
+  value,
+  onChange,
+  theme,
+}: SlidingPillGroupProps<T>) {
+  const btnRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const [capsule, setCapsule] = useState({ left: 0, width: 0, visible: false });
+
+  useEffect(() => {
+    if (!value) {
+      setCapsule((prev) => ({ ...prev, visible: false }));
+      return;
+    }
+    const el = btnRefs.current[value];
+    if (el) {
+      setCapsule({
+        left: el.offsetLeft,
+        width: el.offsetWidth,
+        visible: true,
+      });
+    }
+  }, [value, options]);
+
+  return (
+    <div
+      className="relative flex items-center p-1 rounded-full border backdrop-blur-xl"
+      style={{
+        backgroundColor: theme.glassBg,
+        borderColor: theme.glassBorder,
+        transition: 'background-color 0.45s ease, border-color 0.45s ease',
+      }}
+    >
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute top-1 bottom-1 rounded-full"
+        style={{
+          left: 0,
+          width: `${capsule.width}px`,
+          transform: `translate3d(${capsule.left}px, 0, 0)`,
+          opacity: capsule.visible ? 1 : 0,
+          backgroundColor: theme.pillActiveBg,
+          transition:
+            'transform 0.42s cubic-bezier(0.22, 1, 0.36, 1), width 0.42s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.25s ease, background-color 0.35s ease',
+        }}
+      />
+      {options.map((opt) => {
+        const active = value === opt;
+        return (
+          <button
+            key={opt}
+            ref={(node) => {
+              btnRefs.current[opt] = node;
+            }}
+            type="button"
+            onClick={() => onChange(opt)}
+            className="relative z-10 px-2.5 py-1 rounded-full text-[9px] tracking-[0.2em] uppercase cursor-pointer"
+            style={{
+              color: active ? theme.pillActiveText : theme.textMuted,
+              transition: 'color 0.3s ease',
+            }}
+          >
+            {opt}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 /* ============================================================================
    VERTICAL SLOT-ROLL LINK LABEL (PRIMARY -> EXACT HANDLE REVEAL)
@@ -463,46 +600,47 @@ const SlotRollLabel: React.FC<SlotRollLabelProps> = ({
   hovered,
   underlineColor,
 }) => {
+  const ease = 'cubic-bezier(0.22, 1, 0.36, 1)';
   return (
     <span className="relative inline-flex flex-col overflow-hidden h-[1.25em] leading-[1.25em]">
-      <motion.span
-        animate={{
-          y: hovered ? '-105%' : '0%',
+      <span
+        className="inline-flex items-center gap-1 whitespace-nowrap"
+        style={{
+          transform: hovered ? 'translateY(-105%)' : 'translateY(0%)',
           opacity: hovered ? 0 : 1,
           filter: hovered ? 'blur(4px)' : 'blur(0px)',
+          transition: `transform 0.34s ${ease}, opacity 0.3s ease, filter 0.32s ease`,
         }}
-        transition={{ duration: 0.34, ease: CINEMA_EASE }}
-        className="inline-flex items-center gap-1 whitespace-nowrap"
       >
         {primary}
-      </motion.span>
-      <motion.span
-        animate={{
-          y: hovered ? '-100%' : '15%',
+      </span>
+      <span
+        className="inline-flex items-center gap-1 whitespace-nowrap"
+        style={{
+          transform: hovered ? 'translateY(-100%)' : 'translateY(15%)',
           opacity: hovered ? 1 : 0,
           filter: hovered ? 'blur(0px)' : 'blur(4px)',
+          transition: `transform 0.34s ${ease}, opacity 0.3s ease, filter 0.32s ease`,
         }}
-        transition={{ duration: 0.34, ease: CINEMA_EASE }}
-        className="inline-flex items-center gap-1 whitespace-nowrap"
       >
         {secondary}
-      </motion.span>
-      <motion.span
+      </span>
+      <span
         aria-hidden="true"
-        animate={{ scaleX: hovered ? 1 : 0 }}
-        transition={{ duration: 0.32, ease: CINEMA_EASE }}
-        style={{
-          originX: 0,
-          backgroundColor: underlineColor,
-        }}
         className="absolute bottom-0 left-0 right-0 h-[1px]"
+        style={{
+          transformOrigin: 'left center',
+          transform: `scaleX(${hovered ? 1 : 0})`,
+          backgroundColor: underlineColor,
+          transition: `transform 0.34s ${ease}`,
+        }}
       />
     </span>
   );
 };
 
 /* ============================================================================
-   SELF-DRAWING FOUNTAIN-PEN SVG SIGNATURE
+   SELF-DRAWING FOUNTAIN-PEN SVG SIGNATURE (NATIVE PATHLENGTH ANIMATION)
    ============================================================================ */
 
 const CreatorSignatureSVG: React.FC<{
@@ -519,7 +657,13 @@ const CreatorSignatureSVG: React.FC<{
         aria-label="Samrat Signature"
       >
         <defs>
-          <filter id="monolith-ink-glow" x="-20%" y="-20%" width="140%" height="140%">
+          <filter
+            id="monolith-ink-glow"
+            x="-20%"
+            y="-20%"
+            width="140%"
+            height="140%"
+          >
             <feGaussianBlur stdDeviation="2.2" result="blur" />
             <feMerge>
               <feMergeNode in="blur" />
@@ -527,50 +671,50 @@ const CreatorSignatureSVG: React.FC<{
             </feMerge>
           </filter>
         </defs>
-        {/* Main calligraphic stroke: S-a-m-r-a-t */}
-        <motion.path
+        <path
+          pathLength={1}
           d="M 54 30 C 30 22, 18 42, 42 52 C 68 62, 54 84, 24 76 C 14 73, 18 62, 34 62 C 58 62, 82 40, 96 42 C 106 43, 92 64, 102 64 C 110 64, 118 46, 126 46 C 132 46, 126 64, 134 64 C 142 64, 148 47, 155 47 C 161 47, 156 64, 165 64 C 174 64, 182 46, 190 46 C 198 46, 194 64, 204 64 C 214 64, 224 44, 232 45 C 238 46, 230 64, 242 64 C 254 64, 270 30, 278 22 C 272 42, 266 66, 280 65 C 296 64, 314 54, 336 52"
           stroke={color}
           strokeWidth="2.1"
           strokeLinecap="round"
           strokeLinejoin="round"
           filter="url(#monolith-ink-glow)"
-          initial={{ pathLength: 0, opacity: 0 }}
-          animate={
-            active
-              ? { pathLength: 1, opacity: 0.94 }
-              : { pathLength: 0, opacity: 0 }
-          }
-          transition={{ duration: 2.1, ease: CINEMA_EASE, delay: 0.15 }}
+          strokeDasharray={1}
+          strokeDashoffset={active ? 0 : 1}
+          style={{
+            opacity: active ? 0.94 : 0,
+            transition:
+              'stroke-dashoffset 2.1s cubic-bezier(0.22, 1, 0.36, 1) 0.15s, opacity 0.6s ease',
+          }}
         />
-        {/* T-crossbar flourish */}
-        <motion.path
+        <path
+          pathLength={1}
           d="M 254 36 C 274 34, 294 31, 316 32"
           stroke={accent}
           strokeWidth="1.4"
           strokeLinecap="round"
-          initial={{ pathLength: 0, opacity: 0 }}
-          animate={
-            active
-              ? { pathLength: 1, opacity: 0.85 }
-              : { pathLength: 0, opacity: 0 }
-          }
-          transition={{ duration: 0.65, ease: CINEMA_EASE, delay: 1.85 }}
+          strokeDasharray={1}
+          strokeDashoffset={active ? 0 : 1}
+          style={{
+            opacity: active ? 0.85 : 0,
+            transition:
+              'stroke-dashoffset 0.7s cubic-bezier(0.22, 1, 0.36, 1) 1.75s, opacity 0.5s ease 1.7s',
+          }}
         />
-        {/* Editorial underline sweep */}
-        <motion.path
+        <path
+          pathLength={1}
           d="M 68 82 C 138 75, 226 73, 304 77"
           stroke={color}
           strokeOpacity="0.35"
           strokeWidth="1"
           strokeLinecap="round"
-          initial={{ pathLength: 0, opacity: 0 }}
-          animate={
-            active
-              ? { pathLength: 1, opacity: 0.55 }
-              : { pathLength: 0, opacity: 0 }
-          }
-          transition={{ duration: 0.9, ease: CINEMA_EASE, delay: 2.05 }}
+          strokeDasharray={1}
+          strokeDashoffset={active ? 0 : 1}
+          style={{
+            opacity: active ? 0.55 : 0,
+            transition:
+              'stroke-dashoffset 0.95s cubic-bezier(0.22, 1, 0.36, 1) 1.95s, opacity 0.5s ease 1.9s',
+          }}
         />
       </svg>
     </div>
@@ -587,6 +731,7 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
   isDarkMode = true,
 }) => {
   // Core modal & choreography states
+  const [mountedVisible, setMountedVisible] = useState(false);
   const [shaderMode, setShaderMode] = useState<ShaderMode>(
     isDarkMode ? 'OBSIDIAN' : 'INK'
   );
@@ -598,8 +743,9 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
   const [isHoldingVortex, setIsHoldingVortex] = useState(false);
   const [isImploding, setIsImploding] = useState(false);
 
-  // 0.8s Architectural Telemetry Intro Flash
+  // 0.8s Architectural Telemetry Intro Flash + Reality-Tear Shutters
   const [introActive, setIntroActive] = useState(true);
+  const [shutterOpened, setShutterOpened] = useState(false);
   const [introPercent, setIntroPercent] = useState(0);
 
   // Scroll-driven Rack Focus (0 = Hero Monolith sharp, 1 = Signature/Telemetry sharp)
@@ -704,7 +850,7 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
     }
   }, []);
 
-  // Init Web Audio Synth + Lock Body Scroll + 0.8s Telemetry Entry Flash
+  // Init Web Audio Synth + Lock Body Scroll + Reality-Tear + 0.8s Telemetry Flash
   useEffect(() => {
     if (!isOpen) return;
 
@@ -719,27 +865,39 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
     setIsImploding(false);
     engineStateRef.current.imploding = false;
     setIntroActive(true);
+    setShutterOpened(false);
     setIntroPercent(0);
+    setMountedVisible(false);
+
+    const frameMount = requestAnimationFrame(() => {
+      setMountedVisible(true);
+    });
+    const shutterTimer = window.setTimeout(() => {
+      setShutterOpened(true);
+    }, 140);
 
     const startTime = performance.now();
     const duration = 760;
     let rafIntro = 0;
+    let endIntroTimer = 0;
 
     const tickIntro = (now: number) => {
       const progress = Math.min(1, (now - startTime) / duration);
-      // Fast architectural counter ease
       const eased = 1 - Math.pow(1 - progress, 3);
       setIntroPercent(Math.round(eased * 100));
       if (progress < 1) {
         rafIntro = requestAnimationFrame(tickIntro);
       } else {
-        window.setTimeout(() => setIntroActive(false), 90);
+        endIntroTimer = window.setTimeout(() => setIntroActive(false), 110);
       }
     };
     rafIntro = requestAnimationFrame(tickIntro);
 
     return () => {
+      cancelAnimationFrame(frameMount);
       cancelAnimationFrame(rafIntro);
+      window.clearTimeout(shutterTimer);
+      window.clearTimeout(endIntroTimer);
       document.body.style.overflow = prevOverflow;
       audio.dispose();
       audioRef.current = null;
@@ -814,7 +972,13 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
         setGravityOn((prev) => {
           const next = !prev;
           audioRef.current?.playGravityPulse(next);
-          if (!next) triggerShockwave(window.innerWidth / 2, window.innerHeight * 0.55, 16);
+          if (!next) {
+            triggerShockwave(
+              window.innerWidth / 2,
+              window.innerHeight * 0.55,
+              16
+            );
+          }
           return next;
         });
       }
@@ -843,8 +1007,8 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
   useEffect(() => {
     if (!isOpen || typeof window === 'undefined') return;
     const handleOrientation = (e: DeviceOrientationEvent) => {
-      const gamma = Math.max(-35, Math.min(35, e.gamma ?? 0)) / 35; // left-right (-1..1)
-      const beta = Math.max(-35, Math.min(35, (e.beta ?? 45) - 45)) / 35; // front-back (-1..1)
+      const gamma = Math.max(-35, Math.min(35, e.gamma ?? 0)) / 35;
+      const beta = Math.max(-35, Math.min(35, (e.beta ?? 45) - 45)) / 35;
       engineStateRef.current.gyro.x = gamma;
       engineStateRef.current.gyro.y = beta;
       setGyroTilt({ x: gamma, y: beta });
@@ -893,7 +1057,8 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
     const el = scrollContainerRef.current;
     if (!el) return;
     const maxScroll = el.scrollHeight - el.clientHeight;
-    const raw = maxScroll > 0 ? Math.min(1, Math.max(0, el.scrollTop / maxScroll)) : 0;
+    const raw =
+      maxScroll > 0 ? Math.min(1, Math.max(0, el.scrollTop / maxScroll)) : 0;
     engineStateRef.current.scrollTarget = raw;
     setScrollStage(raw);
   }, []);
@@ -960,7 +1125,8 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
         copyFallback();
       }
 
-      if (scrambleTimerRef.current) window.clearInterval(scrambleTimerRef.current);
+      if (scrambleTimerRef.current)
+        window.clearInterval(scrambleTimerRef.current);
       if (copiedTimerRef.current) window.clearTimeout(copiedTimerRef.current);
       setEmailCopied(true);
       setEmailDisplay(CREATOR_EMAIL);
@@ -975,20 +1141,14 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
   // Cleanup timers on unmount
   useEffect(() => {
     return () => {
-      if (scrambleTimerRef.current) window.clearInterval(scrambleTimerRef.current);
+      if (scrambleTimerRef.current)
+        window.clearInterval(scrambleTimerRef.current);
       if (copiedTimerRef.current) window.clearTimeout(copiedTimerRef.current);
     };
   }, []);
 
   /* ==========================================================================
      HIGH-DPI 60FPS CANVAS ENGINE
-     - 10,000-Particle Float32Array Typography ("SAMRAT SANDILYA")
-     - Interactive 3D Dot-Mesh / Magnetic Wireframe Background
-     - FLUID / VORTEX / SWARM Physics
-     - Click & Hold Black-Hole Vortex + Release Explosion Shockwave
-     - Real Gravity Collapse + Dock Bounding-Box Bounce Collision
-     - 3D Z-Axis Fly-Through Camera + 0.1x Bullet-Time + Implosion Exit
-     - Direct RAF X-Ray Blueprint Lens Tracking (Zero Re-renders)
      ========================================================================== */
 
   useEffect(() => {
@@ -1002,7 +1162,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
     let height = window.innerHeight;
     let dpr = Math.min(window.devicePixelRatio || 1, 2);
 
-    // Typed-Array Particle Storage (Zero GC pauses at 10,000 particles)
     let count = 0;
     let px = new Float32Array(0);
     let py = new Float32Array(0);
@@ -1018,7 +1177,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
     let pSeed = new Float32Array(0);
     let pBounce = new Float32Array(0);
 
-    // Smoothly interpolated RGB values so shader mode switching never flickers
     const initialTheme = THEMES[engineStateRef.current.shaderMode];
     const curBg = { ...initialTheme.bgRgb };
     const curPart = { ...initialTheme.particleRgb };
@@ -1060,11 +1218,9 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
       const img = octx.getImageData(0, 0, width, height).data;
       const points: number[] = [];
 
-      // Adaptive sampling step targeting ~8,500-10,500 particles on desktop, ~4,200 on mobile
       const targetMax = isMobile ? 4600 : 10200;
-      let step = isMobile ? 3 : 3;
+      let step = 3;
 
-      // Quick density probe
       let roughHits = 0;
       for (let y = 0; y < height; y += 6) {
         for (let x = 0; x < width; x += 6) {
@@ -1084,7 +1240,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
         }
       }
 
-      // Cap cleanly to targetMax via deterministic stride
       const totalFound = points.length / 3;
       const stride = totalFound > targetMax ? totalFound / targetMax : 1;
       const finalCount = Math.min(targetMax, Math.floor(totalFound / stride));
@@ -1122,7 +1277,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
           nextVy[i] = vy[i];
           nextVz[i] = vz[i];
         } else {
-          // Dramatic radial reality-tear entry scatter
           const angle = Math.random() * Math.PI * 2;
           const dist = 120 + Math.random() * Math.max(width, height) * 0.45;
           nextPx[i] = width / 2 + Math.cos(angle) * dist;
@@ -1161,7 +1315,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
 
     sampleTypographyParticles(true);
 
-    // Re-sample smoothly once Instrument Serif loads for crisp editorial strokes
     if (document.fonts?.ready) {
       document.fonts.ready.then(() => {
         sampleTypographyParticles(false);
@@ -1177,7 +1330,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
     };
     window.addEventListener('resize', handleResize);
 
-    // Animation loop state
     let rafId = 0;
     let lastTime = performance.now();
     let frameAccumulator = 0;
@@ -1191,7 +1343,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
       const rawDt = Math.min(0.05, Math.max(0.004, (now - lastTime) / 1000));
       lastTime = now;
 
-      // FPS measurement
       frameAccumulator += rawDt;
       frameCount++;
       if (frameAccumulator >= 0.35) {
@@ -1202,18 +1353,15 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
 
       const st = engineStateRef.current;
 
-      // Smooth Bullet-Time interpolation (Spacebar hold -> 0.1x slow motion)
       const targetScale = st.bulletTime ? 0.1 : 1.0;
       currentTimeScale += (targetScale - currentTimeScale) * 0.14;
       const dt = rawDt * currentTimeScale;
       const stepFactor = dt * 60;
       simTime += dt;
 
-      // Smooth Scroll Inertia (for 3D Z-Axis Fly-Through)
       st.scrollCurrent += (st.scrollTarget - st.scrollCurrent) * 0.085;
       const scrollP = st.scrollCurrent;
 
-      // Smooth Color Interpolation between OBSIDIAN / BLUEPRINT / INK
       const targetTheme = THEMES[st.shaderMode];
       const colorLerp = 0.09;
       curBg.r += (targetTheme.bgRgb.r - curBg.r) * colorLerp;
@@ -1232,7 +1380,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
       curGrid.g += (targetTheme.gridRgb.g - curGrid.g) * colorLerp;
       curGrid.b += (targetTheme.gridRgb.b - curGrid.b) * colorLerp;
 
-      // Update X-Ray Blueprint Lens DOM directly in RAF (true 60fps, zero React churn)
       if (st.pointer.active) {
         st.lens.x += (st.pointer.x - st.lens.x) * 0.22;
         st.lens.y += (st.pointer.y - st.lens.y) * 0.22;
@@ -1247,18 +1394,16 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
         xrayRingRef.current.style.transform = `translate3d(${(st.lens.x - st.lens.radius).toFixed(1)}px, ${(st.lens.y - st.lens.radius).toFixed(1)}px, 0)`;
         xrayRingRef.current.style.width = `${size.toFixed(1)}px`;
         xrayRingRef.current.style.height = `${size.toFixed(1)}px`;
-        xrayRingRef.current.style.opacity =
-          st.lens.radius > 4 ? '1' : '0';
+        xrayRingRef.current.style.opacity = st.lens.radius > 4 ? '1' : '0';
       }
 
       ctx.save();
       ctx.scale(dpr, dpr);
 
-      // 1. Background Fill
       ctx.fillStyle = `rgb(${Math.round(curBg.r)}, ${Math.round(curBg.g)}, ${Math.round(curBg.b)})`;
       ctx.fillRect(0, 0, width, height);
 
-      // 2. Interactive 3D Magnetic Dot-Mesh / Wireframe Background
+      // Interactive 3D Magnetic Dot-Mesh / Wireframe Background
       const gridSpacing = width < 640 ? 44 : 52;
       const cols = Math.ceil(width / gridSpacing) + 1;
       const rows = Math.ceil(height / gridSpacing) + 1;
@@ -1280,8 +1425,8 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
             Math.cos(r * 0.35 + simTime * 0.7) *
             2.4;
 
-          let dx = gx - ptrX;
-          let dy = gy - ptrY;
+          const dx = gx - ptrX;
+          const dy = gy - ptrY;
           const distSq = dx * dx + dy * dy;
           let ox = st.gyro.x * 14;
           let oy = st.gyro.y * 14 + wave;
@@ -1303,7 +1448,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
           ctx.fillStyle = `rgba(${meshR}, ${meshG}, ${meshB}, ${dotAlpha.toFixed(3)})`;
           ctx.fillRect(fx - 0.85, fy - 0.85, 1.7 + glow * 1.1, 1.7 + glow * 1.1);
 
-          // Subtle magnetic wireframe connection near cursor or in Blueprint mode
           if (glow > 0.22 || st.shaderMode === 'BLUEPRINT') {
             const lineAlpha =
               st.shaderMode === 'BLUEPRINT'
@@ -1326,7 +1470,7 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
         }
       }
 
-      // 3. Active Shockwaves Update & Visual Ring Render
+      // Active Shockwaves
       for (let s = st.shockwaves.length - 1; s >= 0; s--) {
         const sw = st.shockwaves[s];
         sw.radius += 22 * stepFactor;
@@ -1343,15 +1487,15 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
         }
       }
 
-      // 4. Read Bottom Glass Dock Bounding Box for Real Gravity Bounce Collision
+      // Bottom Glass Dock Bounding Box for Real Gravity Bounce Collision
       const dockRect =
         st.gravityOn && dockRef.current
           ? dockRef.current.getBoundingClientRect()
           : null;
 
-      // 5. 3D Z-Axis Fly-Through Camera + Particle Physics Update & Render
+      // 3D Z-Axis Fly-Through Camera + Particle Physics
       const focalLength = 520;
-      const camZ = scrollP * 430; // Scroll drives camera forward through the monolith
+      const camZ = scrollP * 430;
       const halfW = width * 0.5;
       const halfH = height * 0.5;
 
@@ -1367,12 +1511,12 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
       const implodeY = st.implodeTarget.y;
       const pMode = st.physicsMode;
       const grav = st.gravityOn;
-      const vortexHold = st.pointer.down && st.pointer.active && !isImplodingNow;
+      const vortexHold =
+        st.pointer.down && st.pointer.active && !isImplodingNow;
       const gyroX = st.gyro.x * 26;
       const gyroY = st.gyro.y * 18;
       const floorY = height - 6;
 
-      // Decay pointer velocity smoothly
       st.pointer.vx *= 0.88;
       st.pointer.vy *= 0.88;
 
@@ -1385,7 +1529,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
         let ivz = vz[i];
 
         if (isImplodingNow) {
-          // Implosion Exit: Spiral suck-in towards Close button
           const dx = implodeX - x;
           const dy = implodeY - y;
           const dist = Math.hypot(dx, dy) + 1;
@@ -1394,18 +1537,16 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
           ivy = ivy * 0.86 + (dy * pull + (dx / dist) * 6.5 * stepFactor);
           ivz = ivz * 0.88 + (0 - z) * 0.14 * stepFactor;
         } else if (grav) {
-          // Real-Time Gravity Collapse + Bottom Glass Dock Collision Physics
           ivy += 0.68 * stepFactor;
           ivx += st.gyro.x * 0.28 * stepFactor;
 
-          // Cursor can still scoop & toss fallen particles
           if (st.pointer.active) {
             const dx = x - ptrX;
             const dy = y - ptrY;
             const d2 = dx * dx + dy * dy;
             if (d2 < 120 * 120) {
               const d = Math.sqrt(d2) || 1;
-              const f = ((1 - d / 120) * 2.4) * stepFactor;
+              const f = (1 - d / 120) * 2.4 * stepFactor;
               ivx += (dx / d) * f + st.pointer.vx * 0.08;
               ivy += (dy / d) * f - 1.2 * stepFactor;
             }
@@ -1414,7 +1555,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
           const nextX = x + ivx * stepFactor;
           const nextY = y + ivy * stepFactor;
 
-          // Collide & bounce on top/sides of the actual Email/Social Glass Dock
           if (dockRect) {
             const pad = 3;
             const withinDockX =
@@ -1437,7 +1577,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
             }
           }
 
-          // Collide with viewport bottom & side walls
           if (nextY >= floorY) {
             y = floorY;
             ivy = -Math.abs(ivy) * (pBounce[i] * 0.82);
@@ -1455,7 +1594,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
           ivy *= 0.996;
           ivz *= 0.95;
         } else {
-          // Spring return to SAMRAT SANDILYA target coordinates (+ subtle organic drift)
           const seed = pSeed[i];
           let driftX = gyroX;
           let driftY = gyroY;
@@ -1470,7 +1608,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
             driftX += Math.cos(ang) * 2.6;
             driftY += Math.sin(ang) * 2.6;
           } else {
-            // FLUID ambient breathing
             driftY += Math.sin(simTime * 1.35 + seed) * 1.4;
           }
 
@@ -1479,39 +1616,36 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
           ivy += (ty[i] + driftY - y) * springK * stepFactor;
           ivz += (tz[i] + driftZ - z) * 0.06 * stepFactor;
 
-          // Pointer & Black-Hole Vortex Interaction
           if (st.pointer.active) {
             const dx = x - ptrX;
             const dy = y - ptrY;
             const distSq = dx * dx + dy * dy;
 
             if (vortexHold) {
-              // Click & Hold Black-Hole Gravity Vortex (pulls all particles inward in spiral)
               const dist = Math.sqrt(distSq) + 18;
-              const pull = Math.min(26, 4200 / (dist + 60)) * 0.13 * stepFactor;
+              const pull =
+                Math.min(26, 4200 / (dist + 60)) * 0.13 * stepFactor;
               ivx += (-dx / dist) * pull + (-dy / dist) * pull * 0.72;
               ivy += (-dy / dist) * pull + (dx / dist) * pull * 0.72;
               ivz += (120 - z) * 0.025 * stepFactor;
             } else {
-              const radius = pMode === 'VORTEX' ? 195 : pMode === 'SWARM' ? 175 : 155;
+              const radius =
+                pMode === 'VORTEX' ? 195 : pMode === 'SWARM' ? 175 : 155;
               if (distSq < radius * radius) {
                 const dist = Math.sqrt(distSq) || 1;
                 const force = (1 - dist / radius) * stepFactor;
 
                 if (pMode === 'FLUID') {
-                  // Fluid Magnetic Repulsion
                   const push = force * 11.5;
                   ivx += (dx / dist) * push + st.pointer.vx * force * 0.22;
                   ivy += (dy / dist) * push + st.pointer.vy * force * 0.22;
                   ivz += force * 14;
                 } else if (pMode === 'VORTEX') {
-                  // Orbital Swirl Curl Field
                   const swirl = force * 12.5;
                   ivx += (-dy / dist) * swirl + (dx / dist) * force * 3.2;
                   ivy += (dx / dist) * swirl + (dy / dist) * force * 3.2;
                   ivz += force * 18;
                 } else {
-                  // SWARM Energetic Dispersion + Curl
                   const burst = force * 9.5;
                   ivx +=
                     (dx / dist) * burst +
@@ -1531,7 +1665,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
           ivz *= damping;
         }
 
-        // Shockwave Radial Impulse (Email click / Black-Hole release)
         for (let s = 0; s < st.shockwaves.length; s++) {
           const sw = st.shockwaves[s];
           const sdx = x - sw.x;
@@ -1539,7 +1672,8 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
           const sdist = Math.hypot(sdx, sdy) || 1;
           const band = Math.abs(sdist - sw.radius);
           if (band < 48) {
-            const imp = (1 - band / 48) * sw.strength * sw.alpha * 0.55 * stepFactor;
+            const imp =
+              (1 - band / 48) * sw.strength * sw.alpha * 0.55 * stepFactor;
             ivx += (sdx / sdist) * imp;
             ivy += (sdy / sdist) * imp;
             ivz += imp * 1.4;
@@ -1557,15 +1691,15 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
         vy[i] = ivy;
         vz[i] = ivz;
 
-        // 3D Perspective Projection (Scroll drives Z-Axis Fly-Through)
         const relZ = focalLength + z - camZ;
-        if (relZ <= 24) continue; // Particle flew past camera lens
+        if (relZ <= 24) continue;
 
         const scale = focalLength / relZ;
         const sx = (x - halfW) * scale + halfW;
         const sy = (y - halfH) * scale + halfH;
 
-        if (sx < -20 || sx > width + 20 || sy < -20 || sy > height + 20) continue;
+        if (sx < -20 || sx > width + 20 || sy < -20 || sy > height + 20)
+          continue;
 
         const speed = Math.abs(ivx) + Math.abs(ivy);
         const energy = Math.min(1, speed * 0.085);
@@ -1584,16 +1718,8 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
         ctx.fillRect(sx - size * 0.5, sy - size * 0.5, size, size);
       }
 
-      // Black-hole visual distortion halo while holding
       if (vortexHold) {
-        const grad = ctx.createRadialGradient(
-          ptrX,
-          ptrY,
-          4,
-          ptrX,
-          ptrY,
-          120
-        );
+        const grad = ctx.createRadialGradient(ptrX, ptrY, 4, ptrX, ptrY, 120);
         grad.addColorStop(0, `rgba(${aR}, ${aG}, ${aB}, 0.24)`);
         grad.addColorStop(0.45, `rgba(${aR}, ${aG}, ${aB}, 0.06)`);
         grad.addColorStop(1, 'transparent');
@@ -1615,42 +1741,49 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
     };
   }, [isOpen]);
 
-  // Pointer & Multi-Touch Handlers on Modal Root
-  const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    const ptr = engineStateRef.current.pointer;
-    if (ptr.active) {
-      ptr.vx = e.clientX - ptr.x;
-      ptr.vy = e.clientY - ptr.y;
-    }
-    ptr.x = e.clientX;
-    ptr.y = e.clientY;
-    ptr.active = true;
-  }, []);
+  // Pointer & Multi-Touch Handlers
+  const handlePointerMove = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      const ptr = engineStateRef.current.pointer;
+      if (ptr.active) {
+        ptr.vx = e.clientX - ptr.x;
+        ptr.vy = e.clientY - ptr.y;
+      }
+      ptr.x = e.clientX;
+      ptr.y = e.clientY;
+      ptr.active = true;
+    },
+    []
+  );
 
-  const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    // Ignore vortex hold if user is clicking an interactive button/link
-    const target = e.target as HTMLElement;
-    if (target.closest('button, a')) return;
+  const handlePointerDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      const target = e.target as HTMLElement;
+      if (target.closest('button, a')) return;
 
-    const ptr = engineStateRef.current.pointer;
-    ptr.x = e.clientX;
-    ptr.y = e.clientY;
-    ptr.active = true;
-    ptr.down = true;
-    setIsHoldingVortex(true);
-    audioRef.current?.playMechanicalTick(310);
-  }, []);
+      const ptr = engineStateRef.current.pointer;
+      ptr.x = e.clientX;
+      ptr.y = e.clientY;
+      ptr.active = true;
+      ptr.down = true;
+      setIsHoldingVortex(true);
+      audioRef.current?.playMechanicalTick(310);
+    },
+    []
+  );
 
-  const handlePointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    const ptr = engineStateRef.current.pointer;
-    if (ptr.down) {
-      ptr.down = false;
-      setIsHoldingVortex(false);
-      // Release Black-Hole -> Radial Shockwave Explosion back into SAMRAT SANDILYA
-      triggerShockwave(e.clientX, e.clientY, 30);
-      audioRef.current?.playShockwaveRelease();
-    }
-  }, [triggerShockwave]);
+  const handlePointerUp = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      const ptr = engineStateRef.current.pointer;
+      if (ptr.down) {
+        ptr.down = false;
+        setIsHoldingVortex(false);
+        triggerShockwave(e.clientX, e.clientY, 30);
+        audioRef.current?.playShockwaveRelease();
+      }
+    },
+    [triggerShockwave]
+  );
 
   const handlePointerLeave = useCallback(() => {
     const ptr = engineStateRef.current.pointer;
@@ -1671,7 +1804,7 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
   );
   const stage2Y = useMemo(() => (1 - stage2Opacity) * 44, [stage2Opacity]);
 
-  // Mode Switch Handlers with Crisp Synth Feedback
+  // Mode Switch Handlers
   const switchShader = (mode: ShaderMode) => {
     if (mode === shaderMode) return;
     setShaderMode(mode);
@@ -1679,7 +1812,7 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
   };
 
   const switchPhysics = (mode: PhysicsMode) => {
-    if (mode === physicsMode) return;
+    if (mode === physicsMode && !gravityOn) return;
     setPhysicsMode(mode);
     if (gravityOn) setGravityOn(false);
     audioRef.current?.playMechanicalTick(980);
@@ -1713,870 +1846,778 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
     audioRef.current?.playMechanicalTick(740);
   };
 
+  if (!isOpen) return null;
+
+  const uiRevealStyle = (delaySec = 0): React.CSSProperties => ({
+    opacity: introActive ? 0 : 1,
+    transform: introActive ? 'translate3d(0, 14px, 0)' : 'translate3d(0, 0, 0)',
+    filter: introActive ? 'blur(8px)' : 'blur(0px)',
+    transition: `opacity 0.65s cubic-bezier(0.22,1,0.36,1) ${delaySec}s, transform 0.65s cubic-bezier(0.22,1,0.36,1) ${delaySec}s, filter 0.65s ease ${delaySec}s`,
+  });
+
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          key="architects-monolith-modal"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Architected and Built by Samrat Sandilya"
-          initial={{ opacity: 0 }}
-          animate={{
-            opacity: isImploding ? 0 : 1,
-            scale: isImploding ? 0.985 : 1,
-            filter: isImploding ? 'blur(10px)' : 'blur(0px)',
-          }}
-          exit={{ opacity: 0, filter: 'blur(12px)' }}
-          transition={{ duration: 0.42, ease: CINEMA_EASE }}
-          onPointerMove={handlePointerMove}
-          onPointerDown={handlePointerDown}
-          onPointerUp={handlePointerUp}
-          onPointerCancel={handlePointerUp}
-          onPointerLeave={handlePointerLeave}
-          className="fixed inset-0 z-[9999] overflow-hidden select-none"
-          style={{
-            backgroundColor: theme.bgHex,
-            color: theme.textPrimary,
-            fontFamily: '"JetBrains Mono", ui-monospace, monospace',
-            transition: 'background-color 0.55s cubic-bezier(0.22,1,0.36,1), color 0.45s ease',
-            touchAction: 'pan-y',
-          }}
-        >
-          {/* ================================================================
-              1. LIVE 10,000-PARTICLE CANVAS + DSLR RACK-FOCUS BLUR
-             ================================================================ */}
-          <canvas
-            ref={canvasRef}
-            className="fixed inset-0 w-full h-full pointer-events-none"
-            style={{
-              filter: `blur(${canvasBlurPx.toFixed(1)}px)`,
-              transform: `scale(${(1 + scrollStage * 0.035).toFixed(4)})`,
-              transition: 'filter 0.08s linear',
-            }}
-          />
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Architected and Built by Samrat Sandilya"
+      onPointerMove={handlePointerMove}
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+      onPointerLeave={handlePointerLeave}
+      className="fixed inset-0 z-[9999] overflow-hidden select-none"
+      style={{
+        backgroundColor: theme.bgHex,
+        color: theme.textPrimary,
+        fontFamily: '"JetBrains Mono", ui-monospace, monospace',
+        opacity: isImploding ? 0 : mountedVisible ? 1 : 0,
+        transform: isImploding ? 'scale(0.985)' : 'scale(1)',
+        filter: isImploding ? 'blur(10px)' : 'blur(0px)',
+        transition:
+          'opacity 0.42s cubic-bezier(0.22,1,0.36,1), transform 0.42s cubic-bezier(0.22,1,0.36,1), filter 0.42s ease, background-color 0.55s cubic-bezier(0.22,1,0.36,1), color 0.45s ease',
+        touchAction: 'pan-y',
+      }}
+    >
+      {/* ================================================================
+          1. LIVE 10,000-PARTICLE CANVAS + DSLR RACK-FOCUS BLUR
+         ================================================================ */}
+      <canvas
+        ref={canvasRef}
+        className="fixed inset-0 w-full h-full pointer-events-none"
+        style={{
+          filter: `blur(${canvasBlurPx.toFixed(1)}px)`,
+          transform: `scale(${(1 + scrollStage * 0.035).toFixed(4)})`,
+          transition: 'filter 0.08s linear',
+        }}
+      />
 
-          {/* Subtle Editorial Paper Grain (Archival Ink / Obsidian Depth) */}
+      {/* Editorial Paper Grain */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0"
+        style={{
+          opacity: theme.isLight ? 0.055 : 0.04,
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
+        }}
+      />
+
+      {/* Cinematic Vignette */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0"
+        style={{
+          background: theme.vignette,
+          transition: 'background 0.5s ease',
+        }}
+      />
+
+      {/* ================================================================
+          2. X-RAY ARCHITECTURAL CAD BLUEPRINT CURSOR LENS (60FPS RAF)
+         ================================================================ */}
+      {xrayEnabled && !isTouchDevice && (
+        <>
           <div
+            ref={xrayLayerRef}
             aria-hidden="true"
-            className="pointer-events-none fixed inset-0"
+            className="pointer-events-none fixed inset-0 z-20 overflow-hidden"
             style={{
-              opacity: theme.isLight ? 0.055 : 0.04,
-              backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
+              clipPath: 'circle(0px at -400px -400px)',
+              backgroundColor: '#041226',
+              backgroundImage:
+                'linear-gradient(rgba(56,189,248,0.16) 1px, transparent 1px), linear-gradient(90deg, rgba(56,189,248,0.16) 1px, transparent 1px), linear-gradient(rgba(56,189,248,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(56,189,248,0.06) 1px, transparent 1px)',
+              backgroundSize: '120px 120px, 120px 120px, 24px 24px, 24px 24px',
             }}
-          />
-
-          {/* Cinematic Vignette */}
-          <div
-            aria-hidden="true"
-            className="pointer-events-none fixed inset-0 transition-all duration-500"
-            style={{ background: theme.vignette }}
-          />
-
-          {/* ================================================================
-              2. X-RAY ARCHITECTURAL CAD BLUEPRINT CURSOR LENS (60FPS RAF)
-             ================================================================ */}
-          {xrayEnabled && !isTouchDevice && (
-            <>
-              <div
-                ref={xrayLayerRef}
-                aria-hidden="true"
-                className="pointer-events-none fixed inset-0 z-20 overflow-hidden"
-                style={{
-                  clipPath: 'circle(0px at -400px -400px)',
-                  backgroundColor: '#041226',
-                  backgroundImage:
-                    'linear-gradient(rgba(56,189,248,0.16) 1px, transparent 1px), linear-gradient(90deg, rgba(56,189,248,0.16) 1px, transparent 1px), linear-gradient(rgba(56,189,248,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(56,189,248,0.06) 1px, transparent 1px)',
-                  backgroundSize: '120px 120px, 120px 120px, 24px 24px, 24px 24px',
-                }}
-              >
-                {/* Blueprint Pixel Rulers & Bezier Construction Guides */}
-                <svg
-                  className="absolute inset-0 w-full h-full opacity-75"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  {/* Crosshair axes */}
-                  <line
-                    x1="50%"
-                    y1="0"
-                    x2="50%"
-                    y2="100%"
-                    stroke="rgba(56,189,248,0.28)"
-                    strokeDasharray="4 6"
-                  />
-                  <line
-                    x1="0"
-                    y1="47%"
-                    x2="100%"
-                    y2="47%"
-                    stroke="rgba(56,189,248,0.28)"
-                    strokeDasharray="4 6"
-                  />
-                  {/* Bezier geometry arcs around the monolith */}
-                  <ellipse
-                    cx="50%"
-                    cy="47%"
-                    rx="34%"
-                    ry="24%"
-                    fill="none"
-                    stroke="rgba(125,211,252,0.34)"
-                    strokeWidth="1"
-                    strokeDasharray="6 6"
-                  />
-                  <rect
-                    x="14%"
-                    y="23%"
-                    width="72%"
-                    height="48%"
-                    fill="none"
-                    stroke="rgba(56,189,248,0.35)"
-                    strokeWidth="0.8"
-                  />
-                  {/* Diagonal construction tangent */}
-                  <line
-                    x1="14%"
-                    y1="23%"
-                    x2="86%"
-                    y2="71%"
-                    stroke="rgba(56,189,248,0.18)"
-                    strokeWidth="0.8"
-                  />
-                </svg>
-
-                {/* Hollow CAD Wireframe Overlay Aligned Over Particle Monolith */}
-                <div
-                  className="absolute inset-0 flex flex-col items-center justify-center"
-                  style={{
-                    transform: `translateY(-3%) scale(${(1 + scrollStage * 0.08).toFixed(3)})`,
-                    opacity: Math.max(0.15, 1 - scrollStage * 0.9),
-                  }}
-                >
-                  <div
-                    className="text-center leading-[0.88] tracking-tight"
-                    style={{
-                      fontFamily:
-                        '"Instrument Serif", "Cormorant Garamond", Georgia, serif',
-                      fontSize: 'min(12.8vw, 178px)',
-                      color: 'transparent',
-                      WebkitTextStroke: '1px rgba(125, 211, 252, 0.85)',
-                    }}
-                  >
-                    <div>SAMRAT</div>
-                    <div>SANDILYA</div>
-                  </div>
-                </div>
-
-                {/* X-Ray Architectural Micro-Stamps */}
-                <div className="absolute top-[19%] left-[14.5%] text-[10px] tracking-[0.26em] text-sky-300/90 uppercase">
-                  [01] ARCHITECTED FROM SCRATCH
-                </div>
-                <div className="absolute top-[19%] right-[14.5%] text-[10px] tracking-[0.26em] text-sky-300/90 uppercase">
-                  [02] ZERO TEMPLATES // HAND-CODED
-                </div>
-                <div className="absolute bottom-[24%] left-[14.5%] text-[10px] tracking-[0.26em] text-sky-200/90 uppercase">
-                  BUILT BY SAMRAT — DOM:{telemetry.domNodes} // PARTICLES:{telemetry.particles}
-                </div>
-                <div className="absolute bottom-[24%] right-[14.5%] text-[10px] tracking-[0.26em] text-sky-200/90 uppercase">
-                  CAD X-RAY // {telemetry.viewport} // {telemetry.fps} FPS
-                </div>
-              </div>
-
-              {/* Circular Glass X-Ray Rim Ring */}
-              <div
-                ref={xrayRingRef}
-                aria-hidden="true"
-                className="pointer-events-none fixed top-0 left-0 z-30 rounded-full"
-                style={{
-                  width: 0,
-                  height: 0,
-                  opacity: 0,
-                  border: '1px solid rgba(125, 211, 252, 0.58)',
-                  boxShadow:
-                    'inset 0 0 26px rgba(56, 189, 248, 0.16), 0 0 24px rgba(56, 189, 248, 0.18)',
-                  willChange: 'transform, width, height',
-                }}
-              >
-                <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] tracking-[0.22em] text-sky-300/90 whitespace-nowrap bg-[#041226]/80 px-1.5 py-0.5 rounded border border-sky-400/30">
-                  X-RAY // {telemetry.cursorX},{telemetry.cursorY}
-                </span>
-              </div>
-            </>
-          )}
-
-          {/* ================================================================
-              3. PROGRESSIVE EDGE BLUR MASKS (TOP & BOTTOM — ZERO HARD CUTS)
-             ================================================================ */}
-          <div
-            aria-hidden="true"
-            className="pointer-events-none fixed top-0 left-0 right-0 h-28 z-20"
-            style={{
-              backdropFilter: 'blur(12px)',
-              WebkitBackdropFilter: 'blur(12px)',
-              maskImage: 'linear-gradient(to bottom, black 12%, transparent 100%)',
-              WebkitMaskImage:
-                'linear-gradient(to bottom, black 12%, transparent 100%)',
-            }}
-          />
-          <div
-            aria-hidden="true"
-            className="pointer-events-none fixed bottom-0 left-0 right-0 h-32 z-20"
-            style={{
-              backdropFilter: 'blur(14px)',
-              WebkitBackdropFilter: 'blur(14px)',
-              maskImage: 'linear-gradient(to top, black 18%, transparent 100%)',
-              WebkitMaskImage:
-                'linear-gradient(to top, black 18%, transparent 100%)',
-            }}
-          />
-
-          {/* ================================================================
-              4. SCROLL-DRIVEN RACK-FOCUS STAGE (3D FLY-THROUGH + SIGNATURE)
-             ================================================================ */}
-          <div
-            ref={scrollContainerRef}
-            onScroll={handleScroll}
-            className="relative z-10 w-full h-full overflow-y-auto overflow-x-hidden scroll-smooth"
-            style={{ scrollbarWidth: 'none' }}
           >
-            {/* Track height enables buttery 3D Z-axis fly-through & focus rack */}
-            <div className="relative w-full h-[210vh]">
-              {/* Sticky Stage 1: Minimal Editorial Micro-Label & Scroll Cue */}
-              <div className="sticky top-0 h-screen w-full flex flex-col items-center justify-between pointer-events-none px-4 pt-24 pb-36">
-                <motion.div
-                  initial={{ opacity: 0, y: -12, filter: 'blur(8px)' }}
-                  animate={{
-                    opacity: introActive ? 0 : Math.max(0, 1 - scrollStage * 2.2),
-                    y: introActive ? -12 : -scrollStage * 28,
-                    filter: `blur(${(scrollStage * 10).toFixed(1)}px)`,
-                  }}
-                  transition={{ duration: 0.7, ease: CINEMA_EASE }}
-                  className="flex items-center gap-3 text-[10px] sm:text-[11px] tracking-[0.38em] uppercase"
-                  style={{ color: theme.textMuted }}
-                >
-                  <span
-                    className="inline-block w-1.5 h-1.5 rounded-full animate-pulse"
-                    style={{
-                      backgroundColor:
-                        shaderMode === 'BLUEPRINT'
-                          ? '#38BDF8'
-                          : theme.textPrimary,
-                    }}
-                  />
-                  ARCHITECTED &amp; BUILT BY
-                </motion.div>
+            <svg
+              className="absolute inset-0 w-full h-full opacity-75"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <line
+                x1="50%"
+                y1="0"
+                x2="50%"
+                y2="100%"
+                stroke="rgba(56,189,248,0.28)"
+                strokeDasharray="4 6"
+              />
+              <line
+                x1="0"
+                y1="47%"
+                x2="100%"
+                y2="47%"
+                stroke="rgba(56,189,248,0.28)"
+                strokeDasharray="4 6"
+              />
+              <ellipse
+                cx="50%"
+                cy="47%"
+                rx="34%"
+                ry="24%"
+                fill="none"
+                stroke="rgba(125,211,252,0.34)"
+                strokeWidth="1"
+                strokeDasharray="6 6"
+              />
+              <rect
+                x="14%"
+                y="23%"
+                width="72%"
+                height="48%"
+                fill="none"
+                stroke="rgba(56,189,248,0.35)"
+                strokeWidth="0.8"
+              />
+              <line
+                x1="14%"
+                y1="23%"
+                x2="86%"
+                y2="71%"
+                stroke="rgba(56,189,248,0.18)"
+                strokeWidth="0.8"
+              />
+            </svg>
 
-                {/* Center Rack-Focus Layer 2: Resolves sharply as Monolith flies past & blurs */}
-                <div
-                  className="flex flex-col items-center justify-center text-center max-w-xl mx-auto px-4"
-                  style={{
-                    opacity: stage2Opacity,
-                    filter: `blur(${stage2BlurPx.toFixed(1)}px)`,
-                    transform: `translate3d(0, ${stage2Y.toFixed(1)}px, 0)`,
-                    pointerEvents: stage2Opacity > 0.5 ? 'auto' : 'none',
-                  }}
-                >
-                  <div
-                    className="text-[10px] tracking-[0.34em] uppercase mb-4"
-                    style={{ color: theme.textMuted }}
-                  >
-                    COLOPHON // SANRACHNA ARCHITECTURE
-                  </div>
-
-                  {/* Self-Drawing Fountain-Pen SVG Signature */}
-                  <CreatorSignatureSVG
-                    color={theme.textPrimary}
-                    accent={
-                      shaderMode === 'BLUEPRINT' ? '#38BDF8' : theme.textMuted
-                    }
-                    active={stage2Opacity > 0.35}
-                  />
-
-                  {/* Crisp Live System Proof Grid (Zero AI Paragraphs) */}
-                  <div
-                    className="mt-7 grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-5 px-5 py-3.5 rounded-2xl border backdrop-blur-xl"
-                    style={{
-                      backgroundColor: theme.glassBg,
-                      borderColor: theme.glassBorder,
-                    }}
-                  >
-                    <div className="text-left">
-                      <div
-                        className="text-[9px] tracking-[0.22em] uppercase"
-                        style={{ color: theme.textMuted }}
-                      >
-                        AUTHOR
-                      </div>
-                      <div className="text-[11px] font-medium mt-0.5 tracking-wider">
-                        SAMRAT S.
-                      </div>
-                    </div>
-                    <div className="text-left">
-                      <div
-                        className="text-[9px] tracking-[0.22em] uppercase"
-                        style={{ color: theme.textMuted }}
-                      >
-                        DOM NODES
-                      </div>
-                      <div className="text-[11px] font-medium mt-0.5 tabular-nums">
-                        {telemetry.domNodes}
-                      </div>
-                    </div>
-                    <div className="text-left">
-                      <div
-                        className="text-[9px] tracking-[0.22em] uppercase"
-                        style={{ color: theme.textMuted }}
-                      >
-                        PARTICLES
-                      </div>
-                      <div className="text-[11px] font-medium mt-0.5 tabular-nums">
-                        {telemetry.particles.toLocaleString()}
-                      </div>
-                    </div>
-                    <div className="text-left">
-                      <div
-                        className="text-[9px] tracking-[0.22em] uppercase"
-                        style={{ color: theme.textMuted }}
-                      >
-                        CLOCK
-                      </div>
-                      <div className="text-[11px] font-medium mt-0.5 tabular-nums">
-                        {telemetry.istTime}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Subtle Interactive Hint Strip (Fades as user scrolls) */}
-                <motion.div
-                  animate={{
-                    opacity: introActive ? 0 : Math.max(0, 0.72 - scrollStage * 2.5),
-                    y: scrollStage * 18,
-                  }}
-                  transition={{ duration: 0.4 }}
-                  className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[9px] sm:text-[10px] tracking-[0.22em] uppercase"
-                  style={{ color: theme.textMuted }}
-                >
-                  <span>HOLD TO VORTEX</span>
-                  <span>·</span>
-                  <span>SCROLL TO FLY-THROUGH</span>
-                  <span className="hidden sm:inline">·</span>
-                  <span className="hidden sm:inline">[G] GRAVITY</span>
-                  <span className="hidden sm:inline">·</span>
-                  <span className="hidden sm:inline">[SPACE] 0.1× SLOW-MO</span>
-                </motion.div>
+            <div
+              className="absolute inset-0 flex flex-col items-center justify-center"
+              style={{
+                transform: `translateY(-3%) scale(${(1 + scrollStage * 0.08).toFixed(3)})`,
+                opacity: Math.max(0.15, 1 - scrollStage * 0.9),
+              }}
+            >
+              <div
+                className="text-center leading-[0.88] tracking-tight"
+                style={{
+                  fontFamily:
+                    '"Instrument Serif", "Cormorant Garamond", Georgia, serif',
+                  fontSize: 'min(12.8vw, 178px)',
+                  color: 'transparent',
+                  WebkitTextStroke: '1px rgba(125, 211, 252, 0.85)',
+                }}
+              >
+                <div>SAMRAT</div>
+                <div>SANDILYA</div>
               </div>
+            </div>
+
+            <div className="absolute top-[19%] left-[14.5%] text-[10px] tracking-[0.26em] text-sky-300/90 uppercase">
+              [01] ARCHITECTED FROM SCRATCH
+            </div>
+            <div className="absolute top-[19%] right-[14.5%] text-[10px] tracking-[0.26em] text-sky-300/90 uppercase">
+              [02] ZERO TEMPLATES // HAND-CODED
+            </div>
+            <div className="absolute bottom-[24%] left-[14.5%] text-[10px] tracking-[0.26em] text-sky-200/90 uppercase">
+              BUILT BY SAMRAT — DOM:{telemetry.domNodes} // PARTICLES:
+              {telemetry.particles}
+            </div>
+            <div className="absolute bottom-[24%] right-[14.5%] text-[10px] tracking-[0.26em] text-sky-200/90 uppercase">
+              CAD X-RAY // {telemetry.viewport} // {telemetry.fps} FPS
             </div>
           </div>
 
-          {/* ================================================================
-              5. TOP HUD BAR: LIVE TELEMETRY + MAGNETIC CLOSE BUTTON
-             ================================================================ */}
-          <motion.header
-            initial={{ opacity: 0, y: -16, filter: 'blur(8px)' }}
-            animate={{
-              opacity: introActive ? 0 : 1,
-              y: introActive ? -16 : 0,
-              filter: introActive ? 'blur(8px)' : 'blur(0px)',
+          <div
+            ref={xrayRingRef}
+            aria-hidden="true"
+            className="pointer-events-none fixed top-0 left-0 z-30 rounded-full"
+            style={{
+              width: 0,
+              height: 0,
+              opacity: 0,
+              border: '1px solid rgba(125, 211, 252, 0.58)',
+              boxShadow:
+                'inset 0 0 26px rgba(56, 189, 248, 0.16), 0 0 24px rgba(56, 189, 248, 0.18)',
+              willChange: 'transform, width, height',
             }}
-            transition={{ duration: 0.6, ease: CINEMA_EASE }}
-            className="fixed top-4 sm:top-6 left-4 sm:left-7 right-4 sm:right-7 z-40 flex items-start justify-between gap-3 pointer-events-none"
           >
-            {/* Left Live Engineering Telemetry Corner */}
+            <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] tracking-[0.22em] text-sky-300/90 whitespace-nowrap bg-[#041226]/80 px-1.5 py-0.5 rounded border border-sky-400/30">
+              X-RAY // {telemetry.cursorX},{telemetry.cursorY}
+            </span>
+          </div>
+        </>
+      )}
+
+      {/* ================================================================
+          3. PROGRESSIVE EDGE BLUR MASKS (TOP & BOTTOM — ZERO HARD CUTS)
+         ================================================================ */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed top-0 left-0 right-0 h-28 z-20"
+        style={{
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          maskImage: 'linear-gradient(to bottom, black 12%, transparent 100%)',
+          WebkitMaskImage:
+            'linear-gradient(to bottom, black 12%, transparent 100%)',
+        }}
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed bottom-0 left-0 right-0 h-32 z-20"
+        style={{
+          backdropFilter: 'blur(14px)',
+          WebkitBackdropFilter: 'blur(14px)',
+          maskImage: 'linear-gradient(to top, black 18%, transparent 100%)',
+          WebkitMaskImage:
+            'linear-gradient(to top, black 18%, transparent 100%)',
+        }}
+      />
+
+      {/* ================================================================
+          4. SCROLL-DRIVEN RACK-FOCUS STAGE (3D FLY-THROUGH + SIGNATURE)
+         ================================================================ */}
+      <div
+        ref={scrollContainerRef}
+        onScroll={handleScroll}
+        className="relative z-10 w-full h-full overflow-y-auto overflow-x-hidden scroll-smooth"
+        style={{ scrollbarWidth: 'none' }}
+      >
+        <div className="relative w-full h-[210vh]">
+          <div className="sticky top-0 h-screen w-full flex flex-col items-center justify-between pointer-events-none px-4 pt-24 pb-36">
             <div
-              className="pointer-events-auto flex flex-col gap-1 px-3.5 py-2 rounded-xl border backdrop-blur-xl text-[9px] sm:text-[10px] tracking-[0.18em] uppercase tabular-nums"
+              className="flex items-center gap-3 text-[10px] sm:text-[11px] tracking-[0.38em] uppercase"
               style={{
-                backgroundColor: theme.glassBg,
-                borderColor: theme.glassBorder,
+                color: theme.textMuted,
+                opacity: introActive ? 0 : Math.max(0, 1 - scrollStage * 2.2),
+                transform: `translate3d(0, ${introActive ? -12 : -scrollStage * 28}px, 0)`,
+                filter: `blur(${(introActive ? 8 : scrollStage * 10).toFixed(1)}px)`,
+                transition: 'opacity 0.55s ease, transform 0.45s ease, filter 0.35s ease',
               }}
             >
-              <div className="flex items-center gap-2.5">
-                <span className="inline-flex items-center gap-1.5">
-                  <span
-                    className="w-1.5 h-1.5 rounded-full"
-                    style={{
-                      backgroundColor: bulletTime
-                        ? '#F59E0B'
-                        : isHoldingVortex
-                        ? '#38BDF8'
-                        : '#22C55E',
-                    }}
-                  />
-                  {telemetry.fps} FPS
-                </span>
-                <span style={{ color: theme.textMuted }}>|</span>
-                <span style={{ color: theme.textMuted }}>
-                  XY {telemetry.cursorX},{telemetry.cursorY}
-                </span>
-              </div>
-              <div
-                className="hidden sm:flex items-center gap-2.5 text-[9px]"
-                style={{ color: theme.textMuted }}
-              >
-                <span>{telemetry.viewport}</span>
-                <span>·</span>
-                <span>DOM {telemetry.domNodes}</span>
-                <span>·</span>
-                <span>{telemetry.istTime}</span>
-              </div>
+              <span
+                className="inline-block w-1.5 h-1.5 rounded-full animate-pulse"
+                style={{
+                  backgroundColor:
+                    shaderMode === 'BLUEPRINT' ? '#38BDF8' : theme.textPrimary,
+                }}
+              />
+              ARCHITECTED &amp; BUILT BY
             </div>
 
-            {/* Right Status Indicators + Magnetic CLOSE Pill */}
-            <div className="pointer-events-auto flex items-center gap-2">
-              <AnimatePresence>
-                {bulletTime && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.9, filter: 'blur(6px)' }}
-                    animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
-                    exit={{ opacity: 0, scale: 0.9, filter: 'blur(6px)' }}
-                    transition={{ duration: 0.25, ease: CINEMA_EASE }}
-                    className="px-3 py-1.5 rounded-full text-[10px] tracking-[0.22em] uppercase border backdrop-blur-xl text-amber-300 border-amber-400/40 bg-amber-500/10"
-                  >
-                    BULLET-TIME 0.1×
-                  </motion.div>
-                )}
-              </AnimatePresence>
+            {/* Rack-Focus Stage 2: Signature + Live Proof Grid */}
+            <div
+              className="flex flex-col items-center justify-center text-center max-w-xl mx-auto px-4"
+              style={{
+                opacity: stage2Opacity,
+                filter: `blur(${stage2BlurPx.toFixed(1)}px)`,
+                transform: `translate3d(0, ${stage2Y.toFixed(1)}px, 0)`,
+                pointerEvents: stage2Opacity > 0.5 ? 'auto' : 'none',
+              }}
+            >
+              <div
+                className="text-[10px] tracking-[0.34em] uppercase mb-4"
+                style={{ color: theme.textMuted }}
+              >
+                COLOPHON // SANRACHNA ARCHITECTURE
+              </div>
 
-              <MagneticButton
-                buttonRef={closeBtnRef}
-                onClick={handleImplosionClose}
-                onMouseEnter={() => audioRef.current?.playSoftHover()}
-                className="px-4 py-2 rounded-full border backdrop-blur-xl text-[10px] sm:text-[11px] tracking-[0.24em] uppercase"
+              <CreatorSignatureSVG
+                color={theme.textPrimary}
+                accent={shaderMode === 'BLUEPRINT' ? '#38BDF8' : theme.textMuted}
+                active={stage2Opacity > 0.35}
+              />
+
+              <div
+                className="mt-7 grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-5 px-5 py-3.5 rounded-2xl border backdrop-blur-xl"
                 style={{
                   backgroundColor: theme.glassBg,
                   borderColor: theme.glassBorder,
-                  color: theme.textPrimary,
                 }}
               >
-                <span>CLOSE</span>
-                <span className="text-xs leading-none opacity-75">✕</span>
-              </MagneticButton>
-            </div>
-          </motion.header>
-
-          {/* ================================================================
-              6. LIQUID SLIDING PLAYGROUND CONTROLS (layoutId SPRING PILLS)
-             ================================================================ */}
-          <motion.aside
-            initial={{ opacity: 0, y: 18, filter: 'blur(8px)' }}
-            animate={{
-              opacity: introActive ? 0 : 1,
-              y: introActive ? 18 : 0,
-              filter: introActive ? 'blur(8px)' : 'blur(0px)',
-            }}
-            transition={{ duration: 0.65, delay: 0.08, ease: CINEMA_EASE }}
-            className="fixed left-4 sm:left-7 bottom-24 sm:bottom-24 z-40 hidden md:flex flex-col gap-2"
-          >
-            {/* Shader Switcher */}
-            <div
-              className="flex items-center p-1 rounded-full border backdrop-blur-xl"
-              style={{
-                backgroundColor: theme.glassBg,
-                borderColor: theme.glassBorder,
-              }}
-            >
-              {(['OBSIDIAN', 'BLUEPRINT', 'INK'] as ShaderMode[]).map((mode) => {
-                const active = shaderMode === mode;
-                return (
-                  <button
-                    key={mode}
-                    type="button"
-                    onClick={() => switchShader(mode)}
-                    className="relative px-2.5 py-1 rounded-full text-[9px] tracking-[0.2em] uppercase cursor-pointer transition-colors"
-                    style={{
-                      color: active ? theme.pillActiveText : theme.textMuted,
-                    }}
-                  >
-                    {active && (
-                      <motion.span
-                        layoutId="monolith-shader-pill"
-                        transition={{
-                          type: 'spring',
-                          stiffness: 420,
-                          damping: 32,
-                        }}
-                        className="absolute inset-0 rounded-full"
-                        style={{ backgroundColor: theme.pillActiveBg }}
-                      />
-                    )}
-                    <span className="relative z-10">{mode}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Physics Switcher */}
-            <div
-              className="flex items-center p-1 rounded-full border backdrop-blur-xl"
-              style={{
-                backgroundColor: theme.glassBg,
-                borderColor: theme.glassBorder,
-              }}
-            >
-              {(['FLUID', 'VORTEX', 'SWARM'] as PhysicsMode[]).map((mode) => {
-                const active = physicsMode === mode && !gravityOn;
-                return (
-                  <button
-                    key={mode}
-                    type="button"
-                    onClick={() => switchPhysics(mode)}
-                    className="relative px-2.5 py-1 rounded-full text-[9px] tracking-[0.2em] uppercase cursor-pointer transition-colors"
-                    style={{
-                      color: active ? theme.pillActiveText : theme.textMuted,
-                    }}
-                  >
-                    {active && (
-                      <motion.span
-                        layoutId="monolith-physics-pill"
-                        transition={{
-                          type: 'spring',
-                          stiffness: 420,
-                          damping: 32,
-                        }}
-                        className="absolute inset-0 rounded-full"
-                        style={{ backgroundColor: theme.pillActiveBg }}
-                      />
-                    )}
-                    <span className="relative z-10">{mode}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </motion.aside>
-
-          {/* Right Utility Hardware Toggles (GRAVITY / X-RAY / AUDIO) */}
-          <motion.aside
-            initial={{ opacity: 0, y: 18, filter: 'blur(8px)' }}
-            animate={{
-              opacity: introActive ? 0 : 1,
-              y: introActive ? 18 : 0,
-              filter: introActive ? 'blur(8px)' : 'blur(0px)',
-            }}
-            transition={{ duration: 0.65, delay: 0.1, ease: CINEMA_EASE }}
-            className="fixed right-4 sm:right-7 bottom-24 z-40 hidden md:flex items-center gap-1.5 p-1 rounded-full border backdrop-blur-xl"
-            style={{
-              backgroundColor: theme.glassBg,
-              borderColor: theme.glassBorder,
-            }}
-          >
-            <button
-              type="button"
-              onClick={toggleGravity}
-              className="relative px-2.5 py-1 rounded-full text-[9px] tracking-[0.2em] uppercase cursor-pointer transition-all"
-              style={{
-                backgroundColor: gravityOn ? theme.pillActiveBg : 'transparent',
-                color: gravityOn ? theme.pillActiveText : theme.textMuted,
-              }}
-              title="Toggle Gravity Collapse (Press G)"
-            >
-              GRAVITY {gravityOn ? 'ON' : 'OFF'}
-            </button>
-            <button
-              type="button"
-              onClick={toggleXray}
-              className="relative px-2.5 py-1 rounded-full text-[9px] tracking-[0.2em] uppercase cursor-pointer transition-all"
-              style={{
-                backgroundColor: xrayEnabled
-                  ? theme.pillActiveBg
-                  : 'transparent',
-                color: xrayEnabled ? theme.pillActiveText : theme.textMuted,
-              }}
-              title="Toggle CAD X-Ray Cursor Lens"
-            >
-              X-RAY
-            </button>
-            <button
-              type="button"
-              onClick={toggleAudio}
-              className="relative px-2.5 py-1 rounded-full text-[9px] tracking-[0.2em] uppercase cursor-pointer transition-all"
-              style={{
-                backgroundColor: !audioMuted
-                  ? theme.pillActiveBg
-                  : 'transparent',
-                color: !audioMuted ? theme.pillActiveText : theme.textMuted,
-              }}
-              title="Toggle Synthesized Audio"
-            >
-              {audioMuted ? 'MUTED' : 'SOUND'}
-            </button>
-          </motion.aside>
-
-          {/* Compact Mobile Controls Bar (Visible only on small screens) */}
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: introActive ? 0 : 1, y: introActive ? 12 : 0 }}
-            transition={{ duration: 0.5, ease: CINEMA_EASE }}
-            className="fixed left-1/2 -translate-x-1/2 bottom-[92px] z-40 flex md:hidden items-center gap-1 p-1 rounded-full border backdrop-blur-xl max-w-[94vw] overflow-x-auto"
-            style={{
-              backgroundColor: theme.glassBg,
-              borderColor: theme.glassBorder,
-            }}
-          >
-            {(['OBSIDIAN', 'BLUEPRINT', 'INK'] as ShaderMode[]).map((mode) => (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => switchShader(mode)}
-                className="px-2 py-1 rounded-full text-[8px] tracking-[0.16em] uppercase whitespace-nowrap"
-                style={{
-                  backgroundColor:
-                    shaderMode === mode ? theme.pillActiveBg : 'transparent',
-                  color:
-                    shaderMode === mode
-                      ? theme.pillActiveText
-                      : theme.textMuted,
-                }}
-              >
-                {mode}
-              </button>
-            ))}
-            <span className="opacity-25 text-[10px]">|</span>
-            <button
-              type="button"
-              onClick={toggleGravity}
-              className="px-2 py-1 rounded-full text-[8px] tracking-[0.16em] uppercase whitespace-nowrap"
-              style={{
-                backgroundColor: gravityOn ? theme.pillActiveBg : 'transparent',
-                color: gravityOn ? theme.pillActiveText : theme.textMuted,
-              }}
-            >
-              GRAV
-            </button>
-            <button
-              type="button"
-              onClick={toggleAudio}
-              className="px-2 py-1 rounded-full text-[8px] tracking-[0.16em] uppercase whitespace-nowrap"
-              style={{
-                color: !audioMuted ? theme.pillActiveText : theme.textMuted,
-              }}
-            >
-              {audioMuted ? 'MUTE' : 'SFX'}
-            </button>
-          </motion.div>
-
-          {/* ================================================================
-              7. FLOATING LIQUID-GLASS COMMAND DOCK (COLLISION SURFACE)
-                 - Email Cipher Scramble + Shockwave Copy + MAIL ↗
-                 - INSTAGRAM ↗ (@samrat.tiwary) + LINKEDIN ↗ (in/samrat-sandilya)
-             ================================================================ */}
-          <motion.nav
-            ref={dockRef}
-            aria-label="Creator Direct Contact"
-            initial={{ opacity: 0, y: 28, filter: 'blur(12px)' }}
-            animate={{
-              opacity: introActive ? 0 : 1,
-              y: introActive ? 28 : 0,
-              filter: introActive ? 'blur(12px)' : 'blur(0px)',
-            }}
-            transition={{ duration: 0.72, delay: 0.12, ease: CINEMA_EASE }}
-            className="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-40 max-w-[95vw]"
-          >
-            <div
-              className="relative flex flex-wrap sm:flex-nowrap items-center justify-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-2 rounded-2xl sm:rounded-full border backdrop-blur-2xl shadow-2xl overflow-hidden"
-              style={{
-                backgroundColor: theme.glassBg,
-                borderColor: theme.glassBorder,
-                boxShadow: theme.isLight
-                  ? '0 18px 50px -12px rgba(10,10,12,0.14), inset 0 1px 0 rgba(255,255,255,0.8)'
-                  : '0 22px 60px -12px rgba(0,0,0,0.75), inset 0 1px 0 rgba(255,255,255,0.14)',
-              }}
-            >
-              {/* Gyroscope & Ambient Specular Glass Shine Strip */}
-              <div
-                aria-hidden="true"
-                className="pointer-events-none absolute inset-0 opacity-40"
-                style={{
-                  background: `linear-gradient(${105 + gyroTilt.x * 35}deg, transparent 20%, rgba(255,255,255,${theme.isLight ? '0.55' : '0.16'}) 50%, transparent 80%)`,
-                }}
-              />
-
-              {/* Direct Email Copy Button with Cipher Scramble & Blur-Morph */}
-              <MagneticButton
-                onClick={handleCopyEmail}
-                onMouseEnter={runEmailScramble}
-                strength={0.2}
-                className="px-3 sm:px-4 py-1.5 rounded-full text-[10px] sm:text-[11px] tracking-[0.14em]"
-                style={{ color: theme.textPrimary }}
-                title="Click to copy email"
-              >
-                <AnimatePresence mode="wait">
-                  {emailCopied ? (
-                    <motion.span
-                      key="copied"
-                      initial={{ opacity: 0, y: 6, filter: 'blur(5px)' }}
-                      animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                      exit={{ opacity: 0, y: -6, filter: 'blur(5px)' }}
-                      transition={{ duration: 0.28, ease: CINEMA_EASE }}
-                      className="inline-flex items-center gap-1.5 font-medium tracking-[0.2em] uppercase"
-                      style={{
-                        color:
-                          shaderMode === 'BLUEPRINT'
-                            ? '#38BDF8'
-                            : theme.textPrimary,
-                      }}
-                    >
-                      DIRECT LINE COPIED ✦
-                    </motion.span>
-                  ) : (
-                    <motion.span
-                      key="email"
-                      initial={{ opacity: 0, y: 6, filter: 'blur(5px)' }}
-                      animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                      exit={{ opacity: 0, y: -6, filter: 'blur(5px)' }}
-                      transition={{ duration: 0.25, ease: CINEMA_EASE }}
-                      className="inline-flex items-center gap-2 whitespace-nowrap"
-                    >
-                      <span
-                        className="w-1.5 h-1.5 rounded-full"
-                        style={{
-                          backgroundColor:
-                            shaderMode === 'BLUEPRINT'
-                              ? '#38BDF8'
-                              : theme.textPrimary,
-                        }}
-                      />
-                      <span>{emailDisplay}</span>
-                    </motion.span>
-                  )}
-                </AnimatePresence>
-              </MagneticButton>
-
-              {/* Direct Mailto Trigger */}
-              <MagneticButton
-                href={`mailto:${CREATOR_EMAIL}`}
-                onMouseEnter={() => audioRef.current?.playSoftHover()}
-                onClick={() => audioRef.current?.playMechanicalTick(950)}
-                strength={0.25}
-                className="px-2.5 py-1.5 rounded-full text-[9px] sm:text-[10px] tracking-[0.2em] uppercase border"
-                style={{
-                  borderColor: theme.glassBorder,
-                  color: theme.textMuted,
-                }}
-                title="Open Mail App"
-              >
-                MAIL ↗
-              </MagneticButton>
-
-              {/* Hairline Divider */}
-              <span
-                aria-hidden="true"
-                className="hidden sm:inline-block w-[1px] h-4 mx-1"
-                style={{ backgroundColor: theme.glassBorder }}
-              />
-
-              {/* Instagram Link with Vertical Slot-Roll Handle Reveal */}
-              <MagneticButton
-                href={CREATOR_INSTAGRAM_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                onMouseEnter={() => {
-                  setInstaHovered(true);
-                  audioRef.current?.playMechanicalTick(1040);
-                }}
-                onMouseLeave={() => setInstaHovered(false)}
-                strength={0.24}
-                className="px-3 py-1.5 rounded-full text-[10px] sm:text-[11px] tracking-[0.16em] uppercase"
-                style={{ color: theme.textPrimary }}
-              >
-                <SlotRollLabel
-                  primary="INSTAGRAM ↗"
-                  secondary={`${CREATOR_INSTAGRAM_HANDLE} ↗`}
-                  hovered={instaHovered}
-                  underlineColor={
-                    shaderMode === 'BLUEPRINT' ? '#38BDF8' : theme.textPrimary
-                  }
-                />
-              </MagneticButton>
-
-              {/* LinkedIn Link with Vertical Slot-Roll Handle Reveal */}
-              <MagneticButton
-                href={CREATOR_LINKEDIN_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                onMouseEnter={() => {
-                  setLinkedinHovered(true);
-                  audioRef.current?.playMechanicalTick(1120);
-                }}
-                onMouseLeave={() => setLinkedinHovered(false)}
-                strength={0.24}
-                className="px-3 py-1.5 rounded-full text-[10px] sm:text-[11px] tracking-[0.16em] uppercase"
-                style={{ color: theme.textPrimary }}
-              >
-                <SlotRollLabel
-                  primary="LINKEDIN ↗"
-                  secondary={`${CREATOR_LINKEDIN_HANDLE} ↗`}
-                  hovered={linkedinHovered}
-                  underlineColor={
-                    shaderMode === 'BLUEPRINT' ? '#38BDF8' : theme.textPrimary
-                  }
-                />
-              </MagneticButton>
-            </div>
-          </motion.nav>
-
-          {/* ================================================================
-              8. REALITY-TEAR KINETIC SHUTTER + 0.8S ARCHITECTURAL TELEMETRY FLASH
-             ================================================================ */}
-          <AnimatePresence>
-            {introActive && (
-              <motion.div
-                key="monolith-intro-curtain"
-                initial={{ opacity: 1 }}
-                exit={{ opacity: 0, filter: 'blur(14px)', scale: 1.04 }}
-                transition={{ duration: 0.48, ease: CINEMA_EASE }}
-                className="fixed inset-0 z-50 pointer-events-none flex items-center justify-center overflow-hidden"
-              >
-                {/* Top & Bottom Kinetic Split Shutters */}
-                <motion.div
-                  initial={{ scaleY: 1 }}
-                  animate={{ scaleY: 0 }}
-                  transition={{ duration: 0.62, delay: 0.14, ease: CINEMA_EASE }}
-                  style={{ originY: 0, backgroundColor: theme.bgHex }}
-                  className="absolute top-0 left-0 right-0 h-1/2 border-b border-white/10"
-                />
-                <motion.div
-                  initial={{ scaleY: 1 }}
-                  animate={{ scaleY: 0 }}
-                  transition={{ duration: 0.62, delay: 0.14, ease: CINEMA_EASE }}
-                  style={{ originY: 1, backgroundColor: theme.bgHex }}
-                  className="absolute bottom-0 left-0 right-0 h-1/2 border-t border-white/10"
-                />
-
-                {/* Chromatic Reality-Tear Ripple Line */}
-                <motion.div
-                  initial={{ scaleX: 0, opacity: 0.9 }}
-                  animate={{ scaleX: 1, opacity: 0 }}
-                  transition={{ duration: 0.55, ease: CINEMA_EASE }}
-                  className="absolute left-0 right-0 h-[2px]"
-                  style={{
-                    background:
-                      'linear-gradient(90deg, transparent, #38BDF8, #FFFFFF, #F43F5E, transparent)',
-                    boxShadow: '0 0 28px rgba(56,189,248,0.8)',
-                  }}
-                />
-
-                {/* 0.8s Razor-Sharp Architectural Telemetry Flash */}
-                <div className="relative z-10 flex flex-col items-center gap-2 text-center px-6">
-                  <div className="flex items-center gap-4 text-[10px] sm:text-[11px] tracking-[0.34em] uppercase">
-                    <span>SYSTEM // SANRACHNA</span>
-                    <span className="opacity-35">·</span>
-                    <span>CRAFT // HAND-CODED</span>
-                  </div>
+                <div className="text-left">
                   <div
-                    className="text-4xl sm:text-5xl tabular-nums tracking-tight"
-                    style={{
-                      fontFamily:
-                        '"Instrument Serif", "Cormorant Garamond", Georgia, serif',
-                    }}
+                    className="text-[9px] tracking-[0.22em] uppercase"
+                    style={{ color: theme.textMuted }}
                   >
-                    {String(introPercent).padStart(2, '0')}%
+                    AUTHOR
+                  </div>
+                  <div className="text-[11px] font-medium mt-0.5 tracking-wider">
+                    SAMRAT S.
                   </div>
                 </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.div>
-      )}
-    </AnimatePresence>
+                <div className="text-left">
+                  <div
+                    className="text-[9px] tracking-[0.22em] uppercase"
+                    style={{ color: theme.textMuted }}
+                  >
+                    DOM NODES
+                  </div>
+                  <div className="text-[11px] font-medium mt-0.5 tabular-nums">
+                    {telemetry.domNodes}
+                  </div>
+                </div>
+                <div className="text-left">
+                  <div
+                    className="text-[9px] tracking-[0.22em] uppercase"
+                    style={{ color: theme.textMuted }}
+                  >
+                    PARTICLES
+                  </div>
+                  <div className="text-[11px] font-medium mt-0.5 tabular-nums">
+                    {telemetry.particles.toLocaleString()}
+                  </div>
+                </div>
+                <div className="text-left">
+                  <div
+                    className="text-[9px] tracking-[0.22em] uppercase"
+                    style={{ color: theme.textMuted }}
+                  >
+                    CLOCK
+                  </div>
+                  <div className="text-[11px] font-medium mt-0.5 tabular-nums">
+                    {telemetry.istTime}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Interactive Hint Strip */}
+            <div
+              className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[9px] sm:text-[10px] tracking-[0.22em] uppercase"
+              style={{
+                color: theme.textMuted,
+                opacity: introActive
+                  ? 0
+                  : Math.max(0, 0.72 - scrollStage * 2.5),
+                transform: `translate3d(0, ${(scrollStage * 18).toFixed(1)}px, 0)`,
+                transition: 'opacity 0.4s ease',
+              }}
+            >
+              <span>HOLD TO VORTEX</span>
+              <span>·</span>
+              <span>SCROLL TO FLY-THROUGH</span>
+              <span className="hidden sm:inline">·</span>
+              <span className="hidden sm:inline">[G] GRAVITY</span>
+              <span className="hidden sm:inline">·</span>
+              <span className="hidden sm:inline">[SPACE] 0.1× SLOW-MO</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ================================================================
+          5. TOP HUD BAR: LIVE TELEMETRY + MAGNETIC CLOSE BUTTON
+         ================================================================ */}
+      <header
+        className="fixed top-4 sm:top-6 left-4 sm:left-7 right-4 sm:right-7 z-40 flex items-start justify-between gap-3 pointer-events-none"
+        style={{
+          opacity: introActive ? 0 : 1,
+          transform: introActive ? 'translate3d(0, -14px, 0)' : 'translate3d(0, 0, 0)',
+          filter: introActive ? 'blur(8px)' : 'blur(0px)',
+          transition:
+            'opacity 0.6s cubic-bezier(0.22,1,0.36,1), transform 0.6s cubic-bezier(0.22,1,0.36,1), filter 0.6s ease',
+        }}
+      >
+        <div
+          className="pointer-events-auto flex flex-col gap-1 px-3.5 py-2 rounded-xl border backdrop-blur-xl text-[9px] sm:text-[10px] tracking-[0.18em] uppercase tabular-nums"
+          style={{
+            backgroundColor: theme.glassBg,
+            borderColor: theme.glassBorder,
+            transition: 'background-color 0.45s ease, border-color 0.45s ease',
+          }}
+        >
+          <div className="flex items-center gap-2.5">
+            <span className="inline-flex items-center gap-1.5">
+              <span
+                className="w-1.5 h-1.5 rounded-full"
+                style={{
+                  backgroundColor: bulletTime
+                    ? '#F59E0B'
+                    : isHoldingVortex
+                    ? '#38BDF8'
+                    : '#22C55E',
+                }}
+              />
+              {telemetry.fps} FPS
+            </span>
+            <span style={{ color: theme.textMuted }}>|</span>
+            <span style={{ color: theme.textMuted }}>
+              XY {telemetry.cursorX},{telemetry.cursorY}
+            </span>
+          </div>
+          <div
+            className="hidden sm:flex items-center gap-2.5 text-[9px]"
+            style={{ color: theme.textMuted }}
+          >
+            <span>{telemetry.viewport}</span>
+            <span>·</span>
+            <span>DOM {telemetry.domNodes}</span>
+            <span>·</span>
+            <span>{telemetry.istTime}</span>
+          </div>
+        </div>
+
+        <div className="pointer-events-auto flex items-center gap-2">
+          <div
+            className="px-3 py-1.5 rounded-full text-[10px] tracking-[0.22em] uppercase border backdrop-blur-xl text-amber-300 border-amber-400/40 bg-amber-500/10 pointer-events-none"
+            style={{
+              opacity: bulletTime ? 1 : 0,
+              transform: bulletTime ? 'scale(1)' : 'scale(0.9)',
+              filter: bulletTime ? 'blur(0px)' : 'blur(6px)',
+              transition:
+                'opacity 0.25s ease, transform 0.25s cubic-bezier(0.22,1,0.36,1), filter 0.25s ease',
+            }}
+          >
+            BULLET-TIME 0.1×
+          </div>
+
+          <MagneticButton
+            buttonRef={closeBtnRef}
+            onClick={handleImplosionClose}
+            onMouseEnter={() => audioRef.current?.playSoftHover()}
+            className="px-4 py-2 rounded-full border backdrop-blur-xl text-[10px] sm:text-[11px] tracking-[0.24em] uppercase"
+            style={{
+              backgroundColor: theme.glassBg,
+              borderColor: theme.glassBorder,
+              color: theme.textPrimary,
+            }}
+          >
+            <span>CLOSE</span>
+            <span className="text-xs leading-none opacity-75">✕</span>
+          </MagneticButton>
+        </div>
+      </header>
+
+      {/* ================================================================
+          6. LIQUID SLIDING PLAYGROUND CONTROLS
+         ================================================================ */}
+      <aside
+        className="fixed left-4 sm:left-7 bottom-24 z-40 hidden md:flex flex-col gap-2"
+        style={uiRevealStyle(0.08)}
+      >
+        <SlidingPillGroup<ShaderMode>
+          options={['OBSIDIAN', 'BLUEPRINT', 'INK']}
+          value={shaderMode}
+          onChange={switchShader}
+          theme={theme}
+        />
+        <SlidingPillGroup<PhysicsMode>
+          options={['FLUID', 'VORTEX', 'SWARM']}
+          value={gravityOn ? null : physicsMode}
+          onChange={switchPhysics}
+          theme={theme}
+        />
+      </aside>
+
+      {/* Right Hardware Utility Switches */}
+      <aside
+        className="fixed right-4 sm:right-7 bottom-24 z-40 hidden md:flex items-center gap-1.5 p-1 rounded-full border backdrop-blur-xl"
+        style={{
+          ...uiRevealStyle(0.1),
+          backgroundColor: theme.glassBg,
+          borderColor: theme.glassBorder,
+        }}
+      >
+        <button
+          type="button"
+          onClick={toggleGravity}
+          className="px-2.5 py-1 rounded-full text-[9px] tracking-[0.2em] uppercase cursor-pointer"
+          style={{
+            backgroundColor: gravityOn ? theme.pillActiveBg : 'transparent',
+            color: gravityOn ? theme.pillActiveText : theme.textMuted,
+            transition: 'background-color 0.3s ease, color 0.3s ease',
+          }}
+          title="Toggle Gravity Collapse (Press G)"
+        >
+          GRAVITY {gravityOn ? 'ON' : 'OFF'}
+        </button>
+        <button
+          type="button"
+          onClick={toggleXray}
+          className="px-2.5 py-1 rounded-full text-[9px] tracking-[0.2em] uppercase cursor-pointer"
+          style={{
+            backgroundColor: xrayEnabled ? theme.pillActiveBg : 'transparent',
+            color: xrayEnabled ? theme.pillActiveText : theme.textMuted,
+            transition: 'background-color 0.3s ease, color 0.3s ease',
+          }}
+          title="Toggle CAD X-Ray Cursor Lens"
+        >
+          X-RAY
+        </button>
+        <button
+          type="button"
+          onClick={toggleAudio}
+          className="px-2.5 py-1 rounded-full text-[9px] tracking-[0.2em] uppercase cursor-pointer"
+          style={{
+            backgroundColor: !audioMuted ? theme.pillActiveBg : 'transparent',
+            color: !audioMuted ? theme.pillActiveText : theme.textMuted,
+            transition: 'background-color 0.3s ease, color 0.3s ease',
+          }}
+          title="Toggle Synthesized Audio"
+        >
+          {audioMuted ? 'MUTED' : 'SOUND'}
+        </button>
+      </aside>
+
+      {/* Compact Mobile Controls Strip */}
+      <div
+        className="fixed left-1/2 -translate-x-1/2 bottom-[92px] z-40 flex md:hidden items-center gap-1 p-1 rounded-full border backdrop-blur-xl max-w-[94vw] overflow-x-auto"
+        style={{
+          opacity: introActive ? 0 : 1,
+          transition: 'opacity 0.5s ease',
+          backgroundColor: theme.glassBg,
+          borderColor: theme.glassBorder,
+        }}
+      >
+        {(['OBSIDIAN', 'BLUEPRINT', 'INK'] as ShaderMode[]).map((mode) => (
+          <button
+            key={mode}
+            type="button"
+            onClick={() => switchShader(mode)}
+            className="px-2 py-1 rounded-full text-[8px] tracking-[0.16em] uppercase whitespace-nowrap"
+            style={{
+              backgroundColor:
+                shaderMode === mode ? theme.pillActiveBg : 'transparent',
+              color:
+                shaderMode === mode ? theme.pillActiveText : theme.textMuted,
+            }}
+          >
+            {mode}
+          </button>
+        ))}
+        <span className="opacity-25 text-[10px]">|</span>
+        <button
+          type="button"
+          onClick={toggleGravity}
+          className="px-2 py-1 rounded-full text-[8px] tracking-[0.16em] uppercase whitespace-nowrap"
+          style={{
+            backgroundColor: gravityOn ? theme.pillActiveBg : 'transparent',
+            color: gravityOn ? theme.pillActiveText : theme.textMuted,
+          }}
+        >
+          GRAV
+        </button>
+        <button
+          type="button"
+          onClick={toggleAudio}
+          className="px-2 py-1 rounded-full text-[8px] tracking-[0.16em] uppercase whitespace-nowrap"
+          style={{
+            color: !audioMuted ? theme.pillActiveText : theme.textMuted,
+          }}
+        >
+          {audioMuted ? 'MUTE' : 'SFX'}
+        </button>
+      </div>
+
+      {/* ================================================================
+          7. FLOATING LIQUID-GLASS COMMAND DOCK (GRAVITY COLLISION SURFACE)
+         ================================================================ */}
+      <nav
+        ref={dockRef}
+        aria-label="Creator Direct Contact"
+        className="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-40 max-w-[95vw]"
+        style={{
+          opacity: introActive ? 0 : 1,
+          transform: introActive
+            ? 'translate3d(-50%, 24px, 0)'
+            : 'translate3d(-50%, 0, 0)',
+          filter: introActive ? 'blur(12px)' : 'blur(0px)',
+          transition:
+            'opacity 0.72s cubic-bezier(0.22,1,0.36,1) 0.12s, transform 0.72s cubic-bezier(0.22,1,0.36,1) 0.12s, filter 0.72s ease 0.12s',
+        }}
+      >
+        <div
+          className="relative flex flex-wrap sm:flex-nowrap items-center justify-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-2 rounded-2xl sm:rounded-full border backdrop-blur-2xl shadow-2xl overflow-hidden"
+          style={{
+            backgroundColor: theme.glassBg,
+            borderColor: theme.glassBorder,
+            boxShadow: theme.isLight
+              ? '0 18px 50px -12px rgba(10,10,12,0.14), inset 0 1px 0 rgba(255,255,255,0.8)'
+              : '0 22px 60px -12px rgba(0,0,0,0.75), inset 0 1px 0 rgba(255,255,255,0.14)',
+            transition: 'background-color 0.45s ease, border-color 0.45s ease',
+          }}
+        >
+          {/* Gyroscope & Ambient Specular Glass Shine */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 opacity-40"
+            style={{
+              background: `linear-gradient(${105 + gyroTilt.x * 35}deg, transparent 20%, rgba(255,255,255,${theme.isLight ? '0.55' : '0.16'}) 50%, transparent 80%)`,
+            }}
+          />
+
+          {/* Direct Email Copy Button with Cipher Scramble & Blur-Morph */}
+          <MagneticButton
+            onClick={handleCopyEmail}
+            onMouseEnter={runEmailScramble}
+            strength={0.2}
+            className="px-3 sm:px-4 py-1.5 rounded-full text-[10px] sm:text-[11px] tracking-[0.14em]"
+            style={{ color: theme.textPrimary }}
+            title="Click to copy email"
+          >
+            <span className="relative inline-flex items-center whitespace-nowrap">
+              <span
+                className="inline-flex items-center gap-2"
+                style={{
+                  opacity: emailCopied ? 0 : 1,
+                  filter: emailCopied ? 'blur(5px)' : 'blur(0px)',
+                  transform: emailCopied ? 'translateY(-6px)' : 'translateY(0)',
+                  transition:
+                    'opacity 0.28s ease, filter 0.28s ease, transform 0.28s cubic-bezier(0.22,1,0.36,1)',
+                }}
+              >
+                <span
+                  className="w-1.5 h-1.5 rounded-full"
+                  style={{
+                    backgroundColor:
+                      shaderMode === 'BLUEPRINT'
+                        ? '#38BDF8'
+                        : theme.textPrimary,
+                  }}
+                />
+                <span>{emailDisplay}</span>
+              </span>
+              <span
+                className="absolute inset-0 inline-flex items-center justify-center font-medium tracking-[0.2em] uppercase"
+                style={{
+                  opacity: emailCopied ? 1 : 0,
+                  filter: emailCopied ? 'blur(0px)' : 'blur(5px)',
+                  transform: emailCopied ? 'translateY(0)' : 'translateY(6px)',
+                  color:
+                    shaderMode === 'BLUEPRINT' ? '#38BDF8' : theme.textPrimary,
+                  transition:
+                    'opacity 0.28s ease, filter 0.28s ease, transform 0.28s cubic-bezier(0.22,1,0.36,1)',
+                }}
+              >
+                DIRECT LINE COPIED ✦
+              </span>
+            </span>
+          </MagneticButton>
+
+          {/* Direct Mailto Trigger */}
+          <MagneticButton
+            href={`mailto:${CREATOR_EMAIL}`}
+            onMouseEnter={() => audioRef.current?.playSoftHover()}
+            onClick={() => audioRef.current?.playMechanicalTick(950)}
+            strength={0.25}
+            className="px-2.5 py-1.5 rounded-full text-[9px] sm:text-[10px] tracking-[0.2em] uppercase border"
+            style={{
+              borderColor: theme.glassBorder,
+              color: theme.textMuted,
+            }}
+            title="Open Mail App"
+          >
+            MAIL ↗
+          </MagneticButton>
+
+          <span
+            aria-hidden="true"
+            className="hidden sm:inline-block w-[1px] h-4 mx-1"
+            style={{ backgroundColor: theme.glassBorder }}
+          />
+
+          {/* Instagram Link with Vertical Slot-Roll Handle Reveal */}
+          <MagneticButton
+            href={CREATOR_INSTAGRAM_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            onMouseEnter={() => {
+              setInstaHovered(true);
+              audioRef.current?.playMechanicalTick(1040);
+            }}
+            onMouseLeave={() => setInstaHovered(false)}
+            strength={0.24}
+            className="px-3 py-1.5 rounded-full text-[10px] sm:text-[11px] tracking-[0.16em] uppercase"
+            style={{ color: theme.textPrimary }}
+          >
+            <SlotRollLabel
+              primary="INSTAGRAM ↗"
+              secondary={`${CREATOR_INSTAGRAM_HANDLE} ↗`}
+              hovered={instaHovered}
+              underlineColor={
+                shaderMode === 'BLUEPRINT' ? '#38BDF8' : theme.textPrimary
+              }
+            />
+          </MagneticButton>
+
+          {/* LinkedIn Link with Vertical Slot-Roll Handle Reveal */}
+          <MagneticButton
+            href={CREATOR_LINKEDIN_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            onMouseEnter={() => {
+              setLinkedinHovered(true);
+              audioRef.current?.playMechanicalTick(1120);
+            }}
+            onMouseLeave={() => setLinkedinHovered(false)}
+            strength={0.24}
+            className="px-3 py-1.5 rounded-full text-[10px] sm:text-[11px] tracking-[0.16em] uppercase"
+            style={{ color: theme.textPrimary }}
+          >
+            <SlotRollLabel
+              primary="LINKEDIN ↗"
+              secondary={`${CREATOR_LINKEDIN_HANDLE} ↗`}
+              hovered={linkedinHovered}
+              underlineColor={
+                shaderMode === 'BLUEPRINT' ? '#38BDF8' : theme.textPrimary
+              }
+            />
+          </MagneticButton>
+        </div>
+      </nav>
+
+      {/* ================================================================
+          8. REALITY-TEAR KINETIC SHUTTER + 0.8S ARCHITECTURAL TELEMETRY FLASH
+         ================================================================ */}
+      <div
+        aria-hidden={!introActive}
+        className="fixed inset-0 z-50 pointer-events-none flex items-center justify-center overflow-hidden"
+        style={{
+          opacity: introActive ? 1 : 0,
+          filter: introActive ? 'blur(0px)' : 'blur(14px)',
+          transform: introActive ? 'scale(1)' : 'scale(1.04)',
+          transition:
+            'opacity 0.48s cubic-bezier(0.22,1,0.36,1), filter 0.48s ease, transform 0.48s cubic-bezier(0.22,1,0.36,1)',
+        }}
+      >
+        <div
+          className="absolute top-0 left-0 right-0 h-1/2 border-b border-white/10"
+          style={{
+            backgroundColor: theme.bgHex,
+            transformOrigin: 'top center',
+            transform: shutterOpened ? 'scaleY(0)' : 'scaleY(1)',
+            transition: 'transform 0.62s cubic-bezier(0.22,1,0.36,1)',
+          }}
+        />
+        <div
+          className="absolute bottom-0 left-0 right-0 h-1/2 border-t border-white/10"
+          style={{
+            backgroundColor: theme.bgHex,
+            transformOrigin: 'bottom center',
+            transform: shutterOpened ? 'scaleY(0)' : 'scaleY(1)',
+            transition: 'transform 0.62s cubic-bezier(0.22,1,0.36,1)',
+          }}
+        />
+
+        <div
+          className="absolute left-0 right-0 h-[2px]"
+          style={{
+            transform: shutterOpened ? 'scaleX(1)' : 'scaleX(0)',
+            opacity: shutterOpened ? 0 : 0.9,
+            transition:
+              'transform 0.52s cubic-bezier(0.22,1,0.36,1), opacity 0.55s ease',
+            background:
+              'linear-gradient(90deg, transparent, #38BDF8, #FFFFFF, #F43F5E, transparent)',
+            boxShadow: '0 0 28px rgba(56,189,248,0.8)',
+          }}
+        />
+
+        <div className="relative z-10 flex flex-col items-center gap-2 text-center px-6">
+          <div className="flex items-center gap-4 text-[10px] sm:text-[11px] tracking-[0.34em] uppercase">
+            <span>SYSTEM // SANRACHNA</span>
+            <span className="opacity-35">·</span>
+            <span>CRAFT // HAND-CODED</span>
+          </div>
+          <div
+            className="text-4xl sm:text-5xl tabular-nums tracking-tight"
+            style={{
+              fontFamily:
+                '"Instrument Serif", "Cormorant Garamond", Georgia, serif',
+            }}
+          >
+            {String(introPercent).padStart(2, '0')}%
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
 
