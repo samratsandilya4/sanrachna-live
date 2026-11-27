@@ -5,6 +5,7 @@ import React, {
   useCallback,
   useMemo,
 } from 'react';
+import { createPortal } from 'react-dom';
 
 /* ============================================================================
    TYPES, CONSTANTS & EDITORIAL PALETTES
@@ -57,13 +58,13 @@ const THEMES: Record<ShaderMode, ThemeTokens> = {
     accentRgb: { r: 196, g: 204, b: 218 },
     gridRgb: { r: 255, g: 255, b: 255 },
     textPrimary: '#F4F2EC',
-    textMuted: 'rgba(244, 242, 236, 0.52)',
-    glassBg: 'rgba(14, 15, 20, 0.62)',
-    glassBorder: 'rgba(255, 255, 255, 0.13)',
-    pillActiveBg: 'rgba(244, 242, 236, 0.14)',
+    textMuted: 'rgba(244, 242, 236, 0.54)',
+    glassBg: 'rgba(14, 15, 20, 0.66)',
+    glassBorder: 'rgba(255, 255, 255, 0.14)',
+    pillActiveBg: 'rgba(244, 242, 236, 0.15)',
     pillActiveText: '#FFFFFF',
     vignette:
-      'radial-gradient(ellipse at center, transparent 42%, rgba(0,0,0,0.72) 100%)',
+      'radial-gradient(ellipse at center, transparent 42%, rgba(0,0,0,0.74) 100%)',
     isLight: false,
   },
   BLUEPRINT: {
@@ -73,13 +74,13 @@ const THEMES: Record<ShaderMode, ThemeTokens> = {
     accentRgb: { r: 56, g: 189, b: 248 },
     gridRgb: { r: 56, g: 189, b: 248 },
     textPrimary: '#E0F2FE',
-    textMuted: 'rgba(125, 211, 252, 0.62)',
-    glassBg: 'rgba(6, 20, 40, 0.66)',
-    glassBorder: 'rgba(56, 189, 248, 0.28)',
+    textMuted: 'rgba(125, 211, 252, 0.65)',
+    glassBg: 'rgba(6, 20, 40, 0.7)',
+    glassBorder: 'rgba(56, 189, 248, 0.3)',
     pillActiveBg: 'rgba(56, 189, 248, 0.22)',
     pillActiveText: '#F0F9FF',
     vignette:
-      'radial-gradient(ellipse at center, transparent 38%, rgba(2,6,14,0.82) 100%)',
+      'radial-gradient(ellipse at center, transparent 38%, rgba(2,6,14,0.84) 100%)',
     isLight: false,
   },
   INK: {
@@ -89,10 +90,10 @@ const THEMES: Record<ShaderMode, ThemeTokens> = {
     accentRgb: { r: 72, g: 68, b: 62 },
     gridRgb: { r: 14, g: 14, b: 18 },
     textPrimary: '#0A0A0C',
-    textMuted: 'rgba(10, 10, 12, 0.54)',
-    glassBg: 'rgba(250, 248, 242, 0.72)',
+    textMuted: 'rgba(10, 10, 12, 0.56)',
+    glassBg: 'rgba(250, 248, 242, 0.78)',
     glassBorder: 'rgba(10, 10, 12, 0.14)',
-    pillActiveBg: 'rgba(10, 10, 12, 0.1)',
+    pillActiveBg: 'rgba(10, 10, 12, 0.11)',
     pillActiveText: '#0A0A0C',
     vignette:
       'radial-gradient(ellipse at center, transparent 48%, rgba(20,18,14,0.12) 100%)',
@@ -101,12 +102,194 @@ const THEMES: Record<ShaderMode, ThemeTokens> = {
 };
 
 /* ============================================================================
-   COMPATIBLE SECRET TRIGGER HOOK (FOR App.tsx IMPORT)
-   - Supports secret typing ("samrat"), Ctrl+Shift+S, or rapid multi-click
+   SELF-CONTAINED SCOPED CSS (ZERO TAILWIND DEPENDENCY)
    ============================================================================ */
+
+const MONOLITH_SCOPED_CSS = `
+.cm-root, .cm-root * {
+  box-sizing: border-box;
+}
+.cm-root {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  z-index: 2147483000 !important;
+  overflow: hidden !important;
+  user-select: none;
+  -webkit-user-select: none;
+  margin: 0;
+  padding: 0;
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.cm-root button, .cm-root a {
+  font-family: inherit;
+  text-decoration: none;
+  background: transparent;
+  outline: none;
+}
+.cm-scroll {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.cm-scroll::-webkit-scrollbar {
+  display: none;
+}
+.cm-pulse-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  animation: cmPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+@keyframes cmPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.cm-desktop-only {
+  display: flex;
+}
+.cm-mobile-only {
+  display: none;
+}
+.cm-sm-show {
+  display: inline-flex;
+}
+.cm-proof-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 20px;
+}
+.cm-dock-inner {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 9999px;
+}
+.cm-dock-divider {
+  display: inline-block;
+  width: 1px;
+  height: 16px;
+  margin: 0 4px;
+}
+.cm-header {
+  position: fixed;
+  top: 22px;
+  left: 28px;
+  right: 28px;
+  z-index: 40;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  pointer-events: none;
+}
+.cm-controls-left {
+  position: fixed;
+  left: 28px;
+  bottom: 94px;
+  z-index: 40;
+  flex-direction: column;
+  gap: 8px;
+}
+.cm-controls-right {
+  position: fixed;
+  right: 28px;
+  bottom: 94px;
+  z-index: 40;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 9999px;
+}
+.cm-dock-wrap {
+  position: fixed;
+  bottom: 22px;
+  left: 50%;
+  z-index: 40;
+  max-width: 95vw;
+}
+@media (max-width: 767px) {
+  .cm-desktop-only {
+    display: none !important;
+  }
+  .cm-mobile-only {
+    display: flex !important;
+  }
+  .cm-sm-show {
+    display: none !important;
+  }
+  .cm-proof-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .cm-header {
+    top: 14px;
+    left: 14px;
+    right: 14px;
+  }
+  .cm-dock-wrap {
+    bottom: 14px;
+  }
+  .cm-dock-inner {
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 8px 10px;
+    border-radius: 18px;
+  }
+  .cm-dock-divider {
+    display: none;
+  }
+}
+`;
+
+let stylesAndFontsInjected = false;
+function ensureMonolithAssets() {
+  if (stylesAndFontsInjected || typeof document === 'undefined') return;
+  stylesAndFontsInjected = true;
+
+  if (!document.getElementById('monolith-editorial-fonts')) {
+    const link = document.createElement('link');
+    link.id = 'monolith-editorial-fonts';
+    link.rel = 'stylesheet';
+    link.href =
+      'https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,400&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap';
+    document.head.appendChild(link);
+  }
+
+  if (!document.getElementById('monolith-scoped-css')) {
+    const style = document.createElement('style');
+    style.id = 'monolith-scoped-css';
+    style.textContent = MONOLITH_SCOPED_CSS;
+    document.head.appendChild(style);
+  }
+}
+
+/* ============================================================================
+   COMPATIBLE SECRET TRIGGER HOOK (FOR App.tsx IMPORT)
+   ============================================================================ */
+
 export type CreatorPassTriggerResult = (() => void) & {
   chargeRatio: number;
   isCharging: boolean;
+  onPointerDown: () => void;
+  onPointerUp: () => void;
+  onPointerLeave: () => void;
+  onPointerCancel: () => void;
+  onTouchStart: () => void;
+  onTouchEnd: () => void;
 };
 
 export function useCreatorPassTrigger(
@@ -127,59 +310,60 @@ export function useCreatorPassTrigger(
   callbackRef.current = onTriggerArg;
 
   const clickTimestampsRef = useRef<number[]>([]);
+  const chargeRafRef = useRef<number>(0);
+  const chargeStartRef = useRef<number>(0);
+  const chargeActiveRef = useRef<boolean>(false);
+
   const [chargeRatio, setChargeRatio] = useState(0);
   const [isCharging, setIsCharging] = useState(false);
 
-  // Hold-to-charge support jab DOM ref pass ho
-  useEffect(() => {
-    const el = targetRefArg?.current;
-    if (!el) return;
+  const cancelCharge = useCallback(() => {
+    chargeActiveRef.current = false;
+    cancelAnimationFrame(chargeRafRef.current);
+    setIsCharging(false);
+    setChargeRatio(0);
+  }, []);
 
-    let rafId = 0;
-    let startTime = 0;
-    let active = false;
-
-    const cancelCharge = () => {
-      active = false;
-      cancelAnimationFrame(rafId);
-      setIsCharging(false);
-      setChargeRatio(0);
-    };
+  const startCharge = useCallback(() => {
+    if (chargeActiveRef.current) return;
+    chargeActiveRef.current = true;
+    chargeStartRef.current = performance.now();
+    setIsCharging(true);
 
     const tick = (now: number) => {
-      if (!active) return;
-      const ratio = Math.min(1, (now - startTime) / holdMs);
+      if (!chargeActiveRef.current) return;
+      const ratio = Math.min(1, (now - chargeStartRef.current) / holdMs);
       setChargeRatio(ratio);
       if (ratio >= 1) {
         cancelCharge();
         callbackRef.current?.();
         return;
       }
-      rafId = requestAnimationFrame(tick);
+      chargeRafRef.current = requestAnimationFrame(tick);
     };
+    chargeRafRef.current = requestAnimationFrame(tick);
+  }, [holdMs, cancelCharge]);
 
-    const onDown = () => {
-      active = true;
-      startTime = performance.now();
-      setIsCharging(true);
-      rafId = requestAnimationFrame(tick);
-    };
+  // Bind hold-to-charge if DOM ref is passed
+  useEffect(() => {
+    const el = targetRefArg?.current;
+    if (!el) return;
 
-    el.addEventListener('pointerdown', onDown);
+    el.addEventListener('pointerdown', startCharge);
     el.addEventListener('pointerup', cancelCharge);
     el.addEventListener('pointerleave', cancelCharge);
     el.addEventListener('pointercancel', cancelCharge);
 
     return () => {
-      cancelAnimationFrame(rafId);
-      el.removeEventListener('pointerdown', onDown);
+      cancelCharge();
+      el.removeEventListener('pointerdown', startCharge);
       el.removeEventListener('pointerup', cancelCharge);
       el.removeEventListener('pointerleave', cancelCharge);
       el.removeEventListener('pointercancel', cancelCharge);
     };
-  }, [targetRefArg, holdMs]);
+  }, [targetRefArg, startCharge, cancelCharge]);
 
-  // Keyboard secret ("samrat" / Ctrl+Shift+S)
+  // Keyboard secret ("samrat" or Ctrl+Shift+S)
   useEffect(() => {
     let buffer = '';
     const customSecret =
@@ -237,26 +421,17 @@ export function useCreatorPassTrigger(
 
   return useMemo(() => {
     const fn = () => handleSecretClick();
-    return Object.assign(fn, { chargeRatio, isCharging });
-  }, [handleSecretClick, chargeRatio, isCharging]);
-}
-
-/* ============================================================================
-   DYNAMIC EDITORIAL FONT LOADER (ZERO CONFIG)
-   ============================================================================ */
-
-let fontsInjected = false;
-function ensureEditorialFonts() {
-  if (fontsInjected || typeof document === 'undefined') return;
-  fontsInjected = true;
-  const id = 'monolith-editorial-fonts';
-  if (document.getElementById(id)) return;
-  const link = document.createElement('link');
-  link.id = id;
-  link.rel = 'stylesheet';
-  link.href =
-    'https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,400&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap';
-  document.head.appendChild(link);
+    return Object.assign(fn, {
+      chargeRatio,
+      isCharging,
+      onPointerDown: startCharge,
+      onPointerUp: cancelCharge,
+      onPointerLeave: cancelCharge,
+      onPointerCancel: cancelCharge,
+      onTouchStart: startCharge,
+      onTouchEnd: cancelCharge,
+    });
+  }, [handleSecretClick, chargeRatio, isCharging, startCharge, cancelCharge]);
 }
 
 /* ============================================================================
@@ -366,7 +541,10 @@ class MonolithAudioEngine {
       osc.frequency.setValueAtTime(freq, start);
 
       gain.gain.setValueAtTime(0.0001, start);
-      gain.gain.linearRampToValueAtTime(0.045 / (idx * 0.4 + 1), start + 0.015);
+      gain.gain.linearRampToValueAtTime(
+        0.045 / (idx * 0.4 + 1),
+        start + 0.015
+      );
       gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.48);
 
       osc.connect(gain);
@@ -463,7 +641,6 @@ interface MagneticButtonProps {
   href?: string;
   target?: string;
   rel?: string;
-  className?: string;
   style?: React.CSSProperties;
   strength?: number;
   title?: string;
@@ -478,7 +655,6 @@ const MagneticButton: React.FC<MagneticButtonProps> = ({
   href,
   target,
   rel,
-  className = '',
   style,
   strength = 0.28,
   title,
@@ -523,6 +699,13 @@ const MagneticButton: React.FC<MagneticButtonProps> = ({
   };
 
   const mergedStyle: React.CSSProperties = {
+    position: 'relative',
+    overflow: 'hidden',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    border: 'none',
     ...style,
     transform: `translate3d(${offset.x.toFixed(1)}px, ${offset.y.toFixed(1)}px, 0) scale(${pressed ? 0.96 : 1})`,
     transition:
@@ -533,14 +716,27 @@ const MagneticButton: React.FC<MagneticButtonProps> = ({
     <>
       <span
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 rounded-[inherit]"
         style={{
+          pointerEvents: 'none',
+          position: 'absolute',
+          inset: 0,
+          borderRadius: 'inherit',
           opacity: sheen.active ? 1 : 0,
           transition: 'opacity 0.3s ease',
           background: `radial-gradient(120px circle at ${sheen.x}% ${sheen.y}%, rgba(255,255,255,0.22), transparent 68%)`,
         }}
       />
-      <span className="relative z-10 flex items-center gap-2">{children}</span>
+      <span
+        style={{
+          position: 'relative',
+          zIndex: 2,
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '8px',
+        }}
+      >
+        {children}
+      </span>
     </>
   );
 
@@ -554,7 +750,6 @@ const MagneticButton: React.FC<MagneticButtonProps> = ({
     onMouseLeave: handleLeave,
     onMouseDown: () => setPressed(true),
     onMouseUp: () => setPressed(false),
-    className: `relative overflow-hidden select-none cursor-pointer ${className}`,
     title,
   };
 
@@ -586,7 +781,7 @@ const MagneticButton: React.FC<MagneticButtonProps> = ({
 };
 
 /* ============================================================================
-   LIQUID SLIDING TOGGLE RAIL (SPRING CAPSULE — ZERO EXTERNAL LIBS)
+   LIQUID SLIDING TOGGLE RAIL (SPRING CAPSULE)
    ============================================================================ */
 
 interface SlidingPillGroupProps<T extends string> {
@@ -622,18 +817,28 @@ function SlidingPillGroup<T extends string>({
 
   return (
     <div
-      className="relative flex items-center p-1 rounded-full border backdrop-blur-xl"
       style={{
+        position: 'relative',
+        display: 'inline-flex',
+        alignItems: 'center',
+        padding: '4px',
+        borderRadius: '9999px',
+        border: `1px solid ${theme.glassBorder}`,
         backgroundColor: theme.glassBg,
-        borderColor: theme.glassBorder,
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
         transition: 'background-color 0.45s ease, border-color 0.45s ease',
       }}
     >
       <span
         aria-hidden="true"
-        className="pointer-events-none absolute top-1 bottom-1 rounded-full"
         style={{
+          pointerEvents: 'none',
+          position: 'absolute',
+          top: '4px',
+          bottom: '4px',
           left: 0,
+          borderRadius: '9999px',
           width: `${capsule.width}px`,
           transform: `translate3d(${capsule.left}px, 0, 0)`,
           opacity: capsule.visible ? 1 : 0,
@@ -652,8 +857,16 @@ function SlidingPillGroup<T extends string>({
             }}
             type="button"
             onClick={() => onChange(opt)}
-            className="relative z-10 px-2.5 py-1 rounded-full text-[9px] tracking-[0.2em] uppercase cursor-pointer"
             style={{
+              position: 'relative',
+              zIndex: 2,
+              padding: '4px 10px',
+              borderRadius: '9999px',
+              border: 'none',
+              fontSize: '9px',
+              letterSpacing: '0.2em',
+              textTransform: 'uppercase',
+              cursor: 'pointer',
               color: active ? theme.pillActiveText : theme.textMuted,
               transition: 'color 0.3s ease',
             }}
@@ -685,10 +898,22 @@ const SlotRollLabel: React.FC<SlotRollLabelProps> = ({
 }) => {
   const ease = 'cubic-bezier(0.22, 1, 0.36, 1)';
   return (
-    <span className="relative inline-flex flex-col overflow-hidden h-[1.25em] leading-[1.25em]">
+    <span
+      style={{
+        position: 'relative',
+        display: 'inline-flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+        height: '1.3em',
+        lineHeight: '1.3em',
+      }}
+    >
       <span
-        className="inline-flex items-center gap-1 whitespace-nowrap"
         style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '4px',
+          whiteSpace: 'nowrap',
           transform: hovered ? 'translateY(-105%)' : 'translateY(0%)',
           opacity: hovered ? 0 : 1,
           filter: hovered ? 'blur(4px)' : 'blur(0px)',
@@ -698,8 +923,11 @@ const SlotRollLabel: React.FC<SlotRollLabelProps> = ({
         {primary}
       </span>
       <span
-        className="inline-flex items-center gap-1 whitespace-nowrap"
         style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '4px',
+          whiteSpace: 'nowrap',
           transform: hovered ? 'translateY(-100%)' : 'translateY(15%)',
           opacity: hovered ? 1 : 0,
           filter: hovered ? 'blur(0px)' : 'blur(4px)',
@@ -710,8 +938,12 @@ const SlotRollLabel: React.FC<SlotRollLabelProps> = ({
       </span>
       <span
         aria-hidden="true"
-        className="absolute bottom-0 left-0 right-0 h-[1px]"
         style={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: '1px',
           transformOrigin: 'left center',
           transform: `scaleX(${hovered ? 1 : 0})`,
           backgroundColor: underlineColor,
@@ -723,7 +955,7 @@ const SlotRollLabel: React.FC<SlotRollLabelProps> = ({
 };
 
 /* ============================================================================
-   SELF-DRAWING FOUNTAIN-PEN SVG SIGNATURE (NATIVE PATHLENGTH ANIMATION)
+   SELF-DRAWING FOUNTAIN-PEN SVG SIGNATURE
    ============================================================================ */
 
 const CreatorSignatureSVG: React.FC<{
@@ -732,10 +964,18 @@ const CreatorSignatureSVG: React.FC<{
   active: boolean;
 }> = ({ color, accent, active }) => {
   return (
-    <div className="relative flex items-center justify-center pointer-events-none select-none">
+    <div
+      style={{
+        position: 'relative',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        pointerEvents: 'none',
+      }}
+    >
       <svg
         viewBox="0 0 360 96"
-        className="w-[210px] sm:w-[270px] h-auto overflow-visible"
+        style={{ width: '240px', maxWidth: '72vw', height: 'auto', overflow: 'visible' }}
         fill="none"
         aria-label="Samrat Signature"
       >
@@ -805,7 +1045,7 @@ const CreatorSignatureSVG: React.FC<{
 };
 
 /* ============================================================================
-   MAIN COMPONENT: THE ARCHITECT'S MONOLITH (CREATOR PASS MODAL)
+   MAIN COMPONENT: THE ARCHITECT'S MONOLITH (PORTAL-MOUNTED, ZERO TAILWIND)
    ============================================================================ */
 
 export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
@@ -813,7 +1053,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
   onClose,
   isDarkMode = true,
 }) => {
-  // Core modal & choreography states
   const [mountedVisible, setMountedVisible] = useState(false);
   const [shaderMode, setShaderMode] = useState<ShaderMode>(
     isDarkMode ? 'OBSIDIAN' : 'INK'
@@ -826,15 +1065,12 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
   const [isHoldingVortex, setIsHoldingVortex] = useState(false);
   const [isImploding, setIsImploding] = useState(false);
 
-  // 0.8s Architectural Telemetry Intro Flash + Reality-Tear Shutters
   const [introActive, setIntroActive] = useState(true);
   const [shutterOpened, setShutterOpened] = useState(false);
   const [introPercent, setIntroPercent] = useState(0);
 
-  // Scroll-driven Rack Focus (0 = Hero Monolith sharp, 1 = Signature/Telemetry sharp)
   const [scrollStage, setScrollStage] = useState(0);
 
-  // Live Telemetry (Real DOM + Viewport + IST + FPS + Cursor)
   const [telemetry, setTelemetry] = useState({
     fps: 60,
     domNodes: 0,
@@ -845,17 +1081,13 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
     particles: 0,
   });
 
-  // Contact Dock interactive states
   const [emailDisplay, setEmailDisplay] = useState(CREATOR_EMAIL);
   const [emailCopied, setEmailCopied] = useState(false);
   const [instaHovered, setInstaHovered] = useState(false);
   const [linkedinHovered, setLinkedinHovered] = useState(false);
   const [isTouchDevice, setIsTouchDevice] = useState(false);
-
-  // Gyroscope subtle tilt for mobile specular reflection & drift
   const [gyroTilt, setGyroTilt] = useState({ x: 0, y: 0 });
 
-  // DOM & Engine Refs
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const dockRef = useRef<HTMLDivElement | null>(null);
@@ -866,7 +1098,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
   const scrambleTimerRef = useRef<number | null>(null);
   const copiedTimerRef = useRef<number | null>(null);
 
-  // Live mutable state bridge for 60fps Canvas RAF (zero React re-renders per frame)
   const engineStateRef = useRef({
     shaderMode: (isDarkMode ? 'OBSIDIAN' : 'INK') as ShaderMode,
     physicsMode: 'FLUID' as PhysicsMode,
@@ -900,7 +1131,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
 
   const theme = THEMES[shaderMode];
 
-  // Sync with parent app's `isDarkMode` live
   useEffect(() => {
     const mapped: ShaderMode = isDarkMode ? 'OBSIDIAN' : 'INK';
     setShaderMode(mapped);
@@ -923,9 +1153,8 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
     engineStateRef.current.bulletTime = bulletTime;
   }, [bulletTime]);
 
-  // Inject editorial fonts & detect touch device
   useEffect(() => {
-    ensureEditorialFonts();
+    ensureMonolithAssets();
     if (typeof window !== 'undefined') {
       const coarse = window.matchMedia('(pointer: coarse)').matches;
       setIsTouchDevice(coarse);
@@ -933,7 +1162,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
     }
   }, []);
 
-  // Init Web Audio Synth + Lock Body Scroll + Reality-Tear + 0.8s Telemetry Flash
   useEffect(() => {
     if (!isOpen) return;
 
@@ -988,14 +1216,12 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
-  // Sync mute state
   useEffect(() => {
     if (audioRef.current) {
       audioRef.current.muted = audioMuted;
     }
   }, [audioMuted]);
 
-  // Fire physical shockwave across the 10,000-particle canvas
   const triggerShockwave = useCallback(
     (x?: number, y?: number, strength = 24) => {
       const w = typeof window !== 'undefined' ? window.innerWidth : 1200;
@@ -1012,7 +1238,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
     []
   );
 
-  // Implosion Exit Choreography (0.42s suck-in to Close button + reverse bass sweep)
   const handleImplosionClose = useCallback(() => {
     if (isImploding) return;
     setIsImploding(true);
@@ -1036,7 +1261,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
     }, 420);
   }, [isImploding, onClose]);
 
-  // Keyboard shortcuts: ESC (Implode Close), G (Gravity Collapse), Spacebar Hold (0.1x Bullet-Time)
   useEffect(() => {
     if (!isOpen) return;
 
@@ -1086,7 +1310,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
     };
   }, [isOpen, handleImplosionClose, triggerShockwave]);
 
-  // Mobile Gyroscope Tilt Physics & Specular Reflection
   useEffect(() => {
     if (!isOpen || typeof window === 'undefined') return;
     const handleOrientation = (e: DeviceOrientationEvent) => {
@@ -1104,7 +1327,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
     };
   }, [isOpen]);
 
-  // Real-Time Site Telemetry Scanner (Live DOM count, Viewport, IST Clock, FPS, Cursor XY)
   useEffect(() => {
     if (!isOpen) return;
 
@@ -1135,7 +1357,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
     return () => window.clearInterval(timer);
   }, [isOpen]);
 
-  // Scroll listener -> Drives both 3D Z-Axis Fly-Through & DSLR Rack-Focus Blur
   const handleScroll = useCallback(() => {
     const el = scrollContainerRef.current;
     if (!el) return;
@@ -1146,7 +1367,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
     setScrollStage(raw);
   }, []);
 
-  // Mechanical Cipher Scramble for Email Hover
   const runEmailScramble = useCallback(() => {
     if (emailCopied) return;
     audioRef.current?.playSoftHover();
@@ -1176,7 +1396,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
     }, 24);
   }, [emailCopied]);
 
-  // Email Copy + Particle Shockwave + Harmonic Chime
   const handleCopyEmail = useCallback(
     (e: React.MouseEvent<HTMLElement>) => {
       const rect = e.currentTarget.getBoundingClientRect();
@@ -1221,7 +1440,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
     [triggerShockwave]
   );
 
-  // Cleanup timers on unmount
   useEffect(() => {
     return () => {
       if (scrambleTimerRef.current)
@@ -1824,7 +2042,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
     };
   }, [isOpen]);
 
-  // Pointer & Multi-Touch Handlers
   const handlePointerMove = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
       const ptr = engineStateRef.current.pointer;
@@ -1875,7 +2092,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
     setIsHoldingVortex(false);
   }, []);
 
-  // Rack-Focus Computed Values (0 -> 1 scroll)
   const canvasBlurPx = useMemo(() => scrollStage * 15, [scrollStage]);
   const stage2Opacity = useMemo(
     () => Math.min(1, Math.max(0, (scrollStage - 0.18) / 0.52)),
@@ -1887,7 +2103,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
   );
   const stage2Y = useMemo(() => (1 - stage2Opacity) * 44, [stage2Opacity]);
 
-  // Mode Switch Handlers
   const switchShader = (mode: ShaderMode) => {
     if (mode === shaderMode) return;
     setShaderMode(mode);
@@ -1929,7 +2144,7 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
     audioRef.current?.playMechanicalTick(740);
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || typeof document === 'undefined') return null;
 
   const uiRevealStyle = (delaySec = 0): React.CSSProperties => ({
     opacity: introActive ? 0 : 1,
@@ -1938,8 +2153,9 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
     transition: `opacity 0.65s cubic-bezier(0.22,1,0.36,1) ${delaySec}s, transform 0.65s cubic-bezier(0.22,1,0.36,1) ${delaySec}s, filter 0.65s ease ${delaySec}s`,
   });
 
-  return (
+  const modalContent = (
     <div
+      className="cm-root"
       role="dialog"
       aria-modal="true"
       aria-label="Architected and Built by Samrat Sandilya"
@@ -1948,11 +2164,9 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
       onPointerLeave={handlePointerLeave}
-      className="fixed inset-0 z-[9999] overflow-hidden select-none"
       style={{
         backgroundColor: theme.bgHex,
         color: theme.textPrimary,
-        fontFamily: '"JetBrains Mono", ui-monospace, monospace',
         opacity: isImploding ? 0 : mountedVisible ? 1 : 0,
         transform: isImploding ? 'scale(0.985)' : 'scale(1)',
         filter: isImploding ? 'blur(10px)' : 'blur(0px)',
@@ -1961,13 +2175,16 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
         touchAction: 'pan-y',
       }}
     >
-      {/* ================================================================
-          1. LIVE 10,000-PARTICLE CANVAS + DSLR RACK-FOCUS BLUR
-         ================================================================ */}
+      {/* 1. LIVE 10,000-PARTICLE CANVAS + DSLR RACK-FOCUS BLUR */}
       <canvas
         ref={canvasRef}
-        className="fixed inset-0 w-full h-full pointer-events-none"
         style={{
+          position: 'fixed',
+          inset: 0,
+          width: '100%',
+          height: '100%',
+          pointerEvents: 'none',
+          zIndex: 1,
           filter: `blur(${canvasBlurPx.toFixed(1)}px)`,
           transform: `scale(${(1 + scrollStage * 0.035).toFixed(4)})`,
           transition: 'filter 0.08s linear',
@@ -1977,8 +2194,11 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
       {/* Editorial Paper Grain */}
       <div
         aria-hidden="true"
-        className="pointer-events-none fixed inset-0"
         style={{
+          pointerEvents: 'none',
+          position: 'fixed',
+          inset: 0,
+          zIndex: 2,
           opacity: theme.isLight ? 0.055 : 0.04,
           backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
         }}
@@ -1987,23 +2207,28 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
       {/* Cinematic Vignette */}
       <div
         aria-hidden="true"
-        className="pointer-events-none fixed inset-0"
         style={{
+          pointerEvents: 'none',
+          position: 'fixed',
+          inset: 0,
+          zIndex: 3,
           background: theme.vignette,
           transition: 'background 0.5s ease',
         }}
       />
 
-      {/* ================================================================
-          2. X-RAY ARCHITECTURAL CAD BLUEPRINT CURSOR LENS (60FPS RAF)
-         ================================================================ */}
+      {/* 2. X-RAY ARCHITECTURAL CAD BLUEPRINT CURSOR LENS (60FPS RAF) */}
       {xrayEnabled && !isTouchDevice && (
         <>
           <div
             ref={xrayLayerRef}
             aria-hidden="true"
-            className="pointer-events-none fixed inset-0 z-20 overflow-hidden"
             style={{
+              pointerEvents: 'none',
+              position: 'fixed',
+              inset: 0,
+              zIndex: 25,
+              overflow: 'hidden',
               clipPath: 'circle(0px at -400px -400px)',
               backgroundColor: '#041226',
               backgroundImage:
@@ -2012,7 +2237,13 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
             }}
           >
             <svg
-              className="absolute inset-0 w-full h-full opacity-75"
+              style={{
+                position: 'absolute',
+                inset: 0,
+                width: '100%',
+                height: '100%',
+                opacity: 0.75,
+              }}
               xmlns="http://www.w3.org/2000/svg"
             >
               <line
@@ -2061,15 +2292,22 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
             </svg>
 
             <div
-              className="absolute inset-0 flex flex-col items-center justify-center"
               style={{
+                position: 'absolute',
+                inset: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
                 transform: `translateY(-3%) scale(${(1 + scrollStage * 0.08).toFixed(3)})`,
                 opacity: Math.max(0.15, 1 - scrollStage * 0.9),
               }}
             >
               <div
-                className="text-center leading-[0.88] tracking-tight"
                 style={{
+                  textAlign: 'center',
+                  lineHeight: 0.88,
+                  letterSpacing: '-0.02em',
                   fontFamily:
                     '"Instrument Serif", "Cormorant Garamond", Georgia, serif',
                   fontSize: 'min(12.8vw, 178px)',
@@ -2082,17 +2320,57 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
               </div>
             </div>
 
-            <div className="absolute top-[19%] left-[14.5%] text-[10px] tracking-[0.26em] text-sky-300/90 uppercase">
+            <div
+              style={{
+                position: 'absolute',
+                top: '19%',
+                left: '14.5%',
+                fontSize: '10px',
+                letterSpacing: '0.26em',
+                color: 'rgba(125,211,252,0.9)',
+                textTransform: 'uppercase',
+              }}
+            >
               [01] ARCHITECTED FROM SCRATCH
             </div>
-            <div className="absolute top-[19%] right-[14.5%] text-[10px] tracking-[0.26em] text-sky-300/90 uppercase">
+            <div
+              style={{
+                position: 'absolute',
+                top: '19%',
+                right: '14.5%',
+                fontSize: '10px',
+                letterSpacing: '0.26em',
+                color: 'rgba(125,211,252,0.9)',
+                textTransform: 'uppercase',
+              }}
+            >
               [02] ZERO TEMPLATES // HAND-CODED
             </div>
-            <div className="absolute bottom-[24%] left-[14.5%] text-[10px] tracking-[0.26em] text-sky-200/90 uppercase">
+            <div
+              style={{
+                position: 'absolute',
+                bottom: '24%',
+                left: '14.5%',
+                fontSize: '10px',
+                letterSpacing: '0.26em',
+                color: 'rgba(186,230,253,0.9)',
+                textTransform: 'uppercase',
+              }}
+            >
               BUILT BY SAMRAT — DOM:{telemetry.domNodes} // PARTICLES:
               {telemetry.particles}
             </div>
-            <div className="absolute bottom-[24%] right-[14.5%] text-[10px] tracking-[0.26em] text-sky-200/90 uppercase">
+            <div
+              style={{
+                position: 'absolute',
+                bottom: '24%',
+                right: '14.5%',
+                fontSize: '10px',
+                letterSpacing: '0.26em',
+                color: 'rgba(186,230,253,0.9)',
+                textTransform: 'uppercase',
+              }}
+            >
               CAD X-RAY // {telemetry.viewport} // {telemetry.fps} FPS
             </div>
           </div>
@@ -2100,8 +2378,13 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
           <div
             ref={xrayRingRef}
             aria-hidden="true"
-            className="pointer-events-none fixed top-0 left-0 z-30 rounded-full"
             style={{
+              pointerEvents: 'none',
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              zIndex: 30,
+              borderRadius: '9999px',
               width: 0,
               height: 0,
               opacity: 0,
@@ -2111,20 +2394,39 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
               willChange: 'transform, width, height',
             }}
           >
-            <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] tracking-[0.22em] text-sky-300/90 whitespace-nowrap bg-[#041226]/80 px-1.5 py-0.5 rounded border border-sky-400/30">
+            <span
+              style={{
+                position: 'absolute',
+                top: '-22px',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                fontSize: '9px',
+                letterSpacing: '0.22em',
+                color: 'rgba(125,211,252,0.92)',
+                whiteSpace: 'nowrap',
+                backgroundColor: 'rgba(4,18,38,0.82)',
+                padding: '2px 6px',
+                borderRadius: '4px',
+                border: '1px solid rgba(56,189,248,0.32)',
+              }}
+            >
               X-RAY // {telemetry.cursorX},{telemetry.cursorY}
             </span>
           </div>
         </>
       )}
 
-      {/* ================================================================
-          3. PROGRESSIVE EDGE BLUR MASKS (TOP & BOTTOM — ZERO HARD CUTS)
-         ================================================================ */}
+      {/* 3. PROGRESSIVE EDGE BLUR MASKS (TOP & BOTTOM — ZERO HARD CUTS) */}
       <div
         aria-hidden="true"
-        className="pointer-events-none fixed top-0 left-0 right-0 h-28 z-20"
         style={{
+          pointerEvents: 'none',
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: '112px',
+          zIndex: 20,
           backdropFilter: 'blur(12px)',
           WebkitBackdropFilter: 'blur(12px)',
           maskImage: 'linear-gradient(to bottom, black 12%, transparent 100%)',
@@ -2134,8 +2436,14 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
       />
       <div
         aria-hidden="true"
-        className="pointer-events-none fixed bottom-0 left-0 right-0 h-32 z-20"
         style={{
+          pointerEvents: 'none',
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: '128px',
+          zIndex: 20,
           backdropFilter: 'blur(14px)',
           WebkitBackdropFilter: 'blur(14px)',
           maskImage: 'linear-gradient(to top, black 18%, transparent 100%)',
@@ -2144,29 +2452,46 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
         }}
       />
 
-      {/* ================================================================
-          4. SCROLL-DRIVEN RACK-FOCUS STAGE (3D FLY-THROUGH + SIGNATURE)
-         ================================================================ */}
+      {/* 4. SCROLL-DRIVEN RACK-FOCUS STAGE (3D FLY-THROUGH + SIGNATURE) */}
       <div
         ref={scrollContainerRef}
         onScroll={handleScroll}
-        className="relative z-10 w-full h-full overflow-y-auto overflow-x-hidden scroll-smooth"
-        style={{ scrollbarWidth: 'none' }}
+        className="cm-scroll"
       >
-        <div className="relative w-full h-[210vh]">
-          <div className="sticky top-0 h-screen w-full flex flex-col items-center justify-between pointer-events-none px-4 pt-24 pb-36">
+        <div style={{ position: 'relative', width: '100%', height: '210vh' }}>
+          <div
+            style={{
+              position: 'sticky',
+              top: 0,
+              height: '100vh',
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              pointerEvents: 'none',
+              padding: '96px 16px 148px',
+            }}
+          >
+            {/* Top Editorial Micro-Label */}
             <div
-              className="flex items-center gap-3 text-[10px] sm:text-[11px] tracking-[0.38em] uppercase"
               style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                fontSize: '10px',
+                letterSpacing: '0.38em',
+                textTransform: 'uppercase',
                 color: theme.textMuted,
                 opacity: introActive ? 0 : Math.max(0, 1 - scrollStage * 2.2),
                 transform: `translate3d(0, ${introActive ? -12 : -scrollStage * 28}px, 0)`,
                 filter: `blur(${(introActive ? 8 : scrollStage * 10).toFixed(1)}px)`,
-                transition: 'opacity 0.55s ease, transform 0.45s ease, filter 0.35s ease',
+                transition:
+                  'opacity 0.55s ease, transform 0.45s ease, filter 0.35s ease',
               }}
             >
               <span
-                className="inline-block w-1.5 h-1.5 rounded-full animate-pulse"
+                className="cm-pulse-dot"
                 style={{
                   backgroundColor:
                     shaderMode === 'BLUEPRINT' ? '#38BDF8' : theme.textPrimary,
@@ -2175,10 +2500,18 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
               ARCHITECTED &amp; BUILT BY
             </div>
 
-            {/* Rack-Focus Stage 2: Signature + Live Proof Grid */}
+            {/* Rack-Focus Stage 2: Signature + Live System Proof Grid */}
             <div
-              className="flex flex-col items-center justify-center text-center max-w-xl mx-auto px-4"
               style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                textAlign: 'center',
+                maxWidth: '580px',
+                width: '100%',
+                margin: '0 auto',
+                padding: '0 16px',
                 opacity: stage2Opacity,
                 filter: `blur(${stage2BlurPx.toFixed(1)}px)`,
                 transform: `translate3d(0, ${stage2Y.toFixed(1)}px, 0)`,
@@ -2186,8 +2519,13 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
               }}
             >
               <div
-                className="text-[10px] tracking-[0.34em] uppercase mb-4"
-                style={{ color: theme.textMuted }}
+                style={{
+                  fontSize: '10px',
+                  letterSpacing: '0.34em',
+                  textTransform: 'uppercase',
+                  marginBottom: '16px',
+                  color: theme.textMuted,
+                }}
               >
                 COLOPHON // SANRACHNA ARCHITECTURE
               </div>
@@ -2199,53 +2537,103 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
               />
 
               <div
-                className="mt-7 grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-5 px-5 py-3.5 rounded-2xl border backdrop-blur-xl"
+                className="cm-proof-grid"
                 style={{
+                  marginTop: '28px',
+                  padding: '14px 20px',
+                  borderRadius: '16px',
+                  border: `1px solid ${theme.glassBorder}`,
                   backgroundColor: theme.glassBg,
-                  borderColor: theme.glassBorder,
+                  backdropFilter: 'blur(20px)',
+                  WebkitBackdropFilter: 'blur(20px)',
+                  width: '100%',
                 }}
               >
-                <div className="text-left">
+                <div style={{ textAlign: 'left' }}>
                   <div
-                    className="text-[9px] tracking-[0.22em] uppercase"
-                    style={{ color: theme.textMuted }}
+                    style={{
+                      fontSize: '9px',
+                      letterSpacing: '0.22em',
+                      textTransform: 'uppercase',
+                      color: theme.textMuted,
+                    }}
                   >
                     AUTHOR
                   </div>
-                  <div className="text-[11px] font-medium mt-0.5 tracking-wider">
+                  <div
+                    style={{
+                      fontSize: '11px',
+                      fontWeight: 500,
+                      marginTop: '3px',
+                      letterSpacing: '0.06em',
+                    }}
+                  >
                     SAMRAT S.
                   </div>
                 </div>
-                <div className="text-left">
+                <div style={{ textAlign: 'left' }}>
                   <div
-                    className="text-[9px] tracking-[0.22em] uppercase"
-                    style={{ color: theme.textMuted }}
+                    style={{
+                      fontSize: '9px',
+                      letterSpacing: '0.22em',
+                      textTransform: 'uppercase',
+                      color: theme.textMuted,
+                    }}
                   >
                     DOM NODES
                   </div>
-                  <div className="text-[11px] font-medium mt-0.5 tabular-nums">
+                  <div
+                    style={{
+                      fontSize: '11px',
+                      fontWeight: 500,
+                      marginTop: '3px',
+                      fontVariantNumeric: 'tabular-nums',
+                    }}
+                  >
                     {telemetry.domNodes}
                   </div>
                 </div>
-                <div className="text-left">
+                <div style={{ textAlign: 'left' }}>
                   <div
-                    className="text-[9px] tracking-[0.22em] uppercase"
-                    style={{ color: theme.textMuted }}
+                    style={{
+                      fontSize: '9px',
+                      letterSpacing: '0.22em',
+                      textTransform: 'uppercase',
+                      color: theme.textMuted,
+                    }}
                   >
                     PARTICLES
                   </div>
-                  <div className="text-[11px] font-medium mt-0.5 tabular-nums">
+                  <div
+                    style={{
+                      fontSize: '11px',
+                      fontWeight: 500,
+                      marginTop: '3px',
+                      fontVariantNumeric: 'tabular-nums',
+                    }}
+                  >
                     {telemetry.particles.toLocaleString()}
                   </div>
                 </div>
-                <div className="text-left">
+                <div style={{ textAlign: 'left' }}>
                   <div
-                    className="text-[9px] tracking-[0.22em] uppercase"
-                    style={{ color: theme.textMuted }}
+                    style={{
+                      fontSize: '9px',
+                      letterSpacing: '0.22em',
+                      textTransform: 'uppercase',
+                      color: theme.textMuted,
+                    }}
                   >
                     CLOCK
                   </div>
-                  <div className="text-[11px] font-medium mt-0.5 tabular-nums">
+                  <div
+                    style={{
+                      fontSize: '11px',
+                      fontWeight: 500,
+                      marginTop: '3px',
+                      fontVariantNumeric: 'tabular-nums',
+                    }}
+                  >
                     {telemetry.istTime}
                   </div>
                 </div>
@@ -2254,8 +2642,15 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
 
             {/* Interactive Hint Strip */}
             <div
-              className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[9px] sm:text-[10px] tracking-[0.22em] uppercase"
               style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px 14px',
+                fontSize: '9px',
+                letterSpacing: '0.22em',
+                textTransform: 'uppercase',
                 color: theme.textMuted,
                 opacity: introActive
                   ? 0
@@ -2267,41 +2662,56 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
               <span>HOLD TO VORTEX</span>
               <span>·</span>
               <span>SCROLL TO FLY-THROUGH</span>
-              <span className="hidden sm:inline">·</span>
-              <span className="hidden sm:inline">[G] GRAVITY</span>
-              <span className="hidden sm:inline">·</span>
-              <span className="hidden sm:inline">[SPACE] 0.1× SLOW-MO</span>
+              <span className="cm-sm-show">·</span>
+              <span className="cm-sm-show">[G] GRAVITY</span>
+              <span className="cm-sm-show">·</span>
+              <span className="cm-sm-show">[SPACE] 0.1× SLOW-MO</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* ================================================================
-          5. TOP HUD BAR: LIVE TELEMETRY + MAGNETIC CLOSE BUTTON
-         ================================================================ */}
+      {/* 5. TOP HUD BAR: LIVE TELEMETRY + MAGNETIC CLOSE BUTTON */}
       <header
-        className="fixed top-4 sm:top-6 left-4 sm:left-7 right-4 sm:right-7 z-40 flex items-start justify-between gap-3 pointer-events-none"
+        className="cm-header"
         style={{
           opacity: introActive ? 0 : 1,
-          transform: introActive ? 'translate3d(0, -14px, 0)' : 'translate3d(0, 0, 0)',
+          transform: introActive
+            ? 'translate3d(0, -14px, 0)'
+            : 'translate3d(0, 0, 0)',
           filter: introActive ? 'blur(8px)' : 'blur(0px)',
           transition:
             'opacity 0.6s cubic-bezier(0.22,1,0.36,1), transform 0.6s cubic-bezier(0.22,1,0.36,1), filter 0.6s ease',
         }}
       >
         <div
-          className="pointer-events-auto flex flex-col gap-1 px-3.5 py-2 rounded-xl border backdrop-blur-xl text-[9px] sm:text-[10px] tracking-[0.18em] uppercase tabular-nums"
           style={{
+            pointerEvents: 'auto',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '4px',
+            padding: '8px 14px',
+            borderRadius: '12px',
+            border: `1px solid ${theme.glassBorder}`,
             backgroundColor: theme.glassBg,
-            borderColor: theme.glassBorder,
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            fontSize: '10px',
+            letterSpacing: '0.18em',
+            textTransform: 'uppercase',
+            fontVariantNumeric: 'tabular-nums',
             transition: 'background-color 0.45s ease, border-color 0.45s ease',
           }}
         >
-          <div className="flex items-center gap-2.5">
-            <span className="inline-flex items-center gap-1.5">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            >
               <span
-                className="w-1.5 h-1.5 rounded-full"
                 style={{
+                  width: '6px',
+                  height: '6px',
+                  borderRadius: '9999px',
                   backgroundColor: bulletTime
                     ? '#F59E0B'
                     : isHoldingVortex
@@ -2317,8 +2727,13 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
             </span>
           </div>
           <div
-            className="hidden sm:flex items-center gap-2.5 text-[9px]"
-            style={{ color: theme.textMuted }}
+            className="cm-sm-show"
+            style={{
+              alignItems: 'center',
+              gap: '10px',
+              fontSize: '9px',
+              color: theme.textMuted,
+            }}
           >
             <span>{telemetry.viewport}</span>
             <span>·</span>
@@ -2328,10 +2743,27 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
           </div>
         </div>
 
-        <div className="pointer-events-auto flex items-center gap-2">
+        <div
+          style={{
+            pointerEvents: 'auto',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+          }}
+        >
           <div
-            className="px-3 py-1.5 rounded-full text-[10px] tracking-[0.22em] uppercase border backdrop-blur-xl text-amber-300 border-amber-400/40 bg-amber-500/10 pointer-events-none"
             style={{
+              padding: '6px 12px',
+              borderRadius: '9999px',
+              fontSize: '10px',
+              letterSpacing: '0.22em',
+              textTransform: 'uppercase',
+              border: '1px solid rgba(251, 191, 36, 0.42)',
+              backgroundColor: 'rgba(245, 158, 11, 0.12)',
+              color: '#FCD34D',
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
+              pointerEvents: 'none',
               opacity: bulletTime ? 1 : 0,
               transform: bulletTime ? 'scale(1)' : 'scale(0.9)',
               filter: bulletTime ? 'blur(0px)' : 'blur(6px)',
@@ -2346,24 +2778,30 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
             buttonRef={closeBtnRef}
             onClick={handleImplosionClose}
             onMouseEnter={() => audioRef.current?.playSoftHover()}
-            className="px-4 py-2 rounded-full border backdrop-blur-xl text-[10px] sm:text-[11px] tracking-[0.24em] uppercase"
             style={{
+              padding: '8px 16px',
+              borderRadius: '9999px',
+              border: `1px solid ${theme.glassBorder}`,
               backgroundColor: theme.glassBg,
-              borderColor: theme.glassBorder,
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
               color: theme.textPrimary,
+              fontSize: '10px',
+              letterSpacing: '0.24em',
+              textTransform: 'uppercase',
             }}
           >
             <span>CLOSE</span>
-            <span className="text-xs leading-none opacity-75">✕</span>
+            <span style={{ fontSize: '12px', lineHeight: 1, opacity: 0.78 }}>
+              ✕
+            </span>
           </MagneticButton>
         </div>
       </header>
 
-      {/* ================================================================
-          6. LIQUID SLIDING PLAYGROUND CONTROLS
-         ================================================================ */}
+      {/* 6. LIQUID SLIDING PLAYGROUND CONTROLS (DESKTOP) */}
       <aside
-        className="fixed left-4 sm:left-7 bottom-24 z-40 hidden md:flex flex-col gap-2"
+        className="cm-desktop-only cm-controls-left"
         style={uiRevealStyle(0.08)}
       >
         <SlidingPillGroup<ShaderMode>
@@ -2380,20 +2818,27 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
         />
       </aside>
 
-      {/* Right Hardware Utility Switches */}
       <aside
-        className="fixed right-4 sm:right-7 bottom-24 z-40 hidden md:flex items-center gap-1.5 p-1 rounded-full border backdrop-blur-xl"
+        className="cm-desktop-only cm-controls-right"
         style={{
           ...uiRevealStyle(0.1),
+          border: `1px solid ${theme.glassBorder}`,
           backgroundColor: theme.glassBg,
-          borderColor: theme.glassBorder,
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
         }}
       >
         <button
           type="button"
           onClick={toggleGravity}
-          className="px-2.5 py-1 rounded-full text-[9px] tracking-[0.2em] uppercase cursor-pointer"
           style={{
+            padding: '4px 10px',
+            borderRadius: '9999px',
+            border: 'none',
+            fontSize: '9px',
+            letterSpacing: '0.2em',
+            textTransform: 'uppercase',
+            cursor: 'pointer',
             backgroundColor: gravityOn ? theme.pillActiveBg : 'transparent',
             color: gravityOn ? theme.pillActiveText : theme.textMuted,
             transition: 'background-color 0.3s ease, color 0.3s ease',
@@ -2405,8 +2850,14 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
         <button
           type="button"
           onClick={toggleXray}
-          className="px-2.5 py-1 rounded-full text-[9px] tracking-[0.2em] uppercase cursor-pointer"
           style={{
+            padding: '4px 10px',
+            borderRadius: '9999px',
+            border: 'none',
+            fontSize: '9px',
+            letterSpacing: '0.2em',
+            textTransform: 'uppercase',
+            cursor: 'pointer',
             backgroundColor: xrayEnabled ? theme.pillActiveBg : 'transparent',
             color: xrayEnabled ? theme.pillActiveText : theme.textMuted,
             transition: 'background-color 0.3s ease, color 0.3s ease',
@@ -2418,8 +2869,14 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
         <button
           type="button"
           onClick={toggleAudio}
-          className="px-2.5 py-1 rounded-full text-[9px] tracking-[0.2em] uppercase cursor-pointer"
           style={{
+            padding: '4px 10px',
+            borderRadius: '9999px',
+            border: 'none',
+            fontSize: '9px',
+            letterSpacing: '0.2em',
+            textTransform: 'uppercase',
+            cursor: 'pointer',
             backgroundColor: !audioMuted ? theme.pillActiveBg : 'transparent',
             color: !audioMuted ? theme.pillActiveText : theme.textMuted,
             transition: 'background-color 0.3s ease, color 0.3s ease',
@@ -2430,14 +2887,27 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
         </button>
       </aside>
 
-      {/* Compact Mobile Controls Strip */}
+      {/* COMPACT MOBILE CONTROLS STRIP */}
       <div
-        className="fixed left-1/2 -translate-x-1/2 bottom-[92px] z-40 flex md:hidden items-center gap-1 p-1 rounded-full border backdrop-blur-xl max-w-[94vw] overflow-x-auto"
+        className="cm-mobile-only"
         style={{
+          position: 'fixed',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          bottom: '104px',
+          zIndex: 40,
+          alignItems: 'center',
+          gap: '4px',
+          padding: '4px 6px',
+          borderRadius: '9999px',
+          border: `1px solid ${theme.glassBorder}`,
+          backgroundColor: theme.glassBg,
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          maxWidth: '94vw',
+          overflowX: 'auto',
           opacity: introActive ? 0 : 1,
           transition: 'opacity 0.5s ease',
-          backgroundColor: theme.glassBg,
-          borderColor: theme.glassBorder,
         }}
       >
         {(['OBSIDIAN', 'BLUEPRINT', 'INK'] as ShaderMode[]).map((mode) => (
@@ -2445,8 +2915,15 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
             key={mode}
             type="button"
             onClick={() => switchShader(mode)}
-            className="px-2 py-1 rounded-full text-[8px] tracking-[0.16em] uppercase whitespace-nowrap"
             style={{
+              padding: '4px 8px',
+              borderRadius: '9999px',
+              border: 'none',
+              fontSize: '8px',
+              letterSpacing: '0.16em',
+              textTransform: 'uppercase',
+              whiteSpace: 'nowrap',
+              cursor: 'pointer',
               backgroundColor:
                 shaderMode === mode ? theme.pillActiveBg : 'transparent',
               color:
@@ -2456,12 +2933,19 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
             {mode}
           </button>
         ))}
-        <span className="opacity-25 text-[10px]">|</span>
+        <span style={{ opacity: 0.28, fontSize: '10px' }}>|</span>
         <button
           type="button"
           onClick={toggleGravity}
-          className="px-2 py-1 rounded-full text-[8px] tracking-[0.16em] uppercase whitespace-nowrap"
           style={{
+            padding: '4px 8px',
+            borderRadius: '9999px',
+            border: 'none',
+            fontSize: '8px',
+            letterSpacing: '0.16em',
+            textTransform: 'uppercase',
+            whiteSpace: 'nowrap',
+            cursor: 'pointer',
             backgroundColor: gravityOn ? theme.pillActiveBg : 'transparent',
             color: gravityOn ? theme.pillActiveText : theme.textMuted,
           }}
@@ -2471,8 +2955,15 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
         <button
           type="button"
           onClick={toggleAudio}
-          className="px-2 py-1 rounded-full text-[8px] tracking-[0.16em] uppercase whitespace-nowrap"
           style={{
+            padding: '4px 8px',
+            borderRadius: '9999px',
+            border: 'none',
+            fontSize: '8px',
+            letterSpacing: '0.16em',
+            textTransform: 'uppercase',
+            whiteSpace: 'nowrap',
+            cursor: 'pointer',
             color: !audioMuted ? theme.pillActiveText : theme.textMuted,
           }}
         >
@@ -2480,13 +2971,11 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
         </button>
       </div>
 
-      {/* ================================================================
-          7. FLOATING LIQUID-GLASS COMMAND DOCK (GRAVITY COLLISION SURFACE)
-         ================================================================ */}
+      {/* 7. FLOATING LIQUID-GLASS COMMAND DOCK (GRAVITY COLLISION SURFACE) */}
       <nav
         ref={dockRef}
         aria-label="Creator Direct Contact"
-        className="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-40 max-w-[95vw]"
+        className="cm-dock-wrap"
         style={{
           opacity: introActive ? 0 : 1,
           transform: introActive
@@ -2498,38 +2987,59 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
         }}
       >
         <div
-          className="relative flex flex-wrap sm:flex-nowrap items-center justify-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-2 rounded-2xl sm:rounded-full border backdrop-blur-2xl shadow-2xl overflow-hidden"
+          className="cm-dock-inner"
           style={{
+            position: 'relative',
+            overflow: 'hidden',
+            border: `1px solid ${theme.glassBorder}`,
             backgroundColor: theme.glassBg,
-            borderColor: theme.glassBorder,
+            backdropFilter: 'blur(26px)',
+            WebkitBackdropFilter: 'blur(26px)',
             boxShadow: theme.isLight
-              ? '0 18px 50px -12px rgba(10,10,12,0.14), inset 0 1px 0 rgba(255,255,255,0.8)'
-              : '0 22px 60px -12px rgba(0,0,0,0.75), inset 0 1px 0 rgba(255,255,255,0.14)',
+              ? '0 18px 50px -12px rgba(10,10,12,0.16), inset 0 1px 0 rgba(255,255,255,0.85)'
+              : '0 22px 60px -12px rgba(0,0,0,0.78), inset 0 1px 0 rgba(255,255,255,0.15)',
             transition: 'background-color 0.45s ease, border-color 0.45s ease',
           }}
         >
           {/* Gyroscope & Ambient Specular Glass Shine */}
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute inset-0 opacity-40"
             style={{
+              pointerEvents: 'none',
+              position: 'absolute',
+              inset: 0,
+              opacity: 0.42,
               background: `linear-gradient(${105 + gyroTilt.x * 35}deg, transparent 20%, rgba(255,255,255,${theme.isLight ? '0.55' : '0.16'}) 50%, transparent 80%)`,
             }}
           />
 
-          {/* Direct Email Copy Button with Cipher Scramble & Blur-Morph */}
+          {/* Direct Email Copy Button */}
           <MagneticButton
             onClick={handleCopyEmail}
             onMouseEnter={runEmailScramble}
             strength={0.2}
-            className="px-3 sm:px-4 py-1.5 rounded-full text-[10px] sm:text-[11px] tracking-[0.14em]"
-            style={{ color: theme.textPrimary }}
+            style={{
+              padding: '6px 14px',
+              borderRadius: '9999px',
+              fontSize: '11px',
+              letterSpacing: '0.12em',
+              color: theme.textPrimary,
+            }}
             title="Click to copy email"
           >
-            <span className="relative inline-flex items-center whitespace-nowrap">
+            <span
+              style={{
+                position: 'relative',
+                display: 'inline-flex',
+                alignItems: 'center',
+                whiteSpace: 'nowrap',
+              }}
+            >
               <span
-                className="inline-flex items-center gap-2"
                 style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
                   opacity: emailCopied ? 0 : 1,
                   filter: emailCopied ? 'blur(5px)' : 'blur(0px)',
                   transform: emailCopied ? 'translateY(-6px)' : 'translateY(0)',
@@ -2538,8 +3048,10 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
                 }}
               >
                 <span
-                  className="w-1.5 h-1.5 rounded-full"
                   style={{
+                    width: '6px',
+                    height: '6px',
+                    borderRadius: '9999px',
                     backgroundColor:
                       shaderMode === 'BLUEPRINT'
                         ? '#38BDF8'
@@ -2549,8 +3061,15 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
                 <span>{emailDisplay}</span>
               </span>
               <span
-                className="absolute inset-0 inline-flex items-center justify-center font-medium tracking-[0.2em] uppercase"
                 style={{
+                  position: 'absolute',
+                  inset: 0,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 500,
+                  letterSpacing: '0.2em',
+                  textTransform: 'uppercase',
                   opacity: emailCopied ? 1 : 0,
                   filter: emailCopied ? 'blur(0px)' : 'blur(5px)',
                   transform: emailCopied ? 'translateY(0)' : 'translateY(6px)',
@@ -2571,9 +3090,13 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
             onMouseEnter={() => audioRef.current?.playSoftHover()}
             onClick={() => audioRef.current?.playMechanicalTick(950)}
             strength={0.25}
-            className="px-2.5 py-1.5 rounded-full text-[9px] sm:text-[10px] tracking-[0.2em] uppercase border"
             style={{
-              borderColor: theme.glassBorder,
+              padding: '5px 10px',
+              borderRadius: '9999px',
+              fontSize: '9px',
+              letterSpacing: '0.2em',
+              textTransform: 'uppercase',
+              border: `1px solid ${theme.glassBorder}`,
               color: theme.textMuted,
             }}
             title="Open Mail App"
@@ -2583,11 +3106,11 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
 
           <span
             aria-hidden="true"
-            className="hidden sm:inline-block w-[1px] h-4 mx-1"
+            className="cm-dock-divider"
             style={{ backgroundColor: theme.glassBorder }}
           />
 
-          {/* Instagram Link with Vertical Slot-Roll Handle Reveal */}
+          {/* Instagram Link */}
           <MagneticButton
             href={CREATOR_INSTAGRAM_URL}
             target="_blank"
@@ -2598,8 +3121,14 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
             }}
             onMouseLeave={() => setInstaHovered(false)}
             strength={0.24}
-            className="px-3 py-1.5 rounded-full text-[10px] sm:text-[11px] tracking-[0.16em] uppercase"
-            style={{ color: theme.textPrimary }}
+            style={{
+              padding: '6px 12px',
+              borderRadius: '9999px',
+              fontSize: '10px',
+              letterSpacing: '0.16em',
+              textTransform: 'uppercase',
+              color: theme.textPrimary,
+            }}
           >
             <SlotRollLabel
               primary="INSTAGRAM ↗"
@@ -2611,7 +3140,7 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
             />
           </MagneticButton>
 
-          {/* LinkedIn Link with Vertical Slot-Roll Handle Reveal */}
+          {/* LinkedIn Link */}
           <MagneticButton
             href={CREATOR_LINKEDIN_URL}
             target="_blank"
@@ -2622,8 +3151,14 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
             }}
             onMouseLeave={() => setLinkedinHovered(false)}
             strength={0.24}
-            className="px-3 py-1.5 rounded-full text-[10px] sm:text-[11px] tracking-[0.16em] uppercase"
-            style={{ color: theme.textPrimary }}
+            style={{
+              padding: '6px 12px',
+              borderRadius: '9999px',
+              fontSize: '10px',
+              letterSpacing: '0.16em',
+              textTransform: 'uppercase',
+              color: theme.textPrimary,
+            }}
           >
             <SlotRollLabel
               primary="LINKEDIN ↗"
@@ -2637,23 +3172,34 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
         </div>
       </nav>
 
-      {/* ================================================================
-          8. REALITY-TEAR KINETIC SHUTTER + 0.8S ARCHITECTURAL TELEMETRY FLASH
-         ================================================================ */}
+      {/* 8. REALITY-TEAR KINETIC SHUTTER + 0.8S ARCHITECTURAL TELEMETRY FLASH */}
       <div
         aria-hidden={!introActive}
-        className="fixed inset-0 z-50 pointer-events-none flex items-center justify-center overflow-hidden"
         style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 60,
+          pointerEvents: 'none',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          overflow: 'hidden',
           opacity: introActive ? 1 : 0,
+          visibility: introActive ? 'visible' : 'hidden',
           filter: introActive ? 'blur(0px)' : 'blur(14px)',
           transform: introActive ? 'scale(1)' : 'scale(1.04)',
           transition:
-            'opacity 0.48s cubic-bezier(0.22,1,0.36,1), filter 0.48s ease, transform 0.48s cubic-bezier(0.22,1,0.36,1)',
+            'opacity 0.48s cubic-bezier(0.22,1,0.36,1), filter 0.48s ease, transform 0.48s cubic-bezier(0.22,1,0.36,1), visibility 0.48s ease',
         }}
       >
         <div
-          className="absolute top-0 left-0 right-0 h-1/2 border-b border-white/10"
           style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: '50%',
+            borderBottom: '1px solid rgba(255,255,255,0.1)',
             backgroundColor: theme.bgHex,
             transformOrigin: 'top center',
             transform: shutterOpened ? 'scaleY(0)' : 'scaleY(1)',
@@ -2661,8 +3207,13 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
           }}
         />
         <div
-          className="absolute bottom-0 left-0 right-0 h-1/2 border-t border-white/10"
           style={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: '50%',
+            borderTop: '1px solid rgba(255,255,255,0.1)',
             backgroundColor: theme.bgHex,
             transformOrigin: 'bottom center',
             transform: shutterOpened ? 'scaleY(0)' : 'scaleY(1)',
@@ -2671,8 +3222,11 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
         />
 
         <div
-          className="absolute left-0 right-0 h-[2px]"
           style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            height: '2px',
             transform: shutterOpened ? 'scaleX(1)' : 'scaleX(0)',
             opacity: shutterOpened ? 0 : 0.9,
             transition:
@@ -2683,15 +3237,37 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
           }}
         />
 
-        <div className="relative z-10 flex flex-col items-center gap-2 text-center px-6">
-          <div className="flex items-center gap-4 text-[10px] sm:text-[11px] tracking-[0.34em] uppercase">
+        <div
+          style={{
+            position: 'relative',
+            zIndex: 2,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '8px',
+            textAlign: 'center',
+            padding: '0 24px',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '14px',
+              fontSize: '10px',
+              letterSpacing: '0.34em',
+              textTransform: 'uppercase',
+            }}
+          >
             <span>SYSTEM // SANRACHNA</span>
-            <span className="opacity-35">·</span>
+            <span style={{ opacity: 0.35 }}>·</span>
             <span>CRAFT // HAND-CODED</span>
           </div>
           <div
-            className="text-4xl sm:text-5xl tabular-nums tracking-tight"
             style={{
+              fontSize: '44px',
+              fontVariantNumeric: 'tabular-nums',
+              letterSpacing: '-0.02em',
               fontFamily:
                 '"Instrument Serif", "Cormorant Garamond", Georgia, serif',
             }}
@@ -2702,6 +3278,8 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 };
 
 export default CreatorPassModal;
