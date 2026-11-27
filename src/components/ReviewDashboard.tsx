@@ -36,7 +36,7 @@ interface ReviewDashboardProps {
 }
 
 // ===========================================================================
-// 1. FLOATING 3D BUBBLES CANVAS ENGINE (SAME AS GUIDELINES PAGE)
+// 1. FLOATING 3D BUBBLES CANVAS ENGINE
 // ===========================================================================
 interface BubbleParticle {
   angle: number;
@@ -509,6 +509,16 @@ export default function ReviewDashboard({ onExit }: ReviewDashboardProps) {
 
   const isDarkMode = theme === 'espresso';
 
+  // Lock background page scroll while Studio full-screen overlay is open
+  useEffect(() => {
+    if (printMode !== 'none') return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [printMode]);
+
   const pushToast = useCallback(
     (title: string, subtitle: string, tone: LiveToast['tone'] = 'gold') => {
       const id = `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
@@ -556,18 +566,23 @@ export default function ReviewDashboard({ onExit }: ReviewDashboardProps) {
     rootRef.current.style.setProperty('--my', `${e.clientY}px`);
   };
 
-  // Scroll listener for progress thread & horizontal-to-left-rail morph
+  // Track internal Studio container scroll for progress bar & horizontal -> left-rail morph
   useEffect(() => {
+    const scroller = rootRef.current;
+    if (!scroller) return;
+    scroller.scrollTop = 0;
+
     const onScroll = () => {
-      const y = window.scrollY;
-      const maxScroll = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+      const y = scroller.scrollTop;
+      const maxScroll = Math.max(1, scroller.scrollHeight - scroller.clientHeight);
       setScrollProgress(Math.min(100, Math.max(0, (y / maxScroll) * 100)));
-      setIsDocked(y > 110);
+      setIsDocked(y > 95);
     };
-    window.addEventListener('scroll', onScroll, { passive: true });
+
+    scroller.addEventListener('scroll', onScroll, { passive: true });
     onScroll();
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
+    return () => scroller.removeEventListener('scroll', onScroll);
+  }, [authChecked, userEmail, printMode]);
 
   // Cmd/Ctrl + K Command Palette shortcut
   useEffect(() => {
@@ -816,16 +831,22 @@ export default function ReviewDashboard({ onExit }: ReviewDashboardProps) {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,600;1,700&family=Noto+Serif+Devanagari:wght@600;700&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,500&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Rozha+One&display=swap');
 
-        /* Guidelines-Grade Root Override & Typography Polish */
+        /* Full-Screen Fixed Overlay so Studio cleanly covers main website & footer */
         .sx2-root.st-awwwards {
+          position: fixed !important;
+          inset: 0 !important;
+          z-index: 9999 !important;
           display: block !important;
-          min-height: 100vh !important;
-          width: 100% !important;
+          width: 100vw !important;
+          height: 100vh !important;
+          height: 100dvh !important;
+          overflow-y: auto !important;
+          overflow-x: hidden !important;
+          margin: 0 !important;
+          padding: 0 !important;
           background: ${bg} !important;
           color: ${textMain} !important;
           font-family: 'Plus Jakarta Sans', -apple-system, sans-serif !important;
-          position: relative;
-          overflow-x: clip;
           transition: background-color 0.65s cubic-bezier(0.16, 1, 0.3, 1), color 0.5s ease;
         }
         .sx2-root.st-awwwards.sx2-center {
@@ -836,6 +857,13 @@ export default function ReviewDashboard({ onExit }: ReviewDashboardProps) {
         }
         .sx2-root.st-awwwards * {
           box-sizing: border-box;
+        }
+        .sx2-root.st-awwwards .sx2-paper-grain,
+        .sx2-root.st-awwwards .sx2-spotlight {
+          position: fixed !important;
+          inset: 0 !important;
+          pointer-events: none !important;
+          z-index: 2 !important;
         }
         .sx2-root.st-awwwards h1,
         .sx2-root.st-awwwards h2,
@@ -893,7 +921,6 @@ export default function ReviewDashboard({ onExit }: ReviewDashboardProps) {
           box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.16) !important;
         }
 
-        /* Horizontal Single-Row Scroll Container (Zero Mobile Line-Wrap) */
         .st-tabs-scroll-outer {
           max-width: 100%;
           overflow-x: auto;
@@ -906,7 +933,6 @@ export default function ReviewDashboard({ onExit }: ReviewDashboardProps) {
           display: none;
         }
 
-        /* Cinematic Theme Switch Radial Curtain Wave */
         @keyframes stThemeRadialWave {
           0% {
             opacity: 0.92;
@@ -924,12 +950,11 @@ export default function ReviewDashboard({ onExit }: ReviewDashboardProps) {
         .st-theme-curtain {
           position: fixed;
           inset: 0;
-          z-index: 160;
+          z-index: 45;
           pointer-events: none;
           animation: stThemeRadialWave 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
 
-        /* Zero-Flash 60fps Luxury 3D Sheet Entry + Gold Sheen Sweep */
         @keyframes stLuxurySheetIn {
           0% {
             opacity: 0;
@@ -978,7 +1003,6 @@ export default function ReviewDashboard({ onExit }: ReviewDashboardProps) {
           will-change: transform, opacity;
         }
 
-        /* Video-Style Staggered Left Rail Entrance & Active Glow */
         @keyframes stRailToggleArcIn {
           0% {
             opacity: 0;
@@ -1127,8 +1151,8 @@ export default function ReviewDashboard({ onExit }: ReviewDashboardProps) {
         .st-capsule-wrap {
           position: sticky;
           top: 12px;
-          z-index: 80;
-          padding: 0 14px;
+          z-index: 30;
+          padding: 12px 14px 0 14px;
           pointer-events: none;
           transform-origin: left center;
           transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.42s ease;
@@ -1150,7 +1174,7 @@ export default function ReviewDashboard({ onExit }: ReviewDashboardProps) {
           align-items: center;
           justify-content: space-between;
           gap: 10px;
-          background: ${isDarkMode ? 'rgba(9, 14, 30, 0.86)' : 'rgba(255, 253, 249, 0.92)'};
+          background: ${isDarkMode ? 'rgba(9, 14, 30, 0.88)' : 'rgba(255, 253, 249, 0.94)'};
           backdrop-filter: blur(24px) saturate(190%);
           -webkit-backdrop-filter: blur(24px) saturate(190%);
           border: 1px solid rgba(212, 175, 55, 0.46);
@@ -1166,16 +1190,18 @@ export default function ReviewDashboard({ onExit }: ReviewDashboardProps) {
 
         @media (min-width: 1120px) {
           .st-left-rail {
-            position: fixed;
-            left: 16px;
-            top: 50%;
-            z-index: 95;
+            position: fixed !important;
+            left: 16px !important;
+            right: auto !important;
+            top: 50% !important;
+            bottom: auto !important;
+            z-index: 35 !important;
             display: flex;
             flex-direction: column;
             gap: 7px;
             padding: 12px 10px;
             border-radius: 28px;
-            background: ${isDarkMode ? 'rgba(9, 14, 30, 0.9)' : 'rgba(255, 253, 249, 0.95)'};
+            background: ${isDarkMode ? 'rgba(9, 14, 30, 0.92)' : 'rgba(255, 253, 249, 0.96)'};
             backdrop-filter: blur(24px) saturate(190%);
             -webkit-backdrop-filter: blur(24px) saturate(190%);
             border: 1px solid rgba(212, 175, 55, 0.5);
@@ -1186,16 +1212,18 @@ export default function ReviewDashboard({ onExit }: ReviewDashboardProps) {
             transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.42s ease, width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
           }
           .st-topright-dock {
-            position: fixed;
-            top: 16px;
-            right: 20px;
-            z-index: 95;
+            position: fixed !important;
+            top: 16px !important;
+            right: 20px !important;
+            left: auto !important;
+            bottom: auto !important;
+            z-index: 35 !important;
             display: flex;
             align-items: center;
             gap: 8px;
             padding: 7px 10px;
             border-radius: 999px;
-            background: ${isDarkMode ? 'rgba(9, 14, 30, 0.9)' : 'rgba(255, 253, 249, 0.95)'};
+            background: ${isDarkMode ? 'rgba(9, 14, 30, 0.92)' : 'rgba(255, 253, 249, 0.96)'};
             backdrop-filter: blur(24px) saturate(190%);
             -webkit-backdrop-filter: blur(24px) saturate(190%);
             border: 1px solid rgba(212, 175, 55, 0.5);
@@ -1211,7 +1239,7 @@ export default function ReviewDashboard({ onExit }: ReviewDashboardProps) {
           z-index: 5;
           max-width: 1360px;
           margin: 0 auto;
-          padding: 20px 28px 48px 28px;
+          padding: 18px 28px 48px 28px;
         }
         @media (min-width: 1120px) and (max-width: 1520px) {
           .st-shell {
@@ -1257,6 +1285,7 @@ export default function ReviewDashboard({ onExit }: ReviewDashboardProps) {
           margin: 0 !important;
           width: 100% !important;
           max-width: 100% !important;
+          min-height: auto !important;
           background: transparent !important;
         }
 
@@ -1280,7 +1309,7 @@ export default function ReviewDashboard({ onExit }: ReviewDashboardProps) {
         @media (max-width: 720px) {
           .st-hide-sm { display: none !important; }
           .st-shell { padding: 14px 14px 36px 14px; }
-          .st-capsule-wrap { top: 10px; padding: 0 10px; }
+          .st-capsule-wrap { top: 8px; padding: 8px 10px 0 10px; }
           .st-capsule-nav { padding: 7px 10px; gap: 7px; }
           .st-brand-wordmark { font-size: 16.5px; }
           .st-pulse-strip { padding: 14px 16px; gap: 12px; }
@@ -1315,7 +1344,7 @@ export default function ReviewDashboard({ onExit }: ReviewDashboardProps) {
           width: `${scrollProgress}%`,
           background: 'linear-gradient(90deg, #8B1E24 0%, #D4AF37 55%, #1E3A5F 100%)',
           boxShadow: '0 0 14px rgba(212, 175, 55, 0.8)',
-          zIndex: 130,
+          zIndex: 48,
           transition: 'width 0.1s linear',
         }}
       />
@@ -1391,7 +1420,6 @@ export default function ReviewDashboard({ onExit }: ReviewDashboardProps) {
         <div className="sx2-paper-grain no-print" />
         <div className="sx2-spotlight no-print" />
 
-        {/* Theme Toggle on Login Screen */}
         <button
           type="button"
           onClick={toggleTheme}
@@ -1404,14 +1432,13 @@ export default function ReviewDashboard({ onExit }: ReviewDashboardProps) {
             width: '40px',
             height: '40px',
             padding: 0,
-            zIndex: 50,
+            zIndex: 40,
           }}
           title={isDarkMode ? 'Switch to Parchment Light' : 'Switch to Royal Dark'}
         >
           <StudioThemeIcon isDark={isDarkMode} maskId="st-moon-login" />
         </button>
 
-        {/* Orbiting Golden "Zero" Ring */}
         <div
           aria-hidden="true"
           className="no-print"
@@ -1588,9 +1615,7 @@ export default function ReviewDashboard({ onExit }: ReviewDashboardProps) {
       <div className="sx2-paper-grain no-print" />
       <div className="sx2-spotlight no-print" />
 
-      {/* ================================================================= */}
-      {/* DESKTOP LEFT-SHIFT VERTICAL CAPSULE RAIL (VIDEO MORPH EFFECT)     */}
-      {/* ================================================================= */}
+      {/* DESKTOP LEFT-SHIFT VERTICAL CAPSULE RAIL */}
       <aside
         className="st-left-rail no-print"
         onMouseEnter={() => setRailHovered(true)}
@@ -1726,7 +1751,6 @@ export default function ReviewDashboard({ onExit }: ReviewDashboardProps) {
 
         <div style={{ height: '1px', background: hairline, margin: '2px 4px' }} />
 
-        {/* Session Curated Meter inside Docked Rail */}
         <div style={{ padding: '4px 6px 2px 6px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div style={{ flex: 1, height: '4px', borderRadius: '999px', background: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(139,30,36,0.12)', overflow: 'hidden' }}>
@@ -1749,9 +1773,7 @@ export default function ReviewDashboard({ onExit }: ReviewDashboardProps) {
         </div>
       </aside>
 
-      {/* ================================================================= */}
-      {/* DESKTOP PERSISTENT TOP-RIGHT ACTION DOCK                          */}
-      {/* ================================================================= */}
+      {/* DESKTOP PERSISTENT TOP-RIGHT ACTION DOCK */}
       <div
         className="st-topright-dock no-print"
         style={{
@@ -1794,9 +1816,7 @@ export default function ReviewDashboard({ onExit }: ReviewDashboardProps) {
         </button>
       </div>
 
-      {/* ================================================================= */}
-      {/* TOP FLOATING CAPSULE HEADER                                       */}
-      {/* ================================================================= */}
+      {/* TOP FLOATING CAPSULE HEADER */}
       <div className={`st-capsule-wrap no-print ${isDocked ? 'is-docked' : ''}`}>
         <header className="st-capsule-nav">
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
@@ -1891,11 +1911,8 @@ export default function ReviewDashboard({ onExit }: ReviewDashboardProps) {
         </header>
       </div>
 
-      {/* ================================================================= */}
-      {/* STUDIO SHELL: MOBILE TABS + LIVE PULSE BAR + WORKSPACE            */}
-      {/* ================================================================= */}
+      {/* STUDIO SHELL */}
       <div className="st-shell">
-        {/* Mobile/Tablet Single-Row Scrollable Pill Tabs */}
         <div className="st-mobile-tabs no-print">
           <StudioSlidingPillTabs
             isDarkMode={isDarkMode}
@@ -1905,7 +1922,6 @@ export default function ReviewDashboard({ onExit }: ReviewDashboardProps) {
           />
         </div>
 
-        {/* Live Editorial Pulse & Odometer Strip */}
         <section className="st-pulse-strip no-print">
           <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', textAlign: 'left' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
@@ -2017,7 +2033,6 @@ export default function ReviewDashboard({ onExit }: ReviewDashboardProps) {
           </div>
         </section>
 
-        {/* Active Workspace with Zero-Flash GPU Transition */}
         <main key={activeTab} className="sx2-content st-workspace-enter">
           {activeTab === 'submissions' ? (
             <ManuscriptWorkspace
