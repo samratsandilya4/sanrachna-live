@@ -8,7 +8,7 @@ import React, {
 import { createPortal } from 'react-dom';
 
 /* ============================================================================
-   TYPES, CONSTANTS & EDITORIAL PALETTES
+   TYPES & CONSTANTS
    ============================================================================ */
 
 export interface CreatorPassModalProps {
@@ -17,30 +17,8 @@ export interface CreatorPassModalProps {
   isDarkMode?: boolean;
 }
 
-type ShaderMode = 'OBSIDIAN' | 'BLUEPRINT' | 'INK';
-type PhysicsMode = 'FLUID' | 'VORTEX' | 'SWARM';
-
-interface RGB {
-  r: number;
-  g: number;
-  b: number;
-}
-
-interface ThemeTokens {
-  bgHex: string;
-  bgRgb: RGB;
-  particleRgb: RGB;
-  accentRgb: RGB;
-  gridRgb: RGB;
-  textPrimary: string;
-  textMuted: string;
-  glassBg: string;
-  glassBorder: string;
-  pillActiveBg: string;
-  pillActiveText: string;
-  vignette: string;
-  isLight: boolean;
-}
+type WorldMode = 'STORM_LAMP' | 'MOON_LIGHTNING' | 'GOLDEN_MORNING';
+type StagePhase = 'FLICKER' | 'INTRO' | 'DESK';
 
 const CREATOR_EMAIL = 'samratsandilya4@gmail.com';
 const CREATOR_INSTAGRAM_URL = 'https://www.instagram.com/samrat.tiwary';
@@ -48,68 +26,27 @@ const CREATOR_INSTAGRAM_HANDLE = '@samrat.tiwary';
 const CREATOR_LINKEDIN_URL = 'https://www.linkedin.com/in/samrat-sandilya';
 const CREATOR_LINKEDIN_HANDLE = 'in/samrat-sandilya';
 
-const SCRAMBLE_GLYPHS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/+#*<>';
+const WORLD_ORDER: WorldMode[] = [
+  'STORM_LAMP',
+  'MOON_LIGHTNING',
+  'GOLDEN_MORNING',
+];
 
-const THEMES: Record<ShaderMode, ThemeTokens> = {
-  OBSIDIAN: {
-    bgHex: '#060608',
-    bgRgb: { r: 6, g: 6, b: 8 },
-    particleRgb: { r: 244, g: 242, b: 236 },
-    accentRgb: { r: 196, g: 204, b: 218 },
-    gridRgb: { r: 255, g: 255, b: 255 },
-    textPrimary: '#F4F2EC',
-    textMuted: 'rgba(244, 242, 236, 0.54)',
-    glassBg: 'rgba(14, 15, 20, 0.66)',
-    glassBorder: 'rgba(255, 255, 255, 0.14)',
-    pillActiveBg: 'rgba(244, 242, 236, 0.15)',
-    pillActiveText: '#FFFFFF',
-    vignette:
-      'radial-gradient(ellipse at center, transparent 42%, rgba(0,0,0,0.74) 100%)',
-    isLight: false,
-  },
-  BLUEPRINT: {
-    bgHex: '#040B16',
-    bgRgb: { r: 4, g: 11, b: 22 },
-    particleRgb: { r: 214, g: 240, b: 255 },
-    accentRgb: { r: 56, g: 189, b: 248 },
-    gridRgb: { r: 56, g: 189, b: 248 },
-    textPrimary: '#E0F2FE',
-    textMuted: 'rgba(125, 211, 252, 0.65)',
-    glassBg: 'rgba(6, 20, 40, 0.7)',
-    glassBorder: 'rgba(56, 189, 248, 0.3)',
-    pillActiveBg: 'rgba(56, 189, 248, 0.22)',
-    pillActiveText: '#F0F9FF',
-    vignette:
-      'radial-gradient(ellipse at center, transparent 38%, rgba(2,6,14,0.84) 100%)',
-    isLight: false,
-  },
-  INK: {
-    bgHex: '#F4F1EA',
-    bgRgb: { r: 244, g: 241, b: 234 },
-    particleRgb: { r: 12, g: 12, b: 15 },
-    accentRgb: { r: 72, g: 68, b: 62 },
-    gridRgb: { r: 14, g: 14, b: 18 },
-    textPrimary: '#0A0A0C',
-    textMuted: 'rgba(10, 10, 12, 0.56)',
-    glassBg: 'rgba(250, 248, 242, 0.78)',
-    glassBorder: 'rgba(10, 10, 12, 0.14)',
-    pillActiveBg: 'rgba(10, 10, 12, 0.11)',
-    pillActiveText: '#0A0A0C',
-    vignette:
-      'radial-gradient(ellipse at center, transparent 48%, rgba(20,18,14,0.12) 100%)',
-    isLight: true,
-  },
+const WORLD_LABELS: Record<WorldMode, string> = {
+  STORM_LAMP: 'STORM · LAMP ON',
+  MOON_LIGHTNING: 'NIGHT · LIGHTNING',
+  GOLDEN_MORNING: 'DAWN · SUNBEAMS',
 };
 
 /* ============================================================================
-   SELF-CONTAINED SCOPED CSS (ZERO TAILWIND DEPENDENCY)
+   SELF-CONTAINED SCOPED CSS (ZERO TAILWIND DEPENDENCY, MOBILE + DESKTOP)
    ============================================================================ */
 
-const MONOLITH_SCOPED_CSS = `
-.cm-root, .cm-root * {
+const VINTAGE_SCOPED_CSS = `
+.vs-root, .vs-root * {
   box-sizing: border-box;
 }
-.cm-root {
+.vs-root {
   position: fixed !important;
   inset: 0 !important;
   width: 100vw !important;
@@ -117,168 +54,212 @@ const MONOLITH_SCOPED_CSS = `
   height: 100dvh !important;
   z-index: 2147483000 !important;
   overflow: hidden !important;
+  margin: 0 !important;
+  padding: 0 !important;
   user-select: none;
   -webkit-user-select: none;
-  margin: 0;
-  padding: 0;
-  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  background: #06070a;
+  font-family: "Cormorant Garamond", Georgia, serif;
 }
-.cm-root button, .cm-root a {
+.vs-root button, .vs-root a {
   font-family: inherit;
   text-decoration: none;
-  background: transparent;
   outline: none;
 }
-.cm-scroll {
+
+@keyframes vsPowerFlicker {
+  0% { opacity: 0; }
+  12% { opacity: 0.92; background: #1a1510; }
+  26% { opacity: 0.12; background: #000; }
+  42% { opacity: 0.96; background: #0d0b08; }
+  62% { opacity: 0.2; background: #000; }
+  82% { opacity: 1; background: #030407; }
+  100% { opacity: 1; background: #030407; }
+}
+
+@keyframes vsInkReveal {
+  0% { clip-path: inset(0 100% 0 0); filter: blur(1.4px); }
+  72% { clip-path: inset(0 0% 0 0); filter: blur(0px); }
+  100% { clip-path: inset(0 0% 0 0); filter: blur(0px); }
+}
+
+@keyframes vsWetSheen {
+  0% { background-position: -140% 0; opacity: 0.95; }
+  65% { background-position: 140% 0; opacity: 0.55; }
+  100% { background-position: 180% 0; opacity: 0; }
+}
+
+@keyframes vsSealStamp {
+  0% { transform: scale(2.1) rotate(-18deg); opacity: 0; filter: blur(6px); }
+  60% { transform: scale(0.92) rotate(-6deg); opacity: 1; filter: blur(0px); }
+  80% { transform: scale(1.04) rotate(-8deg); opacity: 1; }
+  100% { transform: scale(1) rotate(-7deg); opacity: 1; }
+}
+
+@keyframes vsInkStampSlam {
+  0% { transform: translate(-50%, -50%) scale(2.4) rotate(-22deg); opacity: 0; }
+  55% { transform: translate(-50%, -50%) scale(0.92) rotate(-11deg); opacity: 0.96; }
+  100% { transform: translate(-50%, -50%) scale(1) rotate(-12deg); opacity: 0.9; }
+}
+
+@keyframes vsCurtainSway {
+  0%, 100% { transform: skewX(-1.5deg) translateX(0px); }
+  45% { transform: skewX(5.5deg) translateX(16px); }
+  70% { transform: skewX(1.5deg) translateX(4px); }
+}
+
+@keyframes vsPageFlutter {
+  0% { transform: rotateY(0deg) skewY(0deg); }
+  35% { transform: rotateY(-17deg) skewY(-1.6deg); }
+  65% { transform: rotateY(-9deg) skewY(-0.8deg); }
+  100% { transform: rotateY(0deg) skewY(0deg); }
+}
+
+.vs-ink-name {
+  display: inline-block;
+  position: relative;
+  font-family: "Great Vibes", "Cormorant Garamond", cursive, serif;
+  line-height: 1.08;
+  animation: vsInkReveal 2.35s cubic-bezier(0.25, 0.85, 0.35, 1) forwards;
+}
+
+.vs-ink-name::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(108deg, transparent 22%, rgba(255, 240, 200, 0.65) 48%, transparent 72%);
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  pointer-events: none;
+  animation: vsWetSheen 3.2s ease-out forwards;
+}
+
+.vs-ink-sub {
+  display: inline-block;
+  animation: vsInkReveal 1.3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.vs-wax-seal {
+  animation: vsSealStamp 0.58s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.vs-stamp-copied {
+  animation: vsInkStampSlam 0.34s cubic-bezier(0.18, 0.9, 0.3, 1.15) forwards;
+}
+
+.vs-book-stage {
   position: fixed;
   inset: 0;
-  z-index: 10;
-  width: 100%;
-  height: 100%;
-  overflow-y: auto;
-  overflow-x: hidden;
-  scroll-behavior: smooth;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-.cm-scroll::-webkit-scrollbar {
-  display: none;
-}
-.cm-pulse-dot {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  border-radius: 9999px;
-  animation: cmPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-@keyframes cmPulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.35; }
-}
-.cm-desktop-only {
+  z-index: 20;
   display: flex;
-}
-.cm-mobile-only {
-  display: none;
-}
-.cm-sm-show {
-  display: inline-flex;
-}
-.cm-proof-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 20px;
-}
-.cm-dock-inner {
-  display: flex;
-  flex-wrap: nowrap;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 8px 12px;
-  border-radius: 9999px;
+  padding: 68px 18px 88px;
+  pointer-events: none;
+  perspective: 1800px;
 }
-.cm-dock-divider {
-  display: inline-block;
-  width: 1px;
-  height: 16px;
-  margin: 0 4px;
+
+.vs-book-wrap {
+  position: relative;
+  width: min(790px, 88vw);
+  height: min(448px, 58dvh);
+  pointer-events: auto;
+  transform-style: preserve-3d;
 }
-.cm-header {
+
+.vs-hud-top {
   position: fixed;
-  top: 22px;
-  left: 28px;
-  right: 28px;
-  z-index: 40;
+  top: 16px;
+  left: 20px;
+  right: 20px;
+  z-index: 55;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 12px;
   pointer-events: none;
 }
-.cm-controls-left {
+
+.vs-chain-anchor {
   position: fixed;
-  left: 28px;
-  bottom: 94px;
-  z-index: 40;
-  flex-direction: column;
-  gap: 8px;
+  top: 0;
+  right: 118px;
+  z-index: 50;
+  touch-action: none;
+  cursor: grab;
 }
-.cm-controls-right {
-  position: fixed;
-  right: 28px;
-  bottom: 94px;
-  z-index: 40;
-  align-items: center;
-  gap: 6px;
-  padding: 4px;
-  border-radius: 9999px;
+.vs-chain-anchor:active {
+  cursor: grabbing;
 }
-.cm-dock-wrap {
+
+.vs-hint-bar {
   position: fixed;
-  bottom: 22px;
+  bottom: 14px;
   left: 50%;
-  z-index: 40;
-  max-width: 95vw;
+  transform: translateX(-50%);
+  z-index: 35;
+  font-family: "Cinzel", Georgia, serif;
+  font-size: 9px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  pointer-events: none;
+  text-align: center;
+  padding: 5px 14px;
+  border-radius: 999px;
 }
+
 @media (max-width: 767px) {
-  .cm-desktop-only {
-    display: none !important;
+  .vs-book-stage {
+    padding: 62px 12px 104px;
   }
-  .cm-mobile-only {
-    display: flex !important;
+  .vs-book-wrap {
+    width: min(368px, 90vw);
+    height: min(455px, 60dvh);
   }
-  .cm-sm-show {
-    display: none !important;
+  .vs-hud-top {
+    top: 12px;
+    left: 12px;
+    right: 12px;
   }
-  .cm-proof-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
+  .vs-chain-anchor {
+    right: 76px;
   }
-  .cm-header {
-    top: 14px;
-    left: 14px;
-    right: 14px;
-  }
-  .cm-dock-wrap {
-    bottom: 14px;
-  }
-  .cm-dock-inner {
-    flex-wrap: wrap;
-    gap: 4px;
-    padding: 8px 10px;
-    border-radius: 18px;
-  }
-  .cm-dock-divider {
-    display: none;
+  .vs-hint-bar {
+    font-size: 8px;
+    letter-spacing: 0.16em;
+    bottom: 10px;
+    max-width: 92vw;
+    white-space: normal;
   }
 }
 `;
 
-let stylesAndFontsInjected = false;
-function ensureMonolithAssets() {
-  if (stylesAndFontsInjected || typeof document === 'undefined') return;
-  stylesAndFontsInjected = true;
+let vintageAssetsInjected = false;
+function ensureVintageAssets() {
+  if (vintageAssetsInjected || typeof document === 'undefined') return;
+  vintageAssetsInjected = true;
 
-  if (!document.getElementById('monolith-editorial-fonts')) {
+  if (!document.getElementById('vs-vintage-fonts')) {
     const link = document.createElement('link');
-    link.id = 'monolith-editorial-fonts';
+    link.id = 'vs-vintage-fonts';
     link.rel = 'stylesheet';
     link.href =
-      'https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,400&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap';
+      'https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,400;1,600&family=Great+Vibes&display=swap';
     document.head.appendChild(link);
   }
 
-  if (!document.getElementById('monolith-scoped-css')) {
+  if (!document.getElementById('vs-vintage-css')) {
     const style = document.createElement('style');
-    style.id = 'monolith-scoped-css';
-    style.textContent = MONOLITH_SCOPED_CSS;
+    style.id = 'vs-vintage-css';
+    style.textContent = VINTAGE_SCOPED_CSS;
     document.head.appendChild(style);
   }
 }
 
 /* ============================================================================
-   SECRET HOLD-TO-CHARGE TRIGGER HOOK (SUPPORTS {...trigger.bind} & {...trigger})
+   SECRET HOLD-TO-CHARGE TRIGGER HOOK (100% COMPATIBLE WITH App.tsx)
    ============================================================================ */
 
 export interface CreatorPassTriggerHandlers {
@@ -382,7 +363,7 @@ export function useCreatorPassTrigger(
     };
   }, []);
 
-  // Keyboard secret ("samrat" or Ctrl+Shift+S)
+  // Keyboard shortcut ("samrat" or Ctrl+Shift+S)
   useEffect(() => {
     let buffer = '';
 
@@ -423,7 +404,7 @@ export function useCreatorPassTrigger(
         try {
           e.currentTarget.setPointerCapture(e.pointerId);
         } catch {
-          // ignore if capture is unsupported
+          // ignore
         }
         startCharge();
       },
@@ -479,11 +460,15 @@ export function useCreatorPassTrigger(
 }
 
 /* ============================================================================
-   WEB AUDIO API SYNTHESIZER (ZERO EXTERNAL AUDIO FILES)
+   REAL-TIME PROCEDURAL AUDIO ENGINE (RAIN, THUNDER, PAPER, BRASS CHAIN, STAMP)
    ============================================================================ */
 
-class MonolithAudioEngine {
+class VintageAudioEngine {
   private ctx: AudioContext | null = null;
+  private noiseBuffer: AudioBuffer | null = null;
+  private rainSource: AudioBufferSourceNode | null = null;
+  private rainGain: GainNode | null = null;
+  private rainFilter: BiquadFilterNode | null = null;
   public muted = false;
 
   private ensureContext(): AudioContext | null {
@@ -500,105 +485,143 @@ class MonolithAudioEngine {
       if (this.ctx.state === 'suspended') {
         this.ctx.resume().catch(() => {});
       }
+      if (!this.noiseBuffer) {
+        const len = this.ctx.sampleRate * 2;
+        const buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
+        const data = buf.getChannelData(0);
+        let b0 = 0;
+        let b1 = 0;
+        let b2 = 0;
+        for (let i = 0; i < len; i++) {
+          const white = Math.random() * 2 - 1;
+          b0 = 0.997 * b0 + white * 0.029;
+          b1 = 0.985 * b1 + white * 0.032;
+          b2 = 0.95 * b2 + white * 0.048;
+          data[i] = Math.max(-1, Math.min(1, (b0 + b1 + b2 + white * 0.14) * 1.6));
+        }
+        this.noiseBuffer = buf;
+      }
       return this.ctx;
     } catch {
       return null;
     }
   }
 
-  public playEntryBass() {
+  public startRainAmbience(level = 0.055) {
     const ctx = this.ensureContext();
-    if (!ctx) return;
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
+    if (!ctx || !this.noiseBuffer) return;
+    if (this.rainSource) {
+      this.setRainLevel(level);
+      return;
+    }
+    const src = ctx.createBufferSource();
+    src.buffer = this.noiseBuffer;
+    src.loop = true;
+
     const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.value = 980;
+    filter.Q.value = 0.65;
 
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(118, now);
-    osc.frequency.exponentialRampToValueAtTime(34, now + 0.55);
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(level, ctx.currentTime + 0.8);
 
-    filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(240, now);
-
-    gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.linearRampToValueAtTime(0.18, now + 0.04);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.65);
-
-    osc.connect(filter);
+    src.connect(filter);
     filter.connect(gain);
     gain.connect(ctx.destination);
-    osc.start(now);
-    osc.stop(now + 0.68);
+    src.start();
+
+    this.rainSource = src;
+    this.rainFilter = filter;
+    this.rainGain = gain;
   }
 
-  public playMechanicalTick(pitch = 920) {
+  public setRainLevel(level: number, freq = 980) {
+    if (!this.ctx || !this.rainGain || !this.rainFilter) return;
+    const now = this.ctx.currentTime;
+    const target = this.muted ? 0.0001 : Math.max(0.0001, level);
+    this.rainGain.gain.cancelScheduledValues(now);
+    this.rainGain.gain.setTargetAtTime(target, now, 0.25);
+    this.rainFilter.frequency.setTargetAtTime(freq, now, 0.25);
+  }
+
+  public playThunder(intensity = 1) {
     const ctx = this.ensureContext();
-    if (!ctx) return;
+    if (!ctx || !this.noiseBuffer) return;
     const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
+
+    const src = ctx.createBufferSource();
+    src.buffer = this.noiseBuffer;
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(340 * intensity, now);
+    filter.frequency.exponentialRampToValueAtTime(52, now + 1.5);
+
     const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.001, now);
+    gain.gain.linearRampToValueAtTime(0.24 * intensity, now + 0.04);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.75);
 
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(pitch, now);
-    osc.frequency.exponentialRampToValueAtTime(pitch * 0.32, now + 0.028);
-
-    gain.gain.setValueAtTime(0.048, now);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.032);
-
-    osc.connect(gain);
+    src.connect(filter);
+    filter.connect(gain);
     gain.connect(ctx.destination);
-    osc.start(now);
-    osc.stop(now + 0.035);
+    src.start(now);
+    src.stop(now + 1.8);
   }
 
-  public playSoftHover() {
+  public playChainSwitch() {
     const ctx = this.ensureContext();
     if (!ctx) return;
     const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
 
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(520, now);
-    osc.frequency.exponentialRampToValueAtTime(680, now + 0.025);
-
-    gain.gain.setValueAtTime(0.018, now);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.03);
-
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start(now);
-    osc.stop(now + 0.032);
-  }
-
-  public playHarmonicChime() {
-    const ctx = this.ensureContext();
-    if (!ctx) return;
-    const now = ctx.currentTime;
-    const notes = [523.25, 659.25, 783.99, 1046.5];
-    notes.forEach((freq, idx) => {
+    // Metallic brass clink + crisp toggle katak
+    const freqs = [2450, 1480];
+    freqs.forEach((f, idx) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
-      const start = now + idx * 0.035;
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(freq, start);
+      const t = now + idx * 0.042;
+      osc.type = idx === 0 ? 'triangle' : 'square';
+      osc.frequency.setValueAtTime(f, t);
+      osc.frequency.exponentialRampToValueAtTime(f * 0.28, t + 0.045);
 
-      gain.gain.setValueAtTime(0.0001, start);
-      gain.gain.linearRampToValueAtTime(
-        0.045 / (idx * 0.4 + 1),
-        start + 0.015
-      );
-      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.48);
+      gain.gain.setValueAtTime(idx === 0 ? 0.08 : 0.055, t);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.055);
 
       osc.connect(gain);
       gain.connect(ctx.destination);
-      osc.start(start);
-      osc.stop(start + 0.5);
+      osc.start(t);
+      osc.stop(t + 0.06);
     });
   }
 
-  public playGravityPulse(dropping: boolean) {
+  public playPaperFlip(soft = false) {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.noiseBuffer) return;
+    const now = ctx.currentTime;
+
+    const src = ctx.createBufferSource();
+    src.buffer = this.noiseBuffer;
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(soft ? 1300 : 1850, now);
+    filter.frequency.exponentialRampToValueAtTime(680, now + 0.24);
+    filter.Q.value = 1.2;
+
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.linearRampToValueAtTime(soft ? 0.045 : 0.11, now + 0.045);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.28);
+
+    src.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+    src.start(now);
+    src.stop(now + 0.3);
+  }
+
+  public playWoodThud(heavy = true) {
     const ctx = this.ensureContext();
     if (!ctx) return;
     const now = ctx.currentTime;
@@ -606,66 +629,60 @@ class MonolithAudioEngine {
     const gain = ctx.createGain();
 
     osc.type = 'sine';
-    if (dropping) {
-      osc.frequency.setValueAtTime(160, now);
-      osc.frequency.exponentialRampToValueAtTime(38, now + 0.34);
-    } else {
-      osc.frequency.setValueAtTime(48, now);
-      osc.frequency.exponentialRampToValueAtTime(220, now + 0.32);
+    osc.frequency.setValueAtTime(heavy ? 128 : 175, now);
+    osc.frequency.exponentialRampToValueAtTime(40, now + 0.14);
+
+    gain.gain.setValueAtTime(heavy ? 0.17 : 0.09, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.16);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.18);
+  }
+
+  public playNibScratch() {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.noiseBuffer) return;
+    const now = ctx.currentTime;
+    const src = ctx.createBufferSource();
+    src.buffer = this.noiseBuffer;
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'highpass';
+    filter.frequency.value = 2600;
+
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.linearRampToValueAtTime(0.028, now + 0.15);
+    gain.gain.setValueAtTime(0.022, now + 1.5);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 2.1);
+
+    src.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+    src.start(now);
+    src.stop(now + 2.15);
+  }
+
+  public setMuted(m: boolean) {
+    this.muted = m;
+    if (this.rainGain && this.ctx) {
+      this.rainGain.gain.setTargetAtTime(
+        m ? 0.0001 : 0.045,
+        this.ctx.currentTime,
+        0.15
+      );
     }
-
-    gain.gain.setValueAtTime(0.001, now);
-    gain.gain.linearRampToValueAtTime(0.11, now + 0.03);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.36);
-
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start(now);
-    osc.stop(now + 0.38);
-  }
-
-  public playShockwaveRelease() {
-    const ctx = this.ensureContext();
-    if (!ctx) return;
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(92, now);
-    osc.frequency.exponentialRampToValueAtTime(28, now + 0.36);
-
-    gain.gain.setValueAtTime(0.13, now);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.38);
-
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start(now);
-    osc.stop(now + 0.4);
-  }
-
-  public playImplosionExit() {
-    const ctx = this.ensureContext();
-    if (!ctx) return;
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(42, now);
-    osc.frequency.exponentialRampToValueAtTime(190, now + 0.36);
-
-    gain.gain.setValueAtTime(0.001, now);
-    gain.gain.linearRampToValueAtTime(0.14, now + 0.24);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.4);
-
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start(now);
-    osc.stop(now + 0.42);
   }
 
   public dispose() {
+    try {
+      this.rainSource?.stop();
+    } catch {
+      // ignore
+    }
+    this.rainSource = null;
     if (this.ctx) {
       this.ctx.close().catch(() => {});
       this.ctx = null;
@@ -674,427 +691,7 @@ class MonolithAudioEngine {
 }
 
 /* ============================================================================
-   MAGNETIC TACTILE BUTTON (PURE GPU CSS + SPECULAR LIGHT SHEEN)
-   ============================================================================ */
-
-interface MagneticButtonProps {
-  children: React.ReactNode;
-  onClick?: (e: React.MouseEvent<HTMLElement>) => void;
-  onMouseEnter?: () => void;
-  onMouseLeave?: () => void;
-  href?: string;
-  target?: string;
-  rel?: string;
-  style?: React.CSSProperties;
-  strength?: number;
-  title?: string;
-  buttonRef?: React.RefObject<HTMLButtonElement | null>;
-}
-
-const MagneticButton: React.FC<MagneticButtonProps> = ({
-  children,
-  onClick,
-  onMouseEnter,
-  onMouseLeave,
-  href,
-  target,
-  rel,
-  style,
-  strength = 0.28,
-  title,
-  buttonRef,
-}) => {
-  const internalRef = useRef<HTMLElement | null>(null);
-  const [offset, setOffset] = useState({ x: 0, y: 0 });
-  const [pressed, setPressed] = useState(false);
-  const [sheen, setSheen] = useState({ x: 50, y: 50, active: false });
-
-  const setRefs = useCallback(
-    (node: HTMLElement | null) => {
-      internalRef.current = node;
-      if (buttonRef && 'current' in buttonRef) {
-        (
-          buttonRef as React.MutableRefObject<HTMLButtonElement | null>
-        ).current = node as HTMLButtonElement | null;
-      }
-    },
-    [buttonRef]
-  );
-
-  const handleMove = (e: React.MouseEvent<HTMLElement>) => {
-    const el = internalRef.current;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    const dx = e.clientX - (rect.left + rect.width / 2);
-    const dy = e.clientY - (rect.top + rect.height / 2);
-    setOffset({ x: dx * strength, y: dy * strength });
-    setSheen({
-      x: ((e.clientX - rect.left) / rect.width) * 100,
-      y: ((e.clientY - rect.top) / rect.height) * 100,
-      active: true,
-    });
-  };
-
-  const handleLeave = () => {
-    setOffset({ x: 0, y: 0 });
-    setPressed(false);
-    setSheen((prev) => ({ ...prev, active: false }));
-    onMouseLeave?.();
-  };
-
-  const mergedStyle: React.CSSProperties = {
-    position: 'relative',
-    overflow: 'hidden',
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    cursor: 'pointer',
-    border: 'none',
-    ...style,
-    transform: `translate3d(${offset.x.toFixed(1)}px, ${offset.y.toFixed(1)}px, 0) scale(${pressed ? 0.96 : 1})`,
-    transition:
-      'transform 0.32s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.35s ease, border-color 0.35s ease, color 0.35s ease',
-  };
-
-  const innerContent = (
-    <>
-      <span
-        aria-hidden="true"
-        style={{
-          pointerEvents: 'none',
-          position: 'absolute',
-          inset: 0,
-          borderRadius: 'inherit',
-          opacity: sheen.active ? 1 : 0,
-          transition: 'opacity 0.3s ease',
-          background: `radial-gradient(120px circle at ${sheen.x}% ${sheen.y}%, rgba(255,255,255,0.22), transparent 68%)`,
-        }}
-      />
-      <span
-        style={{
-          position: 'relative',
-          zIndex: 2,
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '8px',
-        }}
-      >
-        {children}
-      </span>
-    </>
-  );
-
-  const commonProps = {
-    style: mergedStyle,
-    onMouseMove: handleMove,
-    onMouseEnter: () => {
-      setSheen((prev) => ({ ...prev, active: true }));
-      onMouseEnter?.();
-    },
-    onMouseLeave: handleLeave,
-    onMouseDown: () => setPressed(true),
-    onMouseUp: () => setPressed(false),
-    title,
-  };
-
-  if (href) {
-    return (
-      <a
-        ref={setRefs as React.Ref<HTMLAnchorElement>}
-        href={href}
-        target={target}
-        rel={rel}
-        onClick={onClick}
-        {...commonProps}
-      >
-        {innerContent}
-      </a>
-    );
-  }
-
-  return (
-    <button
-      ref={setRefs as React.Ref<HTMLButtonElement>}
-      type="button"
-      onClick={onClick}
-      {...commonProps}
-    >
-      {innerContent}
-    </button>
-  );
-};
-
-/* ============================================================================
-   LIQUID SLIDING TOGGLE RAIL (SPRING CAPSULE)
-   ============================================================================ */
-
-interface SlidingPillGroupProps<T extends string> {
-  options: T[];
-  value: T | null;
-  onChange: (val: T) => void;
-  theme: ThemeTokens;
-}
-
-function SlidingPillGroup<T extends string>({
-  options,
-  value,
-  onChange,
-  theme,
-}: SlidingPillGroupProps<T>) {
-  const btnRefs = useRef<Record<string, HTMLButtonElement | null>>({});
-  const [capsule, setCapsule] = useState({ left: 0, width: 0, visible: false });
-
-  useEffect(() => {
-    if (!value) {
-      setCapsule((prev) => ({ ...prev, visible: false }));
-      return;
-    }
-    const el = btnRefs.current[value];
-    if (el) {
-      setCapsule({
-        left: el.offsetLeft,
-        width: el.offsetWidth,
-        visible: true,
-      });
-    }
-  }, [value, options]);
-
-  return (
-    <div
-      style={{
-        position: 'relative',
-        display: 'inline-flex',
-        alignItems: 'center',
-        padding: '4px',
-        borderRadius: '9999px',
-        border: `1px solid ${theme.glassBorder}`,
-        backgroundColor: theme.glassBg,
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
-        transition: 'background-color 0.45s ease, border-color 0.45s ease',
-      }}
-    >
-      <span
-        aria-hidden="true"
-        style={{
-          pointerEvents: 'none',
-          position: 'absolute',
-          top: '4px',
-          bottom: '4px',
-          left: 0,
-          borderRadius: '9999px',
-          width: `${capsule.width}px`,
-          transform: `translate3d(${capsule.left}px, 0, 0)`,
-          opacity: capsule.visible ? 1 : 0,
-          backgroundColor: theme.pillActiveBg,
-          transition:
-            'transform 0.42s cubic-bezier(0.22, 1, 0.36, 1), width 0.42s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.25s ease, background-color 0.35s ease',
-        }}
-      />
-      {options.map((opt) => {
-        const active = value === opt;
-        return (
-          <button
-            key={opt}
-            ref={(node) => {
-              btnRefs.current[opt] = node;
-            }}
-            type="button"
-            onClick={() => onChange(opt)}
-            style={{
-              position: 'relative',
-              zIndex: 2,
-              padding: '4px 10px',
-              borderRadius: '9999px',
-              border: 'none',
-              fontSize: '9px',
-              letterSpacing: '0.2em',
-              textTransform: 'uppercase',
-              cursor: 'pointer',
-              color: active ? theme.pillActiveText : theme.textMuted,
-              transition: 'color 0.3s ease',
-            }}
-          >
-            {opt}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-/* ============================================================================
-   VERTICAL SLOT-ROLL LINK LABEL (PRIMARY -> EXACT HANDLE REVEAL)
-   ============================================================================ */
-
-interface SlotRollLabelProps {
-  primary: string;
-  secondary: string;
-  hovered: boolean;
-  underlineColor: string;
-}
-
-const SlotRollLabel: React.FC<SlotRollLabelProps> = ({
-  primary,
-  secondary,
-  hovered,
-  underlineColor,
-}) => {
-  const ease = 'cubic-bezier(0.22, 1, 0.36, 1)';
-  return (
-    <span
-      style={{
-        position: 'relative',
-        display: 'inline-flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
-        height: '1.3em',
-        lineHeight: '1.3em',
-      }}
-    >
-      <span
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '4px',
-          whiteSpace: 'nowrap',
-          transform: hovered ? 'translateY(-105%)' : 'translateY(0%)',
-          opacity: hovered ? 0 : 1,
-          filter: hovered ? 'blur(4px)' : 'blur(0px)',
-          transition: `transform 0.34s ${ease}, opacity 0.3s ease, filter 0.32s ease`,
-        }}
-      >
-        {primary}
-      </span>
-      <span
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '4px',
-          whiteSpace: 'nowrap',
-          transform: hovered ? 'translateY(-100%)' : 'translateY(15%)',
-          opacity: hovered ? 1 : 0,
-          filter: hovered ? 'blur(0px)' : 'blur(4px)',
-          transition: `transform 0.34s ${ease}, opacity 0.3s ease, filter 0.32s ease`,
-        }}
-      >
-        {secondary}
-      </span>
-      <span
-        aria-hidden="true"
-        style={{
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          height: '1px',
-          transformOrigin: 'left center',
-          transform: `scaleX(${hovered ? 1 : 0})`,
-          backgroundColor: underlineColor,
-          transition: `transform 0.34s ${ease}`,
-        }}
-      />
-    </span>
-  );
-};
-
-/* ============================================================================
-   SELF-DRAWING FOUNTAIN-PEN SVG SIGNATURE
-   ============================================================================ */
-
-const CreatorSignatureSVG: React.FC<{
-  color: string;
-  accent: string;
-  active: boolean;
-}> = ({ color, accent, active }) => {
-  return (
-    <div
-      style={{
-        position: 'relative',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        pointerEvents: 'none',
-      }}
-    >
-      <svg
-        viewBox="0 0 360 96"
-        style={{
-          width: '240px',
-          maxWidth: '72vw',
-          height: 'auto',
-          overflow: 'visible',
-        }}
-        fill="none"
-        aria-label="Samrat Signature"
-      >
-        <defs>
-          <filter
-            id="monolith-ink-glow"
-            x="-20%"
-            y="-20%"
-            width="140%"
-            height="140%"
-          >
-            <feGaussianBlur stdDeviation="2.2" result="blur" />
-            <feMerge>
-              <feMergeNode in="blur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-        </defs>
-        <path
-          pathLength={1}
-          d="M 54 30 C 30 22, 18 42, 42 52 C 68 62, 54 84, 24 76 C 14 73, 18 62, 34 62 C 58 62, 82 40, 96 42 C 106 43, 92 64, 102 64 C 110 64, 118 46, 126 46 C 132 46, 126 64, 134 64 C 142 64, 148 47, 155 47 C 161 47, 156 64, 165 64 C 174 64, 182 46, 190 46 C 198 46, 194 64, 204 64 C 214 64, 224 44, 232 45 C 238 46, 230 64, 242 64 C 254 64, 270 30, 278 22 C 272 42, 266 66, 280 65 C 296 64, 314 54, 336 52"
-          stroke={color}
-          strokeWidth="2.1"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          filter="url(#monolith-ink-glow)"
-          strokeDasharray={1}
-          strokeDashoffset={active ? 0 : 1}
-          style={{
-            opacity: active ? 0.94 : 0,
-            transition:
-              'stroke-dashoffset 2.1s cubic-bezier(0.22, 1, 0.36, 1) 0.15s, opacity 0.6s ease',
-          }}
-        />
-        <path
-          pathLength={1}
-          d="M 254 36 C 274 34, 294 31, 316 32"
-          stroke={accent}
-          strokeWidth="1.4"
-          strokeLinecap="round"
-          strokeDasharray={1}
-          strokeDashoffset={active ? 0 : 1}
-          style={{
-            opacity: active ? 0.85 : 0,
-            transition:
-              'stroke-dashoffset 0.7s cubic-bezier(0.22, 1, 0.36, 1) 1.75s, opacity 0.5s ease 1.7s',
-          }}
-        />
-        <path
-          pathLength={1}
-          d="M 68 82 C 138 75, 226 73, 304 77"
-          stroke={color}
-          strokeOpacity="0.35"
-          strokeWidth="1"
-          strokeLinecap="round"
-          strokeDasharray={1}
-          strokeDashoffset={active ? 0 : 1}
-          style={{
-            opacity: active ? 0.55 : 0,
-            transition:
-              'stroke-dashoffset 0.95s cubic-bezier(0.22, 1, 0.36, 1) 1.95s, opacity 0.5s ease 1.9s',
-          }}
-        />
-      </svg>
-    </div>
-  );
-};
-
-/* ============================================================================
-   MAIN COMPONENT: THE ARCHITECT'S MONOLITH (PORTAL-MOUNTED, ZERO TAILWIND)
+   MAIN COMPONENT: VINTAGE STORM DESK & LIVING BOOK (MOBILE + LAPTOP)
    ============================================================================ */
 
 export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
@@ -1102,162 +699,185 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
   onClose,
   isDarkMode = true,
 }) => {
-  const [mountedVisible, setMountedVisible] = useState(false);
-  const [shaderMode, setShaderMode] = useState<ShaderMode>(
-    isDarkMode ? 'OBSIDIAN' : 'INK'
-  );
-  const [physicsMode, setPhysicsMode] = useState<PhysicsMode>('FLUID');
-  const [gravityOn, setGravityOn] = useState(false);
+  void isDarkMode;
+
+  const [phase, setPhase] = useState<StagePhase>('FLICKER');
+  const [worldMode, setWorldMode] = useState<WorldMode>('STORM_LAMP');
+  const [isMobile, setIsMobile] = useState(false);
   const [audioMuted, setAudioMuted] = useState(false);
-  const [xrayEnabled, setXrayEnabled] = useState(true);
-  const [bulletTime, setBulletTime] = useState(false);
-  const [isHoldingVortex, setIsHoldingVortex] = useState(false);
-  const [isImploding, setIsImploding] = useState(false);
+  const [videoAvailable, setVideoAvailable] = useState(true);
 
-  const [introActive, setIntroActive] = useState(true);
-  const [shutterOpened, setShutterOpened] = useState(false);
-  const [introPercent, setIntroPercent] = useState(0);
+  // Book & ink state
+  const [bookOpened, setBookOpened] = useState(false);
+  const [activePage, setActivePage] = useState<0 | 1>(0);
+  const [inkReplayKey, setInkReplayKey] = useState(0);
+  const [sealStamped, setSealStamped] = useState(false);
+  const [windGustTick, setWindGustTick] = useState(0);
 
-  const [scrollStage, setScrollStage] = useState(0);
+  // Interactive Calling Card & Copy Stamp
+  const [cardPullY, setCardPullY] = useState(0);
+  const [emailCopied, setEmailCopied] = useState(false);
 
-  const [telemetry, setTelemetry] = useState({
-    fps: 60,
-    domNodes: 0,
-    viewport: '0 × 0',
-    istTime: '--:--:-- IST',
-    cursorX: 0,
-    cursorY: 0,
-    particles: 0,
+  // Pull-Chain Physics
+  const [chainPullY, setChainPullY] = useState(0);
+  const [chainSwayDeg, setChainSwayDeg] = useState(0);
+  const chainDragRef = useRef({
+    active: false,
+    startY: 0,
+    triggered: false,
+    moved: false,
   });
 
-  const [emailDisplay, setEmailDisplay] = useState(CREATOR_EMAIL);
-  const [emailCopied, setEmailCopied] = useState(false);
-  const [instaHovered, setInstaHovered] = useState(false);
-  const [linkedinHovered, setLinkedinHovered] = useState(false);
-  const [isTouchDevice, setIsTouchDevice] = useState(false);
-  const [gyroTilt, setGyroTilt] = useState({ x: 0, y: 0 });
+  // Brass Paperweight Drag State
+  const [weightPos, setWeightPos] = useState({ x: 0, y: 0, initialized: false });
+  const [weightOnBook, setWeightOnBook] = useState(false);
+  const weightDragRef = useRef({
+    active: false,
+    startX: 0,
+    startY: 0,
+    origX: 0,
+    origY: 0,
+    moved: false,
+  });
 
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
-  const dockRef = useRef<HTMLDivElement | null>(null);
-  const closeBtnRef = useRef<HTMLButtonElement | null>(null);
-  const xrayLayerRef = useRef<HTMLDivElement | null>(null);
-  const xrayRingRef = useRef<HTMLDivElement | null>(null);
-  const audioRef = useRef<MonolithAudioEngine | null>(null);
-  const scrambleTimerRef = useRef<number | null>(null);
+  // Fallen Paper Plane Physics State (desk prop)
+  const [planeState, setPlaneState] = useState({
+    x: 0,
+    y: 0,
+    rot: -24,
+    initialized: false,
+  });
+  const planePhysicsRef = useRef({
+    x: 0,
+    y: 0,
+    vx: 0,
+    vy: 0,
+    rot: -24,
+    vrot: 0,
+    dragging: false,
+    lastX: 0,
+    lastY: 0,
+    moved: false,
+  });
+
+  // Refs
+  const bgCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const introCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const bookRef = useRef<HTMLDivElement | null>(null);
+  const audioRef = useRef<VintageAudioEngine | null>(null);
   const copiedTimerRef = useRef<number | null>(null);
 
-  const engineStateRef = useRef({
-    shaderMode: (isDarkMode ? 'OBSIDIAN' : 'INK') as ShaderMode,
-    physicsMode: 'FLUID' as PhysicsMode,
-    gravityOn: false,
-    bulletTime: false,
-    imploding: false,
-    implodeTarget: { x: 0, y: 0 },
-    pointer: {
-      x: -9999,
-      y: -9999,
-      vx: 0,
-      vy: 0,
-      down: false,
-      active: false,
-    },
-    lens: { x: -400, y: -400, radius: 118 },
-    gyro: { x: 0, y: 0 },
-    scrollTarget: 0,
-    scrollCurrent: 0,
-    shockwaves: [] as Array<{
-      x: number;
-      y: number;
-      radius: number;
-      maxRadius: number;
-      strength: number;
-      alpha: number;
-    }>,
-    fps: 60,
-    particleCount: 0,
-  });
-
-  const theme = THEMES[shaderMode];
+  const worldRef = useRef<WorldMode>('STORM_LAMP');
+  const lightningFlashRef = useRef<number>(0);
+  const pointerNormRef = useRef({ x: 0, y: 0 });
+  const weightOnBookRef = useRef(false);
 
   useEffect(() => {
-    const mapped: ShaderMode = isDarkMode ? 'OBSIDIAN' : 'INK';
-    setShaderMode(mapped);
-    engineStateRef.current.shaderMode = mapped;
-  }, [isDarkMode]);
-
-  useEffect(() => {
-    engineStateRef.current.shaderMode = shaderMode;
-  }, [shaderMode]);
-
-  useEffect(() => {
-    engineStateRef.current.physicsMode = physicsMode;
-  }, [physicsMode]);
-
-  useEffect(() => {
-    engineStateRef.current.gravityOn = gravityOn;
-  }, [gravityOn]);
-
-  useEffect(() => {
-    engineStateRef.current.bulletTime = bulletTime;
-  }, [bulletTime]);
-
-  useEffect(() => {
-    ensureMonolithAssets();
-    if (typeof window !== 'undefined') {
-      const coarse = window.matchMedia('(pointer: coarse)').matches;
-      setIsTouchDevice(coarse);
-      if (coarse) setXrayEnabled(false);
+    worldRef.current = worldMode;
+    if (audioRef.current) {
+      if (worldMode === 'GOLDEN_MORNING') {
+        audioRef.current.setRainLevel(0.008, 620);
+      } else if (worldMode === 'MOON_LIGHTNING') {
+        audioRef.current.setRainLevel(0.068, 1120);
+      } else {
+        audioRef.current.setRainLevel(0.048, 920);
+      }
     }
+  }, [worldMode]);
+
+  useEffect(() => {
+    weightOnBookRef.current = weightOnBook;
+  }, [weightOnBook]);
+
+  // Ensure fonts, CSS, and responsive flag
+  useEffect(() => {
+    ensureVintageAssets();
+    const checkViewport = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      setWeightPos((prev) =>
+        prev.initialized
+          ? prev
+          : {
+              x: mobile ? 20 : Math.max(36, w * 0.08),
+              y: mobile ? h - 88 : h - 110,
+              initialized: true,
+            }
+      );
+
+      if (!planePhysicsRef.current.initialized) {
+        const px = mobile ? w - 92 : w - Math.max(130, w * 0.14);
+        const py = mobile ? h - 88 : h - 112;
+        planePhysicsRef.current.x = px;
+        planePhysicsRef.current.y = py;
+        planePhysicsRef.current.rot = -22;
+        setPlaneState({ x: px, y: py, rot: -22, initialized: true });
+      }
+    };
+    checkViewport();
+    window.addEventListener('resize', checkViewport);
+    return () => window.removeEventListener('resize', checkViewport);
   }, []);
 
+  const enterDeskScene = useCallback(() => {
+    setPhase('DESK');
+    audioRef.current?.startRainAmbience(0.048);
+    window.setTimeout(() => {
+      setBookOpened(true);
+      audioRef.current?.playPaperFlip(false);
+      window.setTimeout(() => {
+        audioRef.current?.playNibScratch();
+      }, 360);
+      window.setTimeout(() => {
+        setSealStamped(true);
+        audioRef.current?.playWoodThud(false);
+      }, 2150);
+    }, 420);
+  }, []);
+
+  // Lifecycle when modal opens
   useEffect(() => {
     if (!isOpen) return;
 
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
 
-    const audio = new MonolithAudioEngine();
+    const audio = new VintageAudioEngine();
     audio.muted = audioMuted;
     audioRef.current = audio;
-    audio.playEntryBass();
 
-    setIsImploding(false);
-    engineStateRef.current.imploding = false;
-    setIntroActive(true);
-    setShutterOpened(false);
-    setIntroPercent(0);
-    setMountedVisible(false);
+    setPhase('FLICKER');
+    setWorldMode('STORM_LAMP');
+    setBookOpened(false);
+    setActivePage(0);
+    setSealStamped(false);
+    setEmailCopied(false);
+    setWeightOnBook(false);
+    setCardPullY(0);
+    setVideoAvailable(true);
+    setInkReplayKey((k) => k + 1);
 
-    const frameMount = requestAnimationFrame(() => {
-      setMountedVisible(true);
-    });
-    const shutterTimer = window.setTimeout(() => {
-      setShutterOpened(true);
-    }, 140);
+    const flickerTimer = window.setTimeout(() => {
+      setPhase('INTRO');
+      audio.playThunder(1.05);
+      audio.startRainAmbience(0.075);
+    }, 420);
 
-    const startTime = performance.now();
-    const duration = 760;
-    let rafIntro = 0;
-    let endIntroTimer = 0;
-
-    const tickIntro = (now: number) => {
-      const progress = Math.min(1, (now - startTime) / duration);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      setIntroPercent(Math.round(eased * 100));
-      if (progress < 1) {
-        rafIntro = requestAnimationFrame(tickIntro);
-      } else {
-        endIntroTimer = window.setTimeout(() => setIntroActive(false), 110);
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
       }
     };
-    rafIntro = requestAnimationFrame(tickIntro);
+    window.addEventListener('keydown', onKeyDown);
 
     return () => {
-      cancelAnimationFrame(frameMount);
-      cancelAnimationFrame(rafIntro);
-      window.clearTimeout(shutterTimer);
-      window.clearTimeout(endIntroTimer);
+      window.clearTimeout(flickerTimer);
+      window.removeEventListener('keydown', onKeyDown);
       document.body.style.overflow = prevOverflow;
       audio.dispose();
       audioRef.current = null;
@@ -1265,2066 +885,2083 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
+  // Periodic Wind Gusts on the Desk (flutters page corner & sways chain unless pinned)
   useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.muted = audioMuted;
-    }
-  }, [audioMuted]);
+    if (!isOpen || phase !== 'DESK') return;
 
-  const triggerShockwave = useCallback(
-    (x?: number, y?: number, strength = 24) => {
-      const w = typeof window !== 'undefined' ? window.innerWidth : 1200;
-      const h = typeof window !== 'undefined' ? window.innerHeight : 800;
-      engineStateRef.current.shockwaves.push({
-        x: x ?? w / 2,
-        y: y ?? h / 2,
-        radius: 12,
-        maxRadius: Math.hypot(w, h) * 0.72,
-        strength,
-        alpha: 0.95,
-      });
-    },
-    []
-  );
-
-  const handleImplosionClose = useCallback(() => {
-    if (isImploding) return;
-    setIsImploding(true);
-    const btnRect = closeBtnRef.current?.getBoundingClientRect();
-    engineStateRef.current.implodeTarget = btnRect
-      ? {
-          x: btnRect.left + btnRect.width / 2,
-          y: btnRect.top + btnRect.height / 2,
-        }
-      : {
-          x: window.innerWidth - 54,
-          y: 44,
-        };
-    engineStateRef.current.imploding = true;
-    engineStateRef.current.gravityOn = false;
-    setGravityOn(false);
-    audioRef.current?.playImplosionExit();
-
-    window.setTimeout(() => {
-      onClose();
-    }, 420);
-  }, [isImploding, onClose]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        handleImplosionClose();
+    const gustInterval = window.setInterval(() => {
+      if (worldRef.current === 'GOLDEN_MORNING') {
+        setChainSwayDeg(2.2);
+        window.setTimeout(() => setChainSwayDeg(0), 1100);
         return;
       }
-      if (
-        (e.key === 'g' || e.key === 'G') &&
-        !e.repeat &&
-        !e.metaKey &&
-        !e.ctrlKey
-      ) {
-        setGravityOn((prev) => {
-          const next = !prev;
-          audioRef.current?.playGravityPulse(next);
-          if (!next) {
-            triggerShockwave(
-              window.innerWidth / 2,
-              window.innerHeight * 0.55,
-              16
-            );
-          }
-          return next;
-        });
+
+      setChainSwayDeg(6.5);
+      window.setTimeout(() => setChainSwayDeg(-3.5), 550);
+      window.setTimeout(() => setChainSwayDeg(0), 1300);
+
+      if (!weightOnBookRef.current) {
+        setWindGustTick((t) => t + 1);
+        audioRef.current?.playPaperFlip(true);
       }
-      if (e.code === 'Space' && !e.repeat) {
-        e.preventDefault();
-        setBulletTime(true);
-        audioRef.current?.playMechanicalTick(420);
-      }
-    };
 
-    const onKeyUp = (e: KeyboardEvent) => {
-      if (e.code === 'Space') {
-        setBulletTime(false);
-      }
-    };
-
-    window.addEventListener('keydown', onKeyDown);
-    window.addEventListener('keyup', onKeyUp);
-    return () => {
-      window.removeEventListener('keydown', onKeyDown);
-      window.removeEventListener('keyup', onKeyUp);
-    };
-  }, [isOpen, handleImplosionClose, triggerShockwave]);
-
-  useEffect(() => {
-    if (!isOpen || typeof window === 'undefined') return;
-    const handleOrientation = (e: DeviceOrientationEvent) => {
-      const gamma = Math.max(-35, Math.min(35, e.gamma ?? 0)) / 35;
-      const beta = Math.max(-35, Math.min(35, (e.beta ?? 45) - 45)) / 35;
-      engineStateRef.current.gyro.x = gamma;
-      engineStateRef.current.gyro.y = beta;
-      setGyroTilt({ x: gamma, y: beta });
-    };
-    window.addEventListener('deviceorientation', handleOrientation, {
-      passive: true,
-    });
-    return () => {
-      window.removeEventListener('deviceorientation', handleOrientation);
-    };
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const updateTelemetry = () => {
-      const now = new Date();
-      const istTime =
-        new Intl.DateTimeFormat('en-IN', {
-          timeZone: 'Asia/Kolkata',
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-          hour12: false,
-        }).format(now) + ' IST';
-
-      setTelemetry({
-        fps: Math.round(engineStateRef.current.fps),
-        domNodes: document.getElementsByTagName('*').length,
-        viewport: `${window.innerWidth} × ${window.innerHeight}`,
-        istTime,
-        cursorX: Math.max(0, Math.round(engineStateRef.current.pointer.x)),
-        cursorY: Math.max(0, Math.round(engineStateRef.current.pointer.y)),
-        particles: engineStateRef.current.particleCount,
-      });
-    };
-
-    updateTelemetry();
-    const timer = window.setInterval(updateTelemetry, 220);
-    return () => window.clearInterval(timer);
-  }, [isOpen]);
-
-  const handleScroll = useCallback(() => {
-    const el = scrollContainerRef.current;
-    if (!el) return;
-    const maxScroll = el.scrollHeight - el.clientHeight;
-    const raw =
-      maxScroll > 0 ? Math.min(1, Math.max(0, el.scrollTop / maxScroll)) : 0;
-    engineStateRef.current.scrollTarget = raw;
-    setScrollStage(raw);
-  }, []);
-
-  const runEmailScramble = useCallback(() => {
-    if (emailCopied) return;
-    audioRef.current?.playSoftHover();
-    if (scrambleTimerRef.current) window.clearInterval(scrambleTimerRef.current);
-
-    let iteration = 0;
-    const target = CREATOR_EMAIL;
-    scrambleTimerRef.current = window.setInterval(() => {
-      setEmailDisplay(
-        target
-          .split('')
-          .map((char, idx) => {
-            if (char === '@' || char === '.') return char;
-            if (idx < iteration) return target[idx];
-            return SCRAMBLE_GLYPHS[
-              Math.floor(Math.random() * SCRAMBLE_GLYPHS.length)
-            ];
-          })
-          .join('')
-      );
-      iteration += 0.85;
-      if (iteration >= target.length) {
-        if (scrambleTimerRef.current)
-          window.clearInterval(scrambleTimerRef.current);
-        setEmailDisplay(target);
-      }
-    }, 24);
-  }, [emailCopied]);
-
-  const handleCopyEmail = useCallback(
-    (e: React.MouseEvent<HTMLElement>) => {
-      const rect = e.currentTarget.getBoundingClientRect();
-      triggerShockwave(
-        rect.left + rect.width / 2,
-        rect.top + rect.height / 2,
-        28
-      );
-      audioRef.current?.playHarmonicChime();
-
-      const copyFallback = () => {
-        const ta = document.createElement('textarea');
-        ta.value = CREATOR_EMAIL;
-        ta.style.position = 'fixed';
-        ta.style.opacity = '0';
-        document.body.appendChild(ta);
-        ta.select();
-        try {
-          document.execCommand('copy');
-        } catch {
-          // ignore
+      // Occasional distant lightning flash
+      if (Math.random() < (worldRef.current === 'MOON_LIGHTNING' ? 0.72 : 0.36)) {
+        lightningFlashRef.current = 1;
+        if (Math.random() < 0.6) {
+          audioRef.current?.playThunder(0.55);
         }
-        document.body.removeChild(ta);
-      };
-
-      if (navigator.clipboard?.writeText) {
-        navigator.clipboard.writeText(CREATOR_EMAIL).catch(copyFallback);
-      } else {
-        copyFallback();
       }
+    }, 4400);
 
-      if (scrambleTimerRef.current)
-        window.clearInterval(scrambleTimerRef.current);
-      if (copiedTimerRef.current) window.clearTimeout(copiedTimerRef.current);
-      setEmailCopied(true);
-      setEmailDisplay(CREATOR_EMAIL);
-
-      copiedTimerRef.current = window.setTimeout(() => {
-        setEmailCopied(false);
-      }, 2600);
-    },
-    [triggerShockwave]
-  );
-
-  useEffect(() => {
-    return () => {
-      if (scrambleTimerRef.current)
-        window.clearInterval(scrambleTimerRef.current);
-      if (copiedTimerRef.current) window.clearTimeout(copiedTimerRef.current);
-    };
-  }, []);
+    return () => window.clearInterval(gustInterval);
+  }, [isOpen, phase]);
 
   /* ==========================================================================
-     HIGH-DPI 60FPS CANVAS ENGINE
+     FALLBACK PROCEDURAL CINEMATIC INTRO CANVAS (STORMY CITY -> PLANE -> WINDOW -> DESK)
+     Plays seamlessly if /creator-intro.mp4 is not uploaded yet!
      ========================================================================== */
 
   useEffect(() => {
-    if (!isOpen) return;
-    const canvas = canvasRef.current;
+    if (!isOpen || phase !== 'INTRO' || videoAvailable) return;
+    const canvas = introCanvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d', { alpha: false });
+    const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    let width = window.innerWidth;
-    let height = window.innerHeight;
-    let dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.floor(w * dpr);
+    canvas.height = Math.floor(h * dpr);
+    canvas.style.width = `${w}px`;
+    canvas.style.height = `${h}px`;
 
-    let count = 0;
-    let px = new Float32Array(0);
-    let py = new Float32Array(0);
-    let pz = new Float32Array(0);
-    let vx = new Float32Array(0);
-    let vy = new Float32Array(0);
-    let vz = new Float32Array(0);
-    let tx = new Float32Array(0);
-    let ty = new Float32Array(0);
-    let tz = new Float32Array(0);
-    let pSize = new Float32Array(0);
-    let pAlpha = new Float32Array(0);
-    let pSeed = new Float32Array(0);
-    let pBounce = new Float32Array(0);
+    // Procedural stormy city rooftops
+    const buildings = Array.from({ length: 26 }, (_, i) => ({
+      x: (i / 25) * w * 1.15 - w * 0.08,
+      bw: 36 + ((i * 37) % 68),
+      bh: h * (0.2 + ((i * 53) % 28) / 100),
+      lights: Array.from({ length: 6 }, (__, j) => ({
+        rx: ((j * 19) % 70) / 100,
+        ry: ((j * 29) % 75) / 100,
+        lit: (i + j) % 3 === 0,
+      })),
+    }));
 
-    const initialTheme = THEMES[engineStateRef.current.shaderMode];
-    const curBg = { ...initialTheme.bgRgb };
-    const curPart = { ...initialTheme.particleRgb };
-    const curAccent = { ...initialTheme.accentRgb };
-    const curGrid = { ...initialTheme.gridRgb };
+    const raindrops = Array.from({ length: 140 }, () => ({
+      x: Math.random() * w,
+      y: Math.random() * h,
+      len: 12 + Math.random() * 20,
+      sp: 14 + Math.random() * 14,
+    }));
 
-    const sampleTypographyParticles = (isInitialBurst: boolean) => {
-      width = window.innerWidth;
-      height = window.innerHeight;
-      dpr = Math.min(window.devicePixelRatio || 1, 2);
-
-      canvas.width = Math.floor(width * dpr);
-      canvas.height = Math.floor(height * dpr);
-      canvas.style.width = `${width}px`;
-      canvas.style.height = `${height}px`;
-
-      const off = document.createElement('canvas');
-      off.width = width;
-      off.height = height;
-      const octx = off.getContext('2d');
-      if (!octx) return;
-
-      const isMobile = width < 640;
-      const fontSize = isMobile
-        ? Math.min(width * 0.185, 86)
-        : Math.min(width * 0.128, 178);
-
-      octx.clearRect(0, 0, width, height);
-      octx.fillStyle = '#FFFFFF';
-      octx.textAlign = 'center';
-      octx.textBaseline = 'middle';
-      octx.font = `500 ${fontSize}px "Instrument Serif", "Cormorant Garamond", Georgia, serif`;
-
-      const centerY = height * (isMobile ? 0.44 : 0.47);
-      const lineGap = fontSize * 0.88;
-      octx.fillText('SAMRAT', width / 2, centerY - lineGap * 0.5);
-      octx.fillText('SANDILYA', width / 2, centerY + lineGap * 0.52);
-
-      const img = octx.getImageData(0, 0, width, height).data;
-      const points: number[] = [];
-
-      const targetMax = isMobile ? 4600 : 10200;
-      let step = 3;
-
-      let roughHits = 0;
-      for (let y = 0; y < height; y += 6) {
-        for (let x = 0; x < width; x += 6) {
-          if (img[(y * width + x) * 4 + 3] > 120) roughHits++;
-        }
-      }
-      const estimatedAtStep3 = roughHits * 4;
-      if (estimatedAtStep3 > targetMax * 1.35) step = 4;
-      if (estimatedAtStep3 < targetMax * 0.55 && !isMobile) step = 2;
-
-      for (let y = 0; y < height; y += step) {
-        for (let x = 0; x < width; x += step) {
-          const alpha = img[(y * width + x) * 4 + 3];
-          if (alpha > 115) {
-            points.push(x, y, alpha / 255);
-          }
-        }
-      }
-
-      const totalFound = points.length / 3;
-      const stride = totalFound > targetMax ? totalFound / targetMax : 1;
-      const finalCount = Math.min(targetMax, Math.floor(totalFound / stride));
-
-      const nextPx = new Float32Array(finalCount);
-      const nextPy = new Float32Array(finalCount);
-      const nextPz = new Float32Array(finalCount);
-      const nextVx = new Float32Array(finalCount);
-      const nextVy = new Float32Array(finalCount);
-      const nextVz = new Float32Array(finalCount);
-      const nextTx = new Float32Array(finalCount);
-      const nextTy = new Float32Array(finalCount);
-      const nextTz = new Float32Array(finalCount);
-      const nextSize = new Float32Array(finalCount);
-      const nextAlpha = new Float32Array(finalCount);
-      const nextSeed = new Float32Array(finalCount);
-      const nextBounce = new Float32Array(finalCount);
-
-      for (let i = 0; i < finalCount; i++) {
-        const srcIdx = Math.floor(i * stride) * 3;
-        const x = points[srcIdx] + (Math.random() - 0.5) * 1.1;
-        const y = points[srcIdx + 1] + (Math.random() - 0.5) * 1.1;
-        const z = (Math.random() - 0.5) * 46;
-        const a = points[srcIdx + 2];
-
-        nextTx[i] = x;
-        nextTy[i] = y;
-        nextTz[i] = z;
-
-        if (!isInitialBurst && i < count) {
-          nextPx[i] = px[i];
-          nextPy[i] = py[i];
-          nextPz[i] = pz[i];
-          nextVx[i] = vx[i];
-          nextVy[i] = vy[i];
-          nextVz[i] = vz[i];
-        } else {
-          const angle = Math.random() * Math.PI * 2;
-          const dist = 120 + Math.random() * Math.max(width, height) * 0.45;
-          nextPx[i] = width / 2 + Math.cos(angle) * dist;
-          nextPy[i] = height / 2 + Math.sin(angle) * dist;
-          nextPz[i] = (Math.random() - 0.5) * 320;
-          nextVx[i] = 0;
-          nextVy[i] = 0;
-          nextVz[i] = 0;
-        }
-
-        nextSize[i] = isMobile
-          ? 1.15 + Math.random() * 1.05
-          : 1.05 + Math.random() * 1.25;
-        nextAlpha[i] = 0.58 + a * 0.42;
-        nextSeed[i] = Math.random() * Math.PI * 2;
-        nextBounce[i] = 0.42 + Math.random() * 0.28;
-      }
-
-      count = finalCount;
-      px = nextPx;
-      py = nextPy;
-      pz = nextPz;
-      vx = nextVx;
-      vy = nextVy;
-      vz = nextVz;
-      tx = nextTx;
-      ty = nextTy;
-      tz = nextTz;
-      pSize = nextSize;
-      pAlpha = nextAlpha;
-      pSeed = nextSeed;
-      pBounce = nextBounce;
-
-      engineStateRef.current.particleCount = count;
-    };
-
-    sampleTypographyParticles(true);
-
-    if (document.fonts?.ready) {
-      document.fonts.ready.then(() => {
-        sampleTypographyParticles(false);
-      });
-    }
-
-    let resizeTimer = 0;
-    const handleResize = () => {
-      window.clearTimeout(resizeTimer);
-      resizeTimer = window.setTimeout(() => {
-        sampleTypographyParticles(false);
-      }, 160);
-    };
-    window.addEventListener('resize', handleResize);
-
+    const duration = 4300;
+    const start = performance.now();
     let rafId = 0;
-    let lastTime = performance.now();
-    let frameAccumulator = 0;
-    let frameCount = 0;
-    let simTime = 0;
-    let currentTimeScale = 1;
+    let thunderPlayed2 = false;
 
-    const animate = (now: number) => {
-      rafId = requestAnimationFrame(animate);
+    const drawFrame = (now: number) => {
+      const elapsed = now - start;
+      const t = Math.min(1, elapsed / duration);
 
-      const rawDt = Math.min(0.05, Math.max(0.004, (now - lastTime) / 1000));
-      lastTime = now;
-
-      frameAccumulator += rawDt;
-      frameCount++;
-      if (frameAccumulator >= 0.35) {
-        engineStateRef.current.fps = frameCount / frameAccumulator;
-        frameAccumulator = 0;
-        frameCount = 0;
-      }
-
-      const st = engineStateRef.current;
-
-      const targetScale = st.bulletTime ? 0.1 : 1.0;
-      currentTimeScale += (targetScale - currentTimeScale) * 0.14;
-      const dt = rawDt * currentTimeScale;
-      const stepFactor = dt * 60;
-      simTime += dt;
-
-      st.scrollCurrent += (st.scrollTarget - st.scrollCurrent) * 0.085;
-      const scrollP = st.scrollCurrent;
-
-      const targetTheme = THEMES[st.shaderMode];
-      const colorLerp = 0.09;
-      curBg.r += (targetTheme.bgRgb.r - curBg.r) * colorLerp;
-      curBg.g += (targetTheme.bgRgb.g - curBg.g) * colorLerp;
-      curBg.b += (targetTheme.bgRgb.b - curBg.b) * colorLerp;
-
-      curPart.r += (targetTheme.particleRgb.r - curPart.r) * colorLerp;
-      curPart.g += (targetTheme.particleRgb.g - curPart.g) * colorLerp;
-      curPart.b += (targetTheme.particleRgb.b - curPart.b) * colorLerp;
-
-      curAccent.r += (targetTheme.accentRgb.r - curAccent.r) * colorLerp;
-      curAccent.g += (targetTheme.accentRgb.g - curAccent.g) * colorLerp;
-      curAccent.b += (targetTheme.accentRgb.b - curAccent.b) * colorLerp;
-
-      curGrid.r += (targetTheme.gridRgb.r - curGrid.r) * colorLerp;
-      curGrid.g += (targetTheme.gridRgb.g - curGrid.g) * colorLerp;
-      curGrid.b += (targetTheme.gridRgb.b - curGrid.b) * colorLerp;
-
-      if (st.pointer.active) {
-        st.lens.x += (st.pointer.x - st.lens.x) * 0.22;
-        st.lens.y += (st.pointer.y - st.lens.y) * 0.22;
-      }
-      if (xrayLayerRef.current) {
-        const rad = st.pointer.active ? (st.pointer.down ? 148 : 118) : 0;
-        st.lens.radius += (rad - st.lens.radius) * 0.18;
-        xrayLayerRef.current.style.clipPath = `circle(${st.lens.radius.toFixed(1)}px at ${st.lens.x.toFixed(1)}px ${st.lens.y.toFixed(1)}px)`;
-      }
-      if (xrayRingRef.current) {
-        const size = st.lens.radius * 2;
-        xrayRingRef.current.style.transform = `translate3d(${(st.lens.x - st.lens.radius).toFixed(1)}px, ${(st.lens.y - st.lens.radius).toFixed(1)}px, 0)`;
-        xrayRingRef.current.style.width = `${size.toFixed(1)}px`;
-        xrayRingRef.current.style.height = `${size.toFixed(1)}px`;
-        xrayRingRef.current.style.opacity = st.lens.radius > 4 ? '1' : '0';
+      if (t > 0.56 && !thunderPlayed2) {
+        thunderPlayed2 = true;
+        audioRef.current?.playPaperFlip(true);
       }
 
       ctx.save();
       ctx.scale(dpr, dpr);
 
-      ctx.fillStyle = `rgb(${Math.round(curBg.r)}, ${Math.round(curBg.g)}, ${Math.round(curBg.b)})`;
-      ctx.fillRect(0, 0, width, height);
+      // Lightning spikes at 0.08 and 0.54
+      const flash1 = Math.max(0, 1 - Math.abs(t - 0.09) * 18);
+      const flash2 = Math.max(0, 1 - Math.abs(t - 0.55) * 14) * 0.85;
+      const flash = Math.min(1, flash1 + flash2);
 
-      // Interactive 3D Magnetic Dot-Mesh / Wireframe Background
-      const gridSpacing = width < 640 ? 44 : 52;
-      const cols = Math.ceil(width / gridSpacing) + 1;
-      const rows = Math.ceil(height / gridSpacing) + 1;
-      const ptrX = st.pointer.x;
-      const ptrY = st.pointer.y;
-      const ptrSpeed = Math.min(35, Math.hypot(st.pointer.vx, st.pointer.vy));
-      const meshR = Math.round(curGrid.r);
-      const meshG = Math.round(curGrid.g);
-      const meshB = Math.round(curGrid.b);
-      const baseGridAlpha = st.shaderMode === 'BLUEPRINT' ? 0.15 : 0.08;
+      // Zoom camera progressively toward the broken window (t: 0 -> 0.72) then dive to desk (0.72 -> 1)
+      const cityZoom = 1 + Math.pow(Math.min(1, t / 0.75), 2.2) * 2.4;
 
-      ctx.lineWidth = 0.6;
-      for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
-          const gx = c * gridSpacing;
-          const gy = r * gridSpacing;
-          const wave =
-            Math.sin(c * 0.35 + simTime * 0.9) *
-            Math.cos(r * 0.35 + simTime * 0.7) *
-            2.4;
+      // Storm Sky
+      const skyGrad = ctx.createLinearGradient(0, 0, 0, h);
+      skyGrad.addColorStop(
+        0,
+        flash > 0.2
+          ? `rgb(${24 + flash * 90}, ${34 + flash * 105}, ${54 + flash * 125})`
+          : '#060a14'
+      );
+      skyGrad.addColorStop(0.55, '#0d1524');
+      skyGrad.addColorStop(1, '#120f12');
+      ctx.fillStyle = skyGrad;
+      ctx.fillRect(0, 0, w, h);
 
-          const dx = gx - ptrX;
-          const dy = gy - ptrY;
-          const distSq = dx * dx + dy * dy;
-          let ox = st.gyro.x * 14;
-          let oy = st.gyro.y * 14 + wave;
-          let glow = 0;
-
-          if (distSq < 210 * 210 && st.pointer.active) {
-            const dist = Math.sqrt(distSq) || 1;
-            const factor = (1 - dist / 210) * (1 + ptrSpeed * 0.025);
-            const dir = st.pointer.down ? -1 : 1;
-            ox += (dx / dist) * factor * 24 * dir;
-            oy += (dy / dist) * factor * 24 * dir;
-            glow = factor;
-          }
-
-          const fx = gx + ox;
-          const fy = gy + oy;
-          const dotAlpha = Math.min(0.75, baseGridAlpha + glow * 0.38);
-
-          ctx.fillStyle = `rgba(${meshR}, ${meshG}, ${meshB}, ${dotAlpha.toFixed(3)})`;
-          ctx.fillRect(fx - 0.85, fy - 0.85, 1.7 + glow * 1.1, 1.7 + glow * 1.1);
-
-          if (glow > 0.22 || st.shaderMode === 'BLUEPRINT') {
-            const lineAlpha =
-              st.shaderMode === 'BLUEPRINT'
-                ? 0.045 + glow * 0.16
-                : glow * 0.12;
-            ctx.strokeStyle = `rgba(${meshR}, ${meshG}, ${meshB}, ${lineAlpha.toFixed(3)})`;
-            if (c < cols - 1) {
-              ctx.beginPath();
-              ctx.moveTo(fx, fy);
-              ctx.lineTo(fx + gridSpacing, fy);
-              ctx.stroke();
-            }
-            if (r < rows - 1) {
-              ctx.beginPath();
-              ctx.moveTo(fx, fy);
-              ctx.lineTo(fx, fy + gridSpacing);
-              ctx.stroke();
-            }
-          }
-        }
-      }
-
-      // Active Shockwaves
-      for (let s = st.shockwaves.length - 1; s >= 0; s--) {
-        const sw = st.shockwaves[s];
-        sw.radius += 22 * stepFactor;
-        sw.alpha = Math.max(0, 1 - sw.radius / sw.maxRadius);
-
+      // Jagged Lightning Bolt in Distance
+      if (flash > 0.25) {
+        ctx.strokeStyle = `rgba(225, 240, 255, ${flash * 0.92})`;
+        ctx.lineWidth = 2.2;
         ctx.beginPath();
-        ctx.arc(sw.x, sw.y, sw.radius, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(${Math.round(curAccent.r)}, ${Math.round(curAccent.g)}, ${Math.round(curAccent.b)}, ${(sw.alpha * 0.34).toFixed(3)})`;
-        ctx.lineWidth = 1.6;
+        let lx = w * (t < 0.3 ? 0.26 : 0.72);
+        let ly = 0;
+        ctx.moveTo(lx, ly);
+        for (let s = 0; s < 8; s++) {
+          lx += (s % 2 === 0 ? 1 : -1) * (14 + ((s * 13) % 24));
+          ly += h * 0.065;
+          ctx.lineTo(lx, ly);
+        }
         ctx.stroke();
-
-        if (sw.radius >= sw.maxRadius) {
-          st.shockwaves.splice(s, 1);
-        }
       }
 
-      // Bottom Glass Dock Bounding Box for Real Gravity Bounce Collision
-      const dockRect =
-        st.gravityOn && dockRef.current
-          ? dockRef.current.getBoundingClientRect()
-          : null;
+      // City Skyline Layer (zooms past as we fly toward the old house)
+      ctx.save();
+      ctx.translate(w / 2, h * 0.52);
+      ctx.scale(cityZoom, cityZoom);
+      ctx.translate(-w / 2, -h * 0.52);
 
-      // 3D Z-Axis Fly-Through Camera + Particle Physics
-      const focalLength = 520;
-      const camZ = scrollP * 430;
-      const halfW = width * 0.5;
-      const halfH = height * 0.5;
+      const skylineBase = h * 0.78;
+      buildings.forEach((b) => {
+        ctx.fillStyle = flash > 0.3 ? '#151f33' : '#080c16';
+        ctx.fillRect(b.x, skylineBase - b.bh, b.bw, b.bh + h * 0.3);
 
-      const pR = Math.round(curPart.r);
-      const pG = Math.round(curPart.g);
-      const pB = Math.round(curPart.b);
-      const aR = Math.round(curAccent.r);
-      const aG = Math.round(curAccent.g);
-      const aB = Math.round(curAccent.b);
+        b.lights.forEach((l) => {
+          if (!l.lit) return;
+          ctx.fillStyle = 'rgba(245, 185, 92, 0.42)';
+          ctx.fillRect(
+            b.x + 6 + l.rx * (b.bw - 14),
+            skylineBase - b.bh + 10 + l.ry * (b.bh - 20),
+            3.5,
+            5
+          );
+        });
+      });
 
-      const isImplodingNow = st.imploding;
-      const implodeX = st.implodeTarget.x;
-      const implodeY = st.implodeTarget.y;
-      const pMode = st.physicsMode;
-      const grav = st.gravityOn;
-      const vortexHold =
-        st.pointer.down && st.pointer.active && !isImplodingNow;
-      const gyroX = st.gyro.x * 26;
-      const gyroY = st.gyro.y * 18;
-      const floorY = height - 6;
+      // Center Vintage House with Glowing Broken Window
+      const houseW = Math.min(w * 0.38, 280);
+      const houseH = h * 0.44;
+      const hx = w / 2 - houseW / 2;
+      const hy = skylineBase - houseH;
 
-      st.pointer.vx *= 0.88;
-      st.pointer.vy *= 0.88;
+      ctx.fillStyle = '#0c0b10';
+      ctx.beginPath();
+      ctx.moveTo(hx - 16, hy + 28);
+      ctx.lineTo(w / 2, hy - 34);
+      ctx.lineTo(hx + houseW + 16, hy + 28);
+      ctx.lineTo(hx + houseW, hy + 28);
+      ctx.lineTo(hx + houseW, skylineBase + 40);
+      ctx.lineTo(hx, skylineBase + 40);
+      ctx.lineTo(hx, hy + 28);
+      ctx.closePath();
+      ctx.fill();
 
-      for (let i = 0; i < count; i++) {
-        let x = px[i];
-        let y = py[i];
-        let z = pz[i];
-        let ivx = vx[i];
-        let ivy = vy[i];
-        let ivz = vz[i];
+      // Warm Glowing Vintage Window
+      const winW = houseW * 0.38;
+      const winH = houseH * 0.34;
+      const wx = w / 2 - winW / 2;
+      const wy = hy + houseH * 0.24;
 
-        if (isImplodingNow) {
-          const dx = implodeX - x;
-          const dy = implodeY - y;
-          const dist = Math.hypot(dx, dy) + 1;
-          const pull = 0.24 * stepFactor;
-          ivx = ivx * 0.86 + (dx * pull - (dy / dist) * 6.5 * stepFactor);
-          ivy = ivy * 0.86 + (dy * pull + (dx / dist) * 6.5 * stepFactor);
-          ivz = ivz * 0.88 + (0 - z) * 0.14 * stepFactor;
-        } else if (grav) {
-          ivy += 0.68 * stepFactor;
-          ivx += st.gyro.x * 0.28 * stepFactor;
+      const winGlow = ctx.createRadialGradient(
+        w / 2,
+        wy + winH / 2,
+        6,
+        w / 2,
+        wy + winH / 2,
+        winW * 1.4
+      );
+      winGlow.addColorStop(0, 'rgba(255, 206, 128, 0.92)');
+      winGlow.addColorStop(0.45, 'rgba(220, 145, 62, 0.32)');
+      winGlow.addColorStop(1, 'transparent');
+      ctx.fillStyle = winGlow;
+      ctx.fillRect(wx - winW, wy - winH, winW * 3, winH * 3);
 
-          if (st.pointer.active) {
-            const dx = x - ptrX;
-            const dy = y - ptrY;
-            const d2 = dx * dx + dy * dy;
-            if (d2 < 120 * 120) {
-              const d = Math.sqrt(d2) || 1;
-              const f = (1 - d / 120) * 2.4 * stepFactor;
-              ivx += (dx / d) * f + st.pointer.vx * 0.08;
-              ivy += (dy / d) * f - 1.2 * stepFactor;
-            }
-          }
+      // Window Frame + Broken Glass Shards
+      ctx.fillStyle = '#261a10';
+      ctx.fillRect(wx, wy, winW, winH);
+      ctx.fillStyle = 'rgba(255, 198, 118, 0.78)';
+      ctx.fillRect(wx + 4, wy + 4, winW - 8, winH - 8);
 
-          const nextX = x + ivx * stepFactor;
-          const nextY = y + ivy * stepFactor;
+      // Broken jagged dark cutout inside window
+      ctx.fillStyle = '#1b1109';
+      ctx.beginPath();
+      ctx.moveTo(wx + winW * 0.22, wy + winH * 0.18);
+      ctx.lineTo(wx + winW * 0.78, wy + winH * 0.26);
+      ctx.lineTo(wx + winW * 0.68, wy + winH * 0.84);
+      ctx.lineTo(wx + winW * 0.26, wy + winH * 0.74);
+      ctx.closePath();
+      ctx.fill();
 
-          if (dockRect) {
-            const pad = 3;
-            const withinDockX =
-              nextX >= dockRect.left - pad && nextX <= dockRect.right + pad;
-            const withinDockY =
-              nextY >= dockRect.top - pad && nextY <= dockRect.bottom + pad;
+      // Window Mullions
+      ctx.strokeStyle = '#1a120b';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(wx, wy, winW, winH);
+      ctx.beginPath();
+      ctx.moveTo(wx + winW / 2, wy);
+      ctx.lineTo(wx + winW / 2, wy + winH);
+      ctx.moveTo(wx, wy + winH / 2);
+      ctx.lineTo(wx + winW, wy + winH / 2);
+      ctx.stroke();
 
-            if (withinDockX && withinDockY) {
-              if (y <= dockRect.top + 8 && ivy > 0) {
-                y = dockRect.top - pad;
-                ivy = -Math.abs(ivy) * pBounce[i];
-                ivx = ivx * 0.86 + (Math.random() - 0.5) * 1.4;
-              } else if (x < dockRect.left) {
-                x = dockRect.left - pad;
-                ivx = -Math.abs(ivx) * 0.6;
-              } else if (x > dockRect.right) {
-                x = dockRect.right + pad;
-                ivx = Math.abs(ivx) * 0.6;
-              }
-            }
-          }
+      ctx.restore();
 
-          if (nextY >= floorY) {
-            y = floorY;
-            ivy = -Math.abs(ivy) * (pBounce[i] * 0.82);
-            ivx *= 0.91;
-          }
-          if (nextX < 4) {
-            x = 4;
-            ivx = Math.abs(ivx) * 0.65;
-          } else if (nextX > width - 4) {
-            x = width - 4;
-            ivx = -Math.abs(ivx) * 0.65;
-          }
+      // Flying Folded Magazine Paper Aeroplane (arcs from lower-left -> broken window -> desk)
+      const planeP = Math.min(1, Math.max(0, (t - 0.08) / 0.82));
+      const px =
+        w * 0.14 +
+        Math.sin(planeP * Math.PI * 0.85) * w * 0.38 +
+        planeP * w * 0.36;
+      const py =
+        h * 0.78 -
+        Math.sin(planeP * Math.PI) * h * 0.38 +
+        Math.pow(planeP, 3) * h * 0.26;
+      const pScale =
+        planeP < 0.65
+          ? 1.5 - planeP * 0.9
+          : 0.92 + (planeP - 0.65) * 1.4;
+      const pRot = -0.45 + planeP * 0.72;
 
-          ivx *= 0.992;
-          ivy *= 0.996;
-          ivz *= 0.95;
-        } else {
-          const seed = pSeed[i];
-          let driftX = gyroX;
-          let driftY = gyroY;
-          let driftZ = Math.sin(simTime * 1.2 + seed) * 6;
+      ctx.save();
+      ctx.translate(px, py);
+      ctx.rotate(pRot);
+      ctx.scale(pScale, pScale);
 
-          if (pMode === 'SWARM') {
-            driftX += Math.cos(simTime * 2.4 + seed * 3) * 5.2;
-            driftY += Math.sin(simTime * 2.1 + seed * 2) * 5.2;
-            driftZ += Math.cos(simTime * 1.8 + seed) * 14;
-          } else if (pMode === 'VORTEX') {
-            const ang = simTime * 1.1 + seed;
-            driftX += Math.cos(ang) * 2.6;
-            driftY += Math.sin(ang) * 2.6;
-          } else {
-            driftY += Math.sin(simTime * 1.35 + seed) * 1.4;
-          }
+      // Folded vintage parchment paper plane
+      ctx.fillStyle = '#efe5d0';
+      ctx.beginPath();
+      ctx.moveTo(34, 0);
+      ctx.lineTo(-26, -15);
+      ctx.lineTo(-16, 0);
+      ctx.closePath();
+      ctx.fill();
 
-          const springK = pMode === 'SWARM' ? 0.052 : 0.078;
-          ivx += (tx[i] + driftX - x) * springK * stepFactor;
-          ivy += (ty[i] + driftY - y) * springK * stepFactor;
-          ivz += (tz[i] + driftZ - z) * 0.06 * stepFactor;
+      ctx.fillStyle = '#d4c3a3';
+      ctx.beginPath();
+      ctx.moveTo(34, 0);
+      ctx.lineTo(-16, 0);
+      ctx.lineTo(-22, 14);
+      ctx.closePath();
+      ctx.fill();
 
-          if (st.pointer.active) {
-            const dx = x - ptrX;
-            const dy = y - ptrY;
-            const distSq = dx * dx + dy * dy;
+      ctx.fillStyle = '#b49f7d';
+      ctx.beginPath();
+      ctx.moveTo(34, 0);
+      ctx.lineTo(-16, 0);
+      ctx.lineTo(-12, 6);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
 
-            if (vortexHold) {
-              const dist = Math.sqrt(distSq) + 18;
-              const pull =
-                Math.min(26, 4200 / (dist + 60)) * 0.13 * stepFactor;
-              ivx += (-dx / dist) * pull + (-dy / dist) * pull * 0.72;
-              ivy += (-dy / dist) * pull + (dx / dist) * pull * 0.72;
-              ivz += (120 - z) * 0.025 * stepFactor;
-            } else {
-              const radius =
-                pMode === 'VORTEX' ? 195 : pMode === 'SWARM' ? 175 : 155;
-              if (distSq < radius * radius) {
-                const dist = Math.sqrt(distSq) || 1;
-                const force = (1 - dist / radius) * stepFactor;
-
-                if (pMode === 'FLUID') {
-                  const push = force * 11.5;
-                  ivx += (dx / dist) * push + st.pointer.vx * force * 0.22;
-                  ivy += (dy / dist) * push + st.pointer.vy * force * 0.22;
-                  ivz += force * 14;
-                } else if (pMode === 'VORTEX') {
-                  const swirl = force * 12.5;
-                  ivx += (-dy / dist) * swirl + (dx / dist) * force * 3.2;
-                  ivy += (dx / dist) * swirl + (dy / dist) * force * 3.2;
-                  ivz += force * 18;
-                } else {
-                  const burst = force * 9.5;
-                  ivx +=
-                    (dx / dist) * burst +
-                    Math.cos(seed + simTime * 6) * force * 4.5;
-                  ivy +=
-                    (dy / dist) * burst +
-                    Math.sin(seed + simTime * 6) * force * 4.5;
-                  ivz -= force * 16;
-                }
-              }
-            }
-          }
-
-          const damping = Math.pow(pMode === 'SWARM' ? 0.85 : 0.82, stepFactor);
-          ivx *= damping;
-          ivy *= damping;
-          ivz *= damping;
+      // Slanted Rain Streaks
+      ctx.strokeStyle =
+        flash > 0.3
+          ? 'rgba(215, 232, 255, 0.45)'
+          : 'rgba(170, 196, 230, 0.26)';
+      ctx.lineWidth = 1;
+      for (let i = 0; i < raindrops.length; i++) {
+        const r = raindrops[i];
+        r.x -= r.sp * 0.25;
+        r.y += r.sp;
+        if (r.y > h) {
+          r.y = -20;
+          r.x = Math.random() * (w + 120);
         }
-
-        for (let s = 0; s < st.shockwaves.length; s++) {
-          const sw = st.shockwaves[s];
-          const sdx = x - sw.x;
-          const sdy = y - sw.y;
-          const sdist = Math.hypot(sdx, sdy) || 1;
-          const band = Math.abs(sdist - sw.radius);
-          if (band < 48) {
-            const imp =
-              (1 - band / 48) * sw.strength * sw.alpha * 0.55 * stepFactor;
-            ivx += (sdx / sdist) * imp;
-            ivy += (sdy / sdist) * imp;
-            ivz += imp * 1.4;
-          }
-        }
-
-        x += ivx * stepFactor;
-        y += ivy * stepFactor;
-        z += ivz * stepFactor;
-
-        px[i] = x;
-        py[i] = y;
-        pz[i] = z;
-        vx[i] = ivx;
-        vy[i] = ivy;
-        vz[i] = ivz;
-
-        const relZ = focalLength + z - camZ;
-        if (relZ <= 24) continue;
-
-        const scale = focalLength / relZ;
-        const sx = (x - halfW) * scale + halfW;
-        const sy = (y - halfH) * scale + halfH;
-
-        if (sx < -20 || sx > width + 20 || sy < -20 || sy > height + 20)
-          continue;
-
-        const speed = Math.abs(ivx) + Math.abs(ivy);
-        const energy = Math.min(1, speed * 0.085);
-        const depthFade = Math.min(1, Math.max(0.08, (relZ - 24) / 180));
-        const finalAlpha = Math.min(
-          1,
-          pAlpha[i] * depthFade * (1 - scrollP * 0.58)
-        );
-        const size = Math.min(5.2, pSize[i] * scale * (1 + energy * 0.35));
-
-        const cr = Math.round(pR + (aR - pR) * energy);
-        const cg = Math.round(pG + (aG - pG) * energy);
-        const cb = Math.round(pB + (aB - pB) * energy);
-
-        ctx.fillStyle = `rgba(${cr}, ${cg}, ${cb}, ${finalAlpha.toFixed(3)})`;
-        ctx.fillRect(sx - size * 0.5, sy - size * 0.5, size, size);
-      }
-
-      if (vortexHold) {
-        const grad = ctx.createRadialGradient(ptrX, ptrY, 4, ptrX, ptrY, 120);
-        grad.addColorStop(0, `rgba(${aR}, ${aG}, ${aB}, 0.24)`);
-        grad.addColorStop(0.45, `rgba(${aR}, ${aG}, ${aB}, 0.06)`);
-        grad.addColorStop(1, 'transparent');
-        ctx.fillStyle = grad;
         ctx.beginPath();
-        ctx.arc(ptrX, ptrY, 120, 0, Math.PI * 2);
+        ctx.moveTo(r.x, r.y);
+        ctx.lineTo(r.x - 4, r.y + r.len);
+        ctx.stroke();
+      }
+
+      // Smooth warm transition into wooden desk at end of intro (t > 0.78)
+      if (t > 0.78) {
+        const fade = (t - 0.78) / 0.22;
+        ctx.fillStyle = `rgba(18, 12, 8, ${fade.toFixed(3)})`;
+        ctx.fillRect(0, 0, w, h);
+      }
+
+      ctx.restore();
+
+      if (t < 1) {
+        rafId = requestAnimationFrame(drawFrame);
+      } else {
+        enterDeskScene();
+      }
+    };
+
+    rafId = requestAnimationFrame(drawFrame);
+    return () => cancelAnimationFrame(rafId);
+  }, [isOpen, phase, videoAvailable, enterDeskScene]);
+
+  /* ==========================================================================
+     LIVE DESK ATMOSPHERE CANVAS (BROKEN WINDOW + STORMY CITY + WOODEN DESK + SUNBEAMS)
+     ========================================================================== */
+
+  useEffect(() => {
+    if (!isOpen || phase !== 'DESK') return;
+    const canvas = bgCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let w = window.innerWidth;
+    let h = window.innerHeight;
+    let dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+    const resize = () => {
+      w = window.innerWidth;
+      h = window.innerHeight;
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.floor(w * dpr);
+      canvas.height = Math.floor(h * dpr);
+      canvas.style.width = `${w}px`;
+      canvas.style.height = `${h}px`;
+    };
+    resize();
+    window.addEventListener('resize', resize);
+
+    const rain = Array.from({ length: 95 }, () => ({
+      x: Math.random(),
+      y: Math.random(),
+      len: 10 + Math.random() * 18,
+      speed: 0.012 + Math.random() * 0.014,
+    }));
+
+    const dust = Array.from({ length: 48 }, () => ({
+      x: Math.random(),
+      y: Math.random(),
+      r: 0.8 + Math.random() * 1.8,
+      vx: (Math.random() - 0.3) * 0.00025,
+      vy: (Math.random() - 0.5) * 0.00018,
+      phase: Math.random() * Math.PI * 2,
+    }));
+
+    const cityTowers = Array.from({ length: 24 }, (_, i) => ({
+      xFrac: i / 23,
+      wFrac: 0.032 + ((i * 17) % 35) / 1000,
+      hFrac: 0.09 + ((i * 29) % 16) / 100,
+      hasWarmLight: i % 2 === 0,
+    }));
+
+    let rafId = 0;
+    let time = 0;
+
+    const render = () => {
+      rafId = requestAnimationFrame(render);
+      time += 0.016;
+      lightningFlashRef.current *= 0.88;
+      const flash = lightningFlashRef.current;
+      const mode = worldRef.current;
+      const px = pointerNormRef.current.x;
+      const py = pointerNormRef.current.y;
+
+      ctx.save();
+      ctx.scale(dpr, dpr);
+
+      const horizonY = h * 0.44;
+
+      // 1. Vintage Room Wall & Window Backdrop
+      const wallGrad = ctx.createLinearGradient(0, 0, 0, horizonY + 30);
+      if (mode === 'GOLDEN_MORNING') {
+        wallGrad.addColorStop(0, '#2a2118');
+        wallGrad.addColorStop(1, '#1d150f');
+      } else if (mode === 'MOON_LIGHTNING') {
+        wallGrad.addColorStop(0, flash > 0.15 ? '#1b273b' : '#060a12');
+        wallGrad.addColorStop(1, '#080c15');
+      } else {
+        wallGrad.addColorStop(0, '#120e0b');
+        wallGrad.addColorStop(1, '#0d0907');
+      }
+      ctx.fillStyle = wallGrad;
+      ctx.fillRect(0, 0, w, horizonY + 30);
+
+      // 2. Broken Vintage Window Opening (Centered behind desk)
+      const winW = Math.min(w * 0.72, 680);
+      const winH = horizonY * 0.86;
+      const winX = w / 2 - winW / 2 - px * 10;
+      const winY = horizonY - winH - 6 - py * 5;
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(winX, winY, winW, winH);
+      ctx.clip();
+
+      // Outside Sky
+      const skyGrad = ctx.createLinearGradient(0, winY, 0, winY + winH);
+      if (mode === 'GOLDEN_MORNING') {
+        skyGrad.addColorStop(0, '#6e5842');
+        skyGrad.addColorStop(0.55, '#c9945a');
+        skyGrad.addColorStop(1, '#e8be82');
+      } else if (mode === 'MOON_LIGHTNING') {
+        skyGrad.addColorStop(
+          0,
+          `rgb(${10 + flash * 125}, ${18 + flash * 145}, ${36 + flash * 170})`
+        );
+        skyGrad.addColorStop(1, '#13223b');
+      } else {
+        skyGrad.addColorStop(
+          0,
+          `rgb(${8 + flash * 100}, ${14 + flash * 120}, ${26 + flash * 145})`
+        );
+        skyGrad.addColorStop(1, '#182235');
+      }
+      ctx.fillStyle = skyGrad;
+      ctx.fillRect(winX, winY, winW, winH);
+
+      // Distant City Silhouette visible through the broken window
+      const cityFloor = winY + winH;
+      cityTowers.forEach((b, idx) => {
+        const bx = winX + b.xFrac * winW - px * 6;
+        const bw = b.wFrac * winW;
+        const bh = b.hFrac * h;
+        ctx.fillStyle =
+          mode === 'GOLDEN_MORNING'
+            ? 'rgba(54, 37, 25, 0.75)'
+            : flash > 0.25
+            ? 'rgba(20, 32, 52, 0.92)'
+            : 'rgba(7, 11, 20, 0.92)';
+        ctx.fillRect(bx, cityFloor - bh, bw, bh);
+
+        if (b.hasWarmLight && mode !== 'GOLDEN_MORNING') {
+          ctx.fillStyle =
+            mode === 'MOON_LIGHTNING'
+              ? 'rgba(180, 214, 255, 0.35)'
+              : 'rgba(248, 192, 102, 0.48)';
+          ctx.fillRect(bx + bw * 0.28, cityFloor - bh * 0.72, 2.5, 3.5);
+          if (idx % 3 === 0) {
+            ctx.fillRect(bx + bw * 0.56, cityFloor - bh * 0.48, 2.5, 3.5);
+          }
+        }
+      });
+
+      // Lightning Fork Outside Window
+      if (flash > 0.22 && mode !== 'GOLDEN_MORNING') {
+        ctx.strokeStyle = `rgba(232, 245, 255, ${flash * 0.9})`;
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        let lx = winX + winW * 0.64;
+        let ly = winY;
+        ctx.moveTo(lx, ly);
+        for (let k = 0; k < 6; k++) {
+          lx += (k % 2 === 0 ? -1 : 1) * 14;
+          ly += winH / 6;
+          ctx.lineTo(lx, ly);
+        }
+        ctx.stroke();
+      }
+
+      // Rain Streaks Outside Window (in storm modes)
+      if (mode !== 'GOLDEN_MORNING') {
+        ctx.strokeStyle =
+          mode === 'MOON_LIGHTNING'
+            ? 'rgba(186, 218, 255, 0.34)'
+            : 'rgba(170, 196, 232, 0.24)';
+        ctx.lineWidth = 0.95;
+        for (let i = 0; i < rain.length; i++) {
+          const r = rain[i];
+          r.y += r.speed;
+          r.x -= r.speed * 0.22;
+          if (r.y > 1) {
+            r.y = 0;
+            r.x = Math.random() * 1.15;
+          }
+          const rx = winX + r.x * winW;
+          const ry = winY + r.y * winH;
+          ctx.beginPath();
+          ctx.moveTo(rx, ry);
+          ctx.lineTo(rx - 4, ry + r.len);
+          ctx.stroke();
+        }
+      }
+
+      // Cracked Vintage Glass Shards along window edges
+      ctx.fillStyle =
+        mode === 'GOLDEN_MORNING'
+          ? 'rgba(255, 238, 200, 0.16)'
+          : `rgba(185, 222, 255, ${0.1 + flash * 0.22})`;
+      ctx.strokeStyle =
+        mode === 'GOLDEN_MORNING'
+          ? 'rgba(255, 236, 196, 0.38)'
+          : `rgba(204, 232, 255, ${0.28 + flash * 0.4})`;
+      ctx.lineWidth = 1;
+
+      // Top-left broken shard
+      ctx.beginPath();
+      ctx.moveTo(winX, winY);
+      ctx.lineTo(winX + winW * 0.28, winY);
+      ctx.lineTo(winX + winW * 0.14, winY + winH * 0.34);
+      ctx.lineTo(winX, winY + winH * 0.52);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Top-right broken shard
+      ctx.beginPath();
+      ctx.moveTo(winX + winW, winY);
+      ctx.lineTo(winX + winW * 0.72, winY);
+      ctx.lineTo(winX + winW * 0.84, winY + winH * 0.38);
+      ctx.lineTo(winX + winW, winY + winH * 0.28);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Bottom-left jagged shard
+      ctx.beginPath();
+      ctx.moveTo(winX, winY + winH);
+      ctx.lineTo(winX + winW * 0.22, winY + winH);
+      ctx.lineTo(winX + winW * 0.08, winY + winH * 0.72);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Window Wooden Frame & Mullions
+      ctx.strokeStyle = '#1b120b';
+      ctx.lineWidth = 10;
+      ctx.strokeRect(winX, winY, winW, winH);
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(winX + winW * 0.5, winY);
+      ctx.lineTo(winX + winW * 0.5, winY + winH);
+      ctx.moveTo(winX, winY + winH * 0.48);
+      ctx.lineTo(winX + winW, winY + winH * 0.48);
+      ctx.stroke();
+
+      ctx.restore();
+
+      // 3. Textured Vintage Wooden Desk Surface
+      const deskGrad = ctx.createLinearGradient(0, horizonY, 0, h);
+      if (mode === 'GOLDEN_MORNING') {
+        deskGrad.addColorStop(0, '#3a2719');
+        deskGrad.addColorStop(0.45, '#2b1c12');
+        deskGrad.addColorStop(1, '#1a1009');
+      } else if (mode === 'MOON_LIGHTNING') {
+        deskGrad.addColorStop(0, '#0f141e');
+        deskGrad.addColorStop(0.5, '#0b0e16');
+        deskGrad.addColorStop(1, '#06080d');
+      } else {
+        deskGrad.addColorStop(0, '#24170f');
+        deskGrad.addColorStop(0.45, '#19100a');
+        deskGrad.addColorStop(1, '#0e0805');
+      }
+      ctx.fillStyle = deskGrad;
+      ctx.fillRect(0, horizonY, w, h - horizonY);
+
+      // Subtle Wood Grain Planks
+      ctx.strokeStyle =
+        mode === 'MOON_LIGHTNING'
+          ? 'rgba(130, 165, 210, 0.05)'
+          : 'rgba(255, 210, 160, 0.055)';
+      ctx.lineWidth = 1;
+      for (let g = 0; g < 18; g++) {
+        const gy = horizonY + Math.pow(g / 17, 1.45) * (h - horizonY);
+        ctx.beginPath();
+        ctx.moveTo(0, gy);
+        ctx.bezierCurveTo(
+          w * 0.33,
+          gy + Math.sin(g * 1.4) * 4,
+          w * 0.66,
+          gy - Math.cos(g * 1.1) * 4,
+          w,
+          gy
+        );
+        ctx.stroke();
+      }
+
+      // Desk Top Edge Bevel
+      ctx.fillStyle =
+        mode === 'GOLDEN_MORNING'
+          ? 'rgba(255, 214, 150, 0.14)'
+          : mode === 'MOON_LIGHTNING'
+          ? 'rgba(150, 195, 255, 0.1)'
+          : 'rgba(240, 185, 110, 0.1)';
+      ctx.fillRect(0, horizonY, w, 2);
+
+      // 4. Lighting Pools (Warm Tungsten Lamp / Lightning / Golden Morning Sunbeams)
+      if (mode === 'STORM_LAMP') {
+        const lampGlow = ctx.createRadialGradient(
+          w * 0.5 + px * 24,
+          h * 0.48 + py * 18,
+          20,
+          w * 0.5,
+          h * 0.56,
+          Math.max(w, h) * 0.62
+        );
+        lampGlow.addColorStop(0, 'rgba(255, 192, 102, 0.24)');
+        lampGlow.addColorStop(0.48, 'rgba(218, 134, 48, 0.09)');
+        lampGlow.addColorStop(1, 'transparent');
+        ctx.fillStyle = lampGlow;
+        ctx.fillRect(0, 0, w, h);
+      } else if (mode === 'GOLDEN_MORNING') {
+        // Volumetric diagonal morning sunbeams through the broken window
+        ctx.save();
+        const beamGrad = ctx.createLinearGradient(
+          winX + winW * 0.2,
+          winY,
+          w * 0.78,
+          h
+        );
+        beamGrad.addColorStop(0, 'rgba(255, 224, 158, 0.26)');
+        beamGrad.addColorStop(0.6, 'rgba(255, 206, 128, 0.09)');
+        beamGrad.addColorStop(1, 'transparent');
+        ctx.fillStyle = beamGrad;
+        ctx.beginPath();
+        ctx.moveTo(winX + winW * 0.12, winY + 10);
+        ctx.lineTo(winX + winW * 0.68, winY + 10);
+        ctx.lineTo(w * 0.96, h);
+        ctx.lineTo(w * 0.24, h);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      } else if (flash > 0.04) {
+        ctx.fillStyle = `rgba(190, 225, 255, ${flash * 0.22})`;
+        ctx.fillRect(0, 0, w, h);
+      }
+
+      // 5. Floating Dust Motes in Light
+      for (let i = 0; i < dust.length; i++) {
+        const d = dust[i];
+        d.x = (d.x + d.vx + 1) % 1;
+        d.y = (d.y + d.vy + Math.sin(time + d.phase) * 0.00012 + 1) % 1;
+        const alpha =
+          (mode === 'GOLDEN_MORNING'
+            ? 0.42
+            : mode === 'STORM_LAMP'
+            ? 0.22
+            : 0.12 + flash * 0.25) *
+          (0.5 + 0.5 * Math.sin(time * 1.4 + d.phase));
+
+        ctx.fillStyle =
+          mode === 'MOON_LIGHTNING'
+            ? `rgba(190, 220, 255, ${alpha.toFixed(3)})`
+            : `rgba(255, 232, 185, ${alpha.toFixed(3)})`;
+        ctx.beginPath();
+        ctx.arc(d.x * w, d.y * h, d.r, 0, Math.PI * 2);
         ctx.fill();
       }
 
       ctx.restore();
     };
 
-    rafId = requestAnimationFrame(animate);
-
+    rafId = requestAnimationFrame(render);
     return () => {
       cancelAnimationFrame(rafId);
-      window.clearTimeout(resizeTimer);
-      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('resize', resize);
     };
-  }, [isOpen]);
+  }, [isOpen, phase]);
 
-  const handlePointerMove = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => {
-      const ptr = engineStateRef.current.pointer;
-      if (ptr.active) {
-        ptr.vx = e.clientX - ptr.x;
-        ptr.vy = e.clientY - ptr.y;
+  /* ==========================================================================
+     PAPER PLANE DESK SLIDE/SPIN PHYSICS LOOP
+     ========================================================================== */
+
+  useEffect(() => {
+    if (!isOpen || phase !== 'DESK') return;
+    let rafId = 0;
+
+    const stepPlane = () => {
+      rafId = requestAnimationFrame(stepPlane);
+      const p = planePhysicsRef.current;
+      if (!p.dragging && (Math.abs(p.vx) > 0.08 || Math.abs(p.vy) > 0.08 || Math.abs(p.vrot) > 0.08)) {
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        p.x += p.vx;
+        p.y += p.vy;
+        p.rot += p.vrot;
+        p.vx *= 0.92;
+        p.vy *= 0.92;
+        p.vrot *= 0.92;
+
+        if (p.x < 24) {
+          p.x = 24;
+          p.vx = Math.abs(p.vx) * 0.55;
+        } else if (p.x > w - 84) {
+          p.x = w - 84;
+          p.vx = -Math.abs(p.vx) * 0.55;
+        }
+        const minY = h * 0.45;
+        if (p.y < minY) {
+          p.y = minY;
+          p.vy = Math.abs(p.vy) * 0.55;
+        } else if (p.y > h - 68) {
+          p.y = h - 68;
+          p.vy = -Math.abs(p.vy) * 0.55;
+        }
+
+        setPlaneState({ x: p.x, y: p.y, rot: p.rot, initialized: true });
       }
-      ptr.x = e.clientX;
-      ptr.y = e.clientY;
-      ptr.active = true;
-    },
-    []
-  );
+    };
 
-  const handlePointerDown = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => {
-      const target = e.target as HTMLElement;
-      if (target.closest('button, a')) return;
+    rafId = requestAnimationFrame(stepPlane);
+    return () => cancelAnimationFrame(rafId);
+  }, [isOpen, phase]);
 
-      const ptr = engineStateRef.current.pointer;
-      ptr.x = e.clientX;
-      ptr.y = e.clientY;
-      ptr.active = true;
-      ptr.down = true;
-      setIsHoldingVortex(true);
-      audioRef.current?.playMechanicalTick(310);
-    },
-    []
-  );
+  /* ==========================================================================
+     INTERACTIVE HANDLERS: PULL-CHAIN, PAPERWEIGHT, PAPER PLANE, CALLING CARD
+     ========================================================================== */
 
-  const handlePointerUp = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => {
-      const ptr = engineStateRef.current.pointer;
-      if (ptr.down) {
-        ptr.down = false;
-        setIsHoldingVortex(false);
-        triggerShockwave(e.clientX, e.clientY, 30);
-        audioRef.current?.playShockwaveRelease();
-      }
-    },
-    [triggerShockwave]
-  );
-
-  const handlePointerLeave = useCallback(() => {
-    const ptr = engineStateRef.current.pointer;
-    ptr.active = false;
-    ptr.down = false;
-    setIsHoldingVortex(false);
-  }, []);
-
-  const canvasBlurPx = useMemo(() => scrollStage * 15, [scrollStage]);
-  const stage2Opacity = useMemo(
-    () => Math.min(1, Math.max(0, (scrollStage - 0.18) / 0.52)),
-    [scrollStage]
-  );
-  const stage2BlurPx = useMemo(
-    () => Math.max(0, (1 - stage2Opacity) * 14),
-    [stage2Opacity]
-  );
-  const stage2Y = useMemo(() => (1 - stage2Opacity) * 44, [stage2Opacity]);
-
-  const switchShader = (mode: ShaderMode) => {
-    if (mode === shaderMode) return;
-    setShaderMode(mode);
-    audioRef.current?.playMechanicalTick(820);
-  };
-
-  const switchPhysics = (mode: PhysicsMode) => {
-    if (mode === physicsMode && !gravityOn) return;
-    setPhysicsMode(mode);
-    if (gravityOn) setGravityOn(false);
-    audioRef.current?.playMechanicalTick(980);
-    triggerShockwave(window.innerWidth / 2, window.innerHeight * 0.47, 14);
-  };
-
-  const toggleGravity = () => {
-    setGravityOn((prev) => {
-      const next = !prev;
-      audioRef.current?.playGravityPulse(next);
-      if (!next) {
-        triggerShockwave(window.innerWidth / 2, window.innerHeight * 0.65, 18);
+  const cycleWorldMode = useCallback(() => {
+    audioRef.current?.playChainSwitch();
+    setWorldMode((prev) => {
+      const next =
+        WORLD_ORDER[(WORLD_ORDER.indexOf(prev) + 1) % WORLD_ORDER.length];
+      if (next === 'MOON_LIGHTNING') {
+        lightningFlashRef.current = 0.95;
+        audioRef.current?.playThunder(0.75);
       }
       return next;
     });
+  }, []);
+
+  const handleChainDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // ignore
+    }
+    chainDragRef.current = {
+      active: true,
+      startY: e.clientY,
+      triggered: false,
+      moved: false,
+    };
+  };
+
+  const handleChainMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!chainDragRef.current.active) return;
+    const dy = Math.max(0, Math.min(82, e.clientY - chainDragRef.current.startY));
+    if (dy > 5) chainDragRef.current.moved = true;
+    setChainPullY(dy);
+    if (dy >= 42 && !chainDragRef.current.triggered) {
+      chainDragRef.current.triggered = true;
+      cycleWorldMode();
+    }
+  };
+
+  const handleChainUp = () => {
+    if (!chainDragRef.current.active) return;
+    const wasTap = !chainDragRef.current.moved && !chainDragRef.current.triggered;
+    chainDragRef.current.active = false;
+    if (wasTap) {
+      setChainPullY(36);
+      cycleWorldMode();
+      window.setTimeout(() => setChainPullY(0), 140);
+    } else {
+      setChainPullY(0);
+    }
+    setChainSwayDeg(8);
+    window.setTimeout(() => setChainSwayDeg(-5), 240);
+    window.setTimeout(() => setChainSwayDeg(0), 620);
+  };
+
+  const handleWeightDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // ignore
+    }
+    weightDragRef.current = {
+      active: true,
+      startX: e.clientX,
+      startY: e.clientY,
+      origX: weightPos.x,
+      origY: weightPos.y,
+      moved: false,
+    };
+  };
+
+  const handleWeightMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!weightDragRef.current.active) return;
+    const dx = e.clientX - weightDragRef.current.startX;
+    const dy = e.clientY - weightDragRef.current.startY;
+    if (Math.hypot(dx, dy) > 6) weightDragRef.current.moved = true;
+    setWeightPos({
+      x: Math.max(8, Math.min(window.innerWidth - 68, weightDragRef.current.origX + dx)),
+      y: Math.max(64, Math.min(window.innerHeight - 68, weightDragRef.current.origY + dy)),
+      initialized: true,
+    });
+  };
+
+  const handleWeightUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!weightDragRef.current.active) return;
+    weightDragRef.current.active = false;
+    const bookRect = bookRef.current?.getBoundingClientRect();
+
+    // Quick tap toggles placing/removing paperweight on the book corner
+    if (!weightDragRef.current.moved && bookRect) {
+      if (!weightOnBook) {
+        setWeightPos({
+          x: bookRect.right - 68,
+          y: bookRect.bottom - 72,
+          initialized: true,
+        });
+        setWeightOnBook(true);
+        audioRef.current?.playWoodThud(true);
+      } else {
+        setWeightPos({
+          x: isMobile ? 20 : Math.max(36, window.innerWidth * 0.08),
+          y: isMobile ? window.innerHeight - 88 : window.innerHeight - 110,
+          initialized: true,
+        });
+        setWeightOnBook(false);
+        audioRef.current?.playWoodThud(false);
+      }
+      return;
+    }
+
+    if (bookRect) {
+      const cx = e.clientX;
+      const cy = e.clientY;
+      const inside =
+        cx >= bookRect.left - 12 &&
+        cx <= bookRect.right + 12 &&
+        cy >= bookRect.top - 12 &&
+        cy <= bookRect.bottom + 12;
+      setWeightOnBook(inside);
+      audioRef.current?.playWoodThud(inside);
+    }
+  };
+
+  const handlePlaneDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // ignore
+    }
+    const p = planePhysicsRef.current;
+    p.dragging = true;
+    p.lastX = e.clientX;
+    p.lastY = e.clientY;
+    p.vx = 0;
+    p.vy = 0;
+    p.moved = false;
+  };
+
+  const handlePlaneMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const p = planePhysicsRef.current;
+    if (!p.dragging) return;
+    const dx = e.clientX - p.lastX;
+    const dy = e.clientY - p.lastY;
+    if (Math.hypot(dx, dy) > 4) p.moved = true;
+    p.x = Math.max(16, Math.min(window.innerWidth - 78, p.x + dx));
+    p.y = Math.max(window.innerHeight * 0.44, Math.min(window.innerHeight - 64, p.y + dy));
+    p.vx = dx * 0.85;
+    p.vy = dy * 0.85;
+    p.vrot = dx * 0.45;
+    p.lastX = e.clientX;
+    p.lastY = e.clientY;
+    setPlaneState({ x: p.x, y: p.y, rot: p.rot, initialized: true });
+  };
+
+  const handlePlaneUp = () => {
+    const p = planePhysicsRef.current;
+    if (!p.dragging) return;
+    p.dragging = false;
+    if (!p.moved) {
+      // Flick impulse on tap
+      p.vx = (Math.random() > 0.5 ? 1 : -1) * (5 + Math.random() * 5);
+      p.vy = -(2 + Math.random() * 4);
+      p.vrot = (Math.random() > 0.5 ? 1 : -1) * 9;
+    }
+    audioRef.current?.playPaperFlip(true);
+  };
+
+  const handleFlipPage = (nextPage: 0 | 1) => {
+    if (activePage === nextPage) return;
+    setActivePage(nextPage);
+    audioRef.current?.playPaperFlip(false);
+  };
+
+  const handleReplayInk = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSealStamped(false);
+    setInkReplayKey((k) => k + 1);
+    audioRef.current?.playNibScratch();
+    window.setTimeout(() => {
+      setSealStamped(true);
+      audioRef.current?.playWoodThud(false);
+    }, 2100);
+  };
+
+  const handleCopyEmail = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    audioRef.current?.playWoodThud(true);
+
+    const fallback = () => {
+      const ta = document.createElement('textarea');
+      ta.value = CREATOR_EMAIL;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand('copy');
+      } catch {
+        // ignore
+      }
+      document.body.removeChild(ta);
+    };
+
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(CREATOR_EMAIL).catch(fallback);
+    } else {
+      fallback();
+    }
+
+    if (copiedTimerRef.current) window.clearTimeout(copiedTimerRef.current);
+    setEmailCopied(true);
+    copiedTimerRef.current = window.setTimeout(() => {
+      setEmailCopied(false);
+    }, 2400);
   };
 
   const toggleAudio = () => {
     setAudioMuted((prev) => {
       const next = !prev;
-      if (!next && audioRef.current) {
-        audioRef.current.muted = false;
-        audioRef.current.playMechanicalTick(1100);
-      }
+      audioRef.current?.setMuted(next);
       return next;
     });
   };
 
-  const toggleXray = () => {
-    setXrayEnabled((prev) => !prev);
-    audioRef.current?.playMechanicalTick(740);
+  const handleRootPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    pointerNormRef.current.x = e.clientX / window.innerWidth - 0.5;
+    pointerNormRef.current.y = e.clientY / window.innerHeight - 0.5;
   };
+
+  useEffect(() => {
+    return () => {
+      if (copiedTimerRef.current) window.clearTimeout(copiedTimerRef.current);
+    };
+  }, []);
 
   if (!isOpen || typeof document === 'undefined') return null;
 
-  const uiRevealStyle = (delaySec = 0): React.CSSProperties => ({
-    opacity: introActive ? 0 : 1,
-    transform: introActive ? 'translate3d(0, 14px, 0)' : 'translate3d(0, 0, 0)',
-    filter: introActive ? 'blur(8px)' : 'blur(0px)',
-    transition: `opacity 0.65s cubic-bezier(0.22,1,0.36,1) ${delaySec}s, transform 0.65s cubic-bezier(0.22,1,0.36,1) ${delaySec}s, filter 0.65s ease ${delaySec}s`,
-  });
+  const isMorning = worldMode === 'GOLDEN_MORNING';
+  const isMoon = worldMode === 'MOON_LIGHTNING';
 
-  const modalContent = (
+  const parchmentBg = isMorning
+    ? 'linear-gradient(145deg, #f8efd9 0%, #ead8b5 58%, #dfca9e 100%)'
+    : isMoon
+    ? 'linear-gradient(145deg, #bcc6d6 0%, #99a6bc 60%, #8392ab 100%)'
+    : 'linear-gradient(145deg, #f2e4c4 0%, #e1cb9e 58%, #d2b682 100%)';
+
+  const inkColor = isMoon ? '#0e1726' : '#1f150c';
+  const mutedInk = isMoon ? 'rgba(14,23,38,0.68)' : 'rgba(54,36,20,0.68)';
+
+  /* Reusable Calling Card Block */
+  const renderCallingCard = () => (
     <div
-      className="cm-root"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Architected and Built by Samrat Sandilya"
-      onPointerMove={handlePointerMove}
-      onPointerDown={handlePointerDown}
-      onPointerUp={handlePointerUp}
-      onPointerCancel={handlePointerUp}
-      onPointerLeave={handlePointerLeave}
       style={{
-        backgroundColor: theme.bgHex,
-        color: theme.textPrimary,
-        opacity: isImploding ? 0 : mountedVisible ? 1 : 0,
-        transform: isImploding ? 'scale(0.985)' : 'scale(1)',
-        filter: isImploding ? 'blur(10px)' : 'blur(0px)',
-        transition:
-          'opacity 0.42s cubic-bezier(0.22,1,0.36,1), transform 0.42s cubic-bezier(0.22,1,0.36,1), filter 0.42s ease, background-color 0.55s cubic-bezier(0.22,1,0.36,1), color 0.45s ease',
-        touchAction: 'pan-y',
+        position: 'relative',
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: isMobile ? '16px 14px' : '22px 24px',
       }}
     >
-      {/* 1. LIVE 10,000-PARTICLE CANVAS + DSLR RACK-FOCUS BLUR */}
-      <canvas
-        ref={canvasRef}
-        style={{
-          position: 'fixed',
-          inset: 0,
-          width: '100%',
-          height: '100%',
-          pointerEvents: 'none',
-          zIndex: 1,
-          filter: `blur(${canvasBlurPx.toFixed(1)}px)`,
-          transform: `scale(${(1 + scrollStage * 0.035).toFixed(4)})`,
-          transition: 'filter 0.08s linear',
-        }}
-      />
-
-      {/* Editorial Paper Grain */}
       <div
-        aria-hidden="true"
         style={{
-          pointerEvents: 'none',
-          position: 'fixed',
-          inset: 0,
-          zIndex: 2,
-          opacity: theme.isLight ? 0.055 : 0.04,
-          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
+          fontFamily: '"Cinzel", Georgia, serif',
+          fontSize: '9px',
+          letterSpacing: '0.28em',
+          color: mutedInk,
+          textTransform: 'uppercase',
+          marginBottom: '12px',
         }}
-      />
-
-      {/* Cinematic Vignette */}
-      <div
-        aria-hidden="true"
-        style={{
-          pointerEvents: 'none',
-          position: 'fixed',
-          inset: 0,
-          zIndex: 3,
-          background: theme.vignette,
-          transition: 'background 0.5s ease',
-        }}
-      />
-
-      {/* 2. X-RAY ARCHITECTURAL CAD BLUEPRINT CURSOR LENS (60FPS RAF) */}
-      {xrayEnabled && !isTouchDevice && (
-        <>
-          <div
-            ref={xrayLayerRef}
-            aria-hidden="true"
-            style={{
-              pointerEvents: 'none',
-              position: 'fixed',
-              inset: 0,
-              zIndex: 25,
-              overflow: 'hidden',
-              clipPath: 'circle(0px at -400px -400px)',
-              backgroundColor: '#041226',
-              backgroundImage:
-                'linear-gradient(rgba(56,189,248,0.16) 1px, transparent 1px), linear-gradient(90deg, rgba(56,189,248,0.16) 1px, transparent 1px), linear-gradient(rgba(56,189,248,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(56,189,248,0.06) 1px, transparent 1px)',
-              backgroundSize: '120px 120px, 120px 120px, 24px 24px, 24px 24px',
-            }}
-          >
-            <svg
-              style={{
-                position: 'absolute',
-                inset: 0,
-                width: '100%',
-                height: '100%',
-                opacity: 0.75,
-              }}
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <line
-                x1="50%"
-                y1="0"
-                x2="50%"
-                y2="100%"
-                stroke="rgba(56,189,248,0.28)"
-                strokeDasharray="4 6"
-              />
-              <line
-                x1="0"
-                y1="47%"
-                x2="100%"
-                y2="47%"
-                stroke="rgba(56,189,248,0.28)"
-                strokeDasharray="4 6"
-              />
-              <ellipse
-                cx="50%"
-                cy="47%"
-                rx="34%"
-                ry="24%"
-                fill="none"
-                stroke="rgba(125,211,252,0.34)"
-                strokeWidth="1"
-                strokeDasharray="6 6"
-              />
-              <rect
-                x="14%"
-                y="23%"
-                width="72%"
-                height="48%"
-                fill="none"
-                stroke="rgba(56,189,248,0.35)"
-                strokeWidth="0.8"
-              />
-              <line
-                x1="14%"
-                y1="23%"
-                x2="86%"
-                y2="71%"
-                stroke="rgba(56,189,248,0.18)"
-                strokeWidth="0.8"
-              />
-            </svg>
-
-            <div
-              style={{
-                position: 'absolute',
-                inset: 0,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transform: `translateY(-3%) scale(${(1 + scrollStage * 0.08).toFixed(3)})`,
-                opacity: Math.max(0.15, 1 - scrollStage * 0.9),
-              }}
-            >
-              <div
-                style={{
-                  textAlign: 'center',
-                  lineHeight: 0.88,
-                  letterSpacing: '-0.02em',
-                  fontFamily:
-                    '"Instrument Serif", "Cormorant Garamond", Georgia, serif',
-                  fontSize: 'min(12.8vw, 178px)',
-                  color: 'transparent',
-                  WebkitTextStroke: '1px rgba(125, 211, 252, 0.85)',
-                }}
-              >
-                <div>SAMRAT</div>
-                <div>SANDILYA</div>
-              </div>
-            </div>
-
-            <div
-              style={{
-                position: 'absolute',
-                top: '19%',
-                left: '14.5%',
-                fontSize: '10px',
-                letterSpacing: '0.26em',
-                color: 'rgba(125,211,252,0.9)',
-                textTransform: 'uppercase',
-              }}
-            >
-              [01] ARCHITECTED FROM SCRATCH
-            </div>
-            <div
-              style={{
-                position: 'absolute',
-                top: '19%',
-                right: '14.5%',
-                fontSize: '10px',
-                letterSpacing: '0.26em',
-                color: 'rgba(125,211,252,0.9)',
-                textTransform: 'uppercase',
-              }}
-            >
-              [02] ZERO TEMPLATES // HAND-CODED
-            </div>
-            <div
-              style={{
-                position: 'absolute',
-                bottom: '24%',
-                left: '14.5%',
-                fontSize: '10px',
-                letterSpacing: '0.26em',
-                color: 'rgba(186,230,253,0.9)',
-                textTransform: 'uppercase',
-              }}
-            >
-              BUILT BY SAMRAT — DOM:{telemetry.domNodes} // PARTICLES:
-              {telemetry.particles}
-            </div>
-            <div
-              style={{
-                position: 'absolute',
-                bottom: '24%',
-                right: '14.5%',
-                fontSize: '10px',
-                letterSpacing: '0.26em',
-                color: 'rgba(186,230,253,0.9)',
-                textTransform: 'uppercase',
-              }}
-            >
-              CAD X-RAY // {telemetry.viewport} // {telemetry.fps} FPS
-            </div>
-          </div>
-
-          <div
-            ref={xrayRingRef}
-            aria-hidden="true"
-            style={{
-              pointerEvents: 'none',
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              zIndex: 30,
-              borderRadius: '9999px',
-              width: 0,
-              height: 0,
-              opacity: 0,
-              border: '1px solid rgba(125, 211, 252, 0.58)',
-              boxShadow:
-                'inset 0 0 26px rgba(56, 189, 248, 0.16), 0 0 24px rgba(56, 189, 248, 0.18)',
-              willChange: 'transform, width, height',
-            }}
-          >
-            <span
-              style={{
-                position: 'absolute',
-                top: '-22px',
-                left: '50%',
-                transform: 'translateX(-50%)',
-                fontSize: '9px',
-                letterSpacing: '0.22em',
-                color: 'rgba(125,211,252,0.92)',
-                whiteSpace: 'nowrap',
-                backgroundColor: 'rgba(4,18,38,0.82)',
-                padding: '2px 6px',
-                borderRadius: '4px',
-                border: '1px solid rgba(56,189,248,0.32)',
-              }}
-            >
-              X-RAY // {telemetry.cursorX},{telemetry.cursorY}
-            </span>
-          </div>
-        </>
-      )}
-
-      {/* 3. PROGRESSIVE EDGE BLUR MASKS (TOP & BOTTOM — ZERO HARD CUTS) */}
-      <div
-        aria-hidden="true"
-        style={{
-          pointerEvents: 'none',
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          height: '112px',
-          zIndex: 20,
-          backdropFilter: 'blur(12px)',
-          WebkitBackdropFilter: 'blur(12px)',
-          maskImage: 'linear-gradient(to bottom, black 12%, transparent 100%)',
-          WebkitMaskImage:
-            'linear-gradient(to bottom, black 12%, transparent 100%)',
-        }}
-      />
-      <div
-        aria-hidden="true"
-        style={{
-          pointerEvents: 'none',
-          position: 'fixed',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          height: '128px',
-          zIndex: 20,
-          backdropFilter: 'blur(14px)',
-          WebkitBackdropFilter: 'blur(14px)',
-          maskImage: 'linear-gradient(to top, black 18%, transparent 100%)',
-          WebkitMaskImage:
-            'linear-gradient(to top, black 18%, transparent 100%)',
-        }}
-      />
-
-      {/* 4. SCROLL-DRIVEN RACK-FOCUS STAGE (3D FLY-THROUGH + SIGNATURE) */}
-      <div
-        ref={scrollContainerRef}
-        onScroll={handleScroll}
-        className="cm-scroll"
       >
-        <div style={{ position: 'relative', width: '100%', height: '210vh' }}>
-          <div
-            style={{
-              position: 'sticky',
-              top: 0,
-              height: '100vh',
-              width: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              pointerEvents: 'none',
-              padding: '96px 16px 148px',
-            }}
-          >
-            {/* Top Editorial Micro-Label */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                fontSize: '10px',
-                letterSpacing: '0.38em',
-                textTransform: 'uppercase',
-                color: theme.textMuted,
-                opacity: introActive ? 0 : Math.max(0, 1 - scrollStage * 2.2),
-                transform: `translate3d(0, ${introActive ? -12 : -scrollStage * 28}px, 0)`,
-                filter: `blur(${(introActive ? 8 : scrollStage * 10).toFixed(1)}px)`,
-                transition:
-                  'opacity 0.55s ease, transform 0.45s ease, filter 0.35s ease',
-              }}
-            >
-              <span
-                className="cm-pulse-dot"
-                style={{
-                  backgroundColor:
-                    shaderMode === 'BLUEPRINT' ? '#38BDF8' : theme.textPrimary,
-                }}
-              />
-              ARCHITECTED &amp; BUILT BY
-            </div>
-
-            {/* Rack-Focus Stage 2: Signature + Live System Proof Grid */}
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                textAlign: 'center',
-                maxWidth: '580px',
-                width: '100%',
-                margin: '0 auto',
-                padding: '0 16px',
-                opacity: stage2Opacity,
-                filter: `blur(${stage2BlurPx.toFixed(1)}px)`,
-                transform: `translate3d(0, ${stage2Y.toFixed(1)}px, 0)`,
-                pointerEvents: stage2Opacity > 0.5 ? 'auto' : 'none',
-              }}
-            >
-              <div
-                style={{
-                  fontSize: '10px',
-                  letterSpacing: '0.34em',
-                  textTransform: 'uppercase',
-                  marginBottom: '16px',
-                  color: theme.textMuted,
-                }}
-              >
-                COLOPHON // SANRACHNA ARCHITECTURE
-              </div>
-
-              <CreatorSignatureSVG
-                color={theme.textPrimary}
-                accent={shaderMode === 'BLUEPRINT' ? '#38BDF8' : theme.textMuted}
-                active={stage2Opacity > 0.35}
-              />
-
-              <div
-                className="cm-proof-grid"
-                style={{
-                  marginTop: '28px',
-                  padding: '14px 20px',
-                  borderRadius: '16px',
-                  border: `1px solid ${theme.glassBorder}`,
-                  backgroundColor: theme.glassBg,
-                  backdropFilter: 'blur(20px)',
-                  WebkitBackdropFilter: 'blur(20px)',
-                  width: '100%',
-                }}
-              >
-                <div style={{ textAlign: 'left' }}>
-                  <div
-                    style={{
-                      fontSize: '9px',
-                      letterSpacing: '0.22em',
-                      textTransform: 'uppercase',
-                      color: theme.textMuted,
-                    }}
-                  >
-                    AUTHOR
-                  </div>
-                  <div
-                    style={{
-                      fontSize: '11px',
-                      fontWeight: 500,
-                      marginTop: '3px',
-                      letterSpacing: '0.06em',
-                    }}
-                  >
-                    SAMRAT S.
-                  </div>
-                </div>
-                <div style={{ textAlign: 'left' }}>
-                  <div
-                    style={{
-                      fontSize: '9px',
-                      letterSpacing: '0.22em',
-                      textTransform: 'uppercase',
-                      color: theme.textMuted,
-                    }}
-                  >
-                    DOM NODES
-                  </div>
-                  <div
-                    style={{
-                      fontSize: '11px',
-                      fontWeight: 500,
-                      marginTop: '3px',
-                      fontVariantNumeric: 'tabular-nums',
-                    }}
-                  >
-                    {telemetry.domNodes}
-                  </div>
-                </div>
-                <div style={{ textAlign: 'left' }}>
-                  <div
-                    style={{
-                      fontSize: '9px',
-                      letterSpacing: '0.22em',
-                      textTransform: 'uppercase',
-                      color: theme.textMuted,
-                    }}
-                  >
-                    PARTICLES
-                  </div>
-                  <div
-                    style={{
-                      fontSize: '11px',
-                      fontWeight: 500,
-                      marginTop: '3px',
-                      fontVariantNumeric: 'tabular-nums',
-                    }}
-                  >
-                    {telemetry.particles.toLocaleString()}
-                  </div>
-                </div>
-                <div style={{ textAlign: 'left' }}>
-                  <div
-                    style={{
-                      fontSize: '9px',
-                      letterSpacing: '0.22em',
-                      textTransform: 'uppercase',
-                      color: theme.textMuted,
-                    }}
-                  >
-                    CLOCK
-                  </div>
-                  <div
-                    style={{
-                      fontSize: '11px',
-                      fontWeight: 500,
-                      marginTop: '3px',
-                      fontVariantNumeric: 'tabular-nums',
-                    }}
-                  >
-                    {telemetry.istTime}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Interactive Hint Strip */}
-            <div
-              style={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px 14px',
-                fontSize: '9px',
-                letterSpacing: '0.22em',
-                textTransform: 'uppercase',
-                color: theme.textMuted,
-                opacity: introActive
-                  ? 0
-                  : Math.max(0, 0.72 - scrollStage * 2.5),
-                transform: `translate3d(0, ${(scrollStage * 18).toFixed(1)}px, 0)`,
-                transition: 'opacity 0.4s ease',
-              }}
-            >
-              <span>HOLD TO VORTEX</span>
-              <span>·</span>
-              <span>SCROLL TO FLY-THROUGH</span>
-              <span className="cm-sm-show">·</span>
-              <span className="cm-sm-show">[G] GRAVITY</span>
-              <span className="cm-sm-show">·</span>
-              <span className="cm-sm-show">[SPACE] 0.1× SLOW-MO</span>
-            </div>
-          </div>
-        </div>
+        DIRECT CORRESPONDENCE
       </div>
 
-      {/* 5. TOP HUD BAR: LIVE TELEMETRY + MAGNETIC CLOSE BUTTON */}
-      <header
-        className="cm-header"
+      {/* Paper Pocket + Tucked Pullable Vintage Calling Card */}
+      <div
         style={{
-          opacity: introActive ? 0 : 1,
-          transform: introActive
-            ? 'translate3d(0, -14px, 0)'
-            : 'translate3d(0, 0, 0)',
-          filter: introActive ? 'blur(8px)' : 'blur(0px)',
-          transition:
-            'opacity 0.6s cubic-bezier(0.22,1,0.36,1), transform 0.6s cubic-bezier(0.22,1,0.36,1), filter 0.6s ease',
+          position: 'relative',
+          width: '100%',
+          maxWidth: '286px',
+          paddingTop: '14px',
         }}
       >
         <div
+          onClick={() => setCardPullY((y) => (y === 0 ? -14 : 0))}
           style={{
-            pointerEvents: 'auto',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '4px',
-            padding: '8px 14px',
-            borderRadius: '12px',
-            border: `1px solid ${theme.glassBorder}`,
-            backgroundColor: theme.glassBg,
-            backdropFilter: 'blur(20px)',
-            WebkitBackdropFilter: 'blur(20px)',
-            fontSize: '10px',
-            letterSpacing: '0.18em',
-            textTransform: 'uppercase',
-            fontVariantNumeric: 'tabular-nums',
-            transition: 'background-color 0.45s ease, border-color 0.45s ease',
+            position: 'relative',
+            zIndex: 2,
+            borderRadius: '6px',
+            padding: isMobile ? '16px 14px' : '18px 18px',
+            background: isMoon
+              ? 'linear-gradient(155deg, #d8e1ee 0%, #bac8db 100%)'
+              : 'linear-gradient(155deg, #fbf5e6 0%, #ede0c2 100%)',
+            border: '1px solid rgba(92, 62, 32, 0.34)',
+            boxShadow:
+              '0 10px 26px rgba(15, 10, 5, 0.28), inset 0 0 0 3px rgba(139, 30, 36, 0.08)',
+            transform: `translateY(${cardPullY}px)`,
+            transition: 'transform 0.42s cubic-bezier(0.22, 1, 0.36, 1)',
+            cursor: 'pointer',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+          {/* Red Ink Stamp Overlay when Email Copied */}
+          {emailCopied && (
+            <div
+              className="vs-stamp-copied"
+              style={{
+                position: 'absolute',
+                top: '48%',
+                left: '50%',
+                zIndex: 10,
+                padding: '5px 14px',
+                border: '2.5px solid #8b1e24',
+                borderRadius: '4px',
+                color: '#8b1e24',
+                fontFamily: '"Cinzel", Georgia, serif',
+                fontSize: '13px',
+                fontWeight: 700,
+                letterSpacing: '0.26em',
+                backgroundColor: 'rgba(251, 245, 230, 0.86)',
+                boxShadow: 'inset 0 0 0 1px rgba(139,30,36,0.38)',
+                pointerEvents: 'none',
+              }}
+            >
+              COPIED ✦
+            </div>
+          )}
+
+          <div
+            style={{
+              textAlign: 'center',
+              borderBottom: '1px solid rgba(92, 62, 32, 0.22)',
+              paddingBottom: '10px',
+              marginBottom: '12px',
+            }}
+          >
+            <div
+              style={{
+                fontFamily: '"Cinzel", Georgia, serif',
+                fontSize: isMobile ? '13px' : '14px',
+                fontWeight: 700,
+                letterSpacing: '0.16em',
+                color: inkColor,
+              }}
+            >
+              SAMRAT SANDILYA
+            </div>
+            <div
+              style={{
+                fontSize: '11px',
+                fontStyle: 'italic',
+                color: mutedInk,
+                marginTop: '2px',
+              }}
+            >
+              Designer &amp; Architect · संRACHNA
+            </div>
+          </div>
+
+          {/* Email Tap-to-Stamp Row */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '6px',
+              marginBottom: '10px',
+            }}
+          >
+            <button
+              type="button"
+              onClick={handleCopyEmail}
+              style={{
+                flex: 1,
+                textAlign: 'left',
+                border: '1px dashed rgba(92, 62, 32, 0.35)',
+                background: 'rgba(139, 30, 36, 0.05)',
+                borderRadius: '4px',
+                padding: '7px 9px',
+                color: inkColor,
+                fontSize: isMobile ? '11.5px' : '12.5px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+              title="Tap to copy email"
+            >
+              {CREATOR_EMAIL}
+            </button>
+            <a
+              href={`mailto:${CREATOR_EMAIL}`}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                padding: '7px 9px',
+                borderRadius: '4px',
+                border: '1px solid rgba(92, 62, 32, 0.35)',
+                color: '#8b1e24',
+                fontFamily: '"Cinzel", Georgia, serif',
+                fontSize: '9px',
+                fontWeight: 700,
+                letterSpacing: '0.1em',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              MAIL ↗
+            </a>
+          </div>
+
+          {/* Instagram & LinkedIn */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
+            <a
+              href={CREATOR_INSTAGRAM_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '6px 9px',
+                borderRadius: '4px',
+                background: 'rgba(92, 62, 32, 0.06)',
+                color: inkColor,
+                fontSize: '12.5px',
+                fontWeight: 600,
+              }}
+            >
+              <span style={{ fontFamily: '"Cinzel", serif', fontSize: '9.5px', letterSpacing: '0.14em', color: mutedInk }}>
+                INSTAGRAM
+              </span>
+              <span>{CREATOR_INSTAGRAM_HANDLE} ↗</span>
+            </a>
+
+            <a
+              href={CREATOR_LINKEDIN_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '6px 9px',
+                borderRadius: '4px',
+                background: 'rgba(92, 62, 32, 0.06)',
+                color: inkColor,
+                fontSize: '12.5px',
+                fontWeight: 600,
+              }}
+            >
+              <span style={{ fontFamily: '"Cinzel", serif', fontSize: '9.5px', letterSpacing: '0.14em', color: mutedInk }}>
+                LINKEDIN
+              </span>
+              <span>{CREATOR_LINKEDIN_HANDLE} ↗</span>
+            </a>
+          </div>
+        </div>
+
+        {/* Stitched Parchment Pocket Lip at Bottom */}
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'relative',
+            zIndex: 3,
+            marginTop: '-16px',
+            height: '28px',
+            borderRadius: '0 0 8px 8px',
+            background: isMoon
+              ? 'linear-gradient(180deg, #8b9bb3 0%, #7a8aa3 100%)'
+              : 'linear-gradient(180deg, #d7be8f 0%, #c7aa76 100%)',
+            borderTop: '1px dashed rgba(82, 54, 24, 0.45)',
+            boxShadow: '0 -3px 10px rgba(0,0,0,0.16)',
+          }}
+        />
+      </div>
+
+      {/* Turn Back Button */}
+      <button
+        type="button"
+        onClick={() => handleFlipPage(0)}
+        style={{
+          marginTop: '14px',
+          padding: '5px 12px',
+          borderRadius: '999px',
+          border: '1px solid rgba(92, 62, 32, 0.3)',
+          background: 'transparent',
+          color: mutedInk,
+          fontFamily: '"Cinzel", Georgia, serif',
+          fontSize: '9px',
+          letterSpacing: '0.2em',
+          cursor: 'pointer',
+        }}
+      >
+        ← BACK TO SIGNATURE
+      </button>
+    </div>
+  );
+
+  /* Reusable Live Wet-Ink Calligraphy Page */
+  const renderSignaturePage = () => (
+    <div
+      style={{
+        position: 'relative',
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: isMobile ? '22px 18px 18px' : '28px 26px 22px',
+        textAlign: 'center',
+      }}
+    >
+      {/* Top Archival Ornament */}
+      <div
+        style={{
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '10px',
+          fontFamily: '"Cinzel", Georgia, serif',
+          fontSize: '9px',
+          letterSpacing: '0.28em',
+          color: mutedInk,
+        }}
+      >
+        <span style={{ flex: 1, height: '1px', background: 'rgba(92,62,32,0.22)' }} />
+        <span>FOLIO I · संRACHNA</span>
+        <span style={{ flex: 1, height: '1px', background: 'rgba(92,62,32,0.22)' }} />
+      </div>
+
+      {/* Live Wet-Ink Calligraphy Reveal */}
+      <div key={inkReplayKey} style={{ margin: 'auto 0', padding: '6px 0' }}>
+        <div
+          className="vs-ink-sub"
+          style={{
+            fontSize: isMobile ? '13.5px' : '15px',
+            fontStyle: 'italic',
+            letterSpacing: '0.14em',
+            color: mutedInk,
+            marginBottom: '10px',
+          }}
+        >
+          Designed &amp; Curated by
+        </div>
+
+        <div style={{ lineHeight: 1.02 }}>
+          <span
+            className="vs-ink-name"
+            data-text="Samrat Sandilya"
+            style={{
+              fontSize: isMobile ? 'clamp(38px, 11vw, 50px)' : 'clamp(46px, 4.8vw, 60px)',
+              color: inkColor,
+              textShadow: isMoon
+                ? '0 1px 12px rgba(190,225,255,0.2)'
+                : '0 1px 2px rgba(45, 25, 10, 0.14)',
+            }}
+          >
+            Samrat Sandilya
+          </span>
+        </div>
+
+        <div
+          style={{
+            width: '110px',
+            height: '1px',
+            margin: '14px auto 10px',
+            background:
+              'linear-gradient(90deg, transparent, rgba(139,30,36,0.55), transparent)',
+          }}
+        />
+
+        <div
+          style={{
+            fontFamily: '"Cinzel", Georgia, serif',
+            fontSize: '9px',
+            letterSpacing: '0.26em',
+            color: mutedInk,
+          }}
+        >
+          BUILT FROM SCRATCH · EDITION I
+        </div>
+      </div>
+
+      {/* Bottom Row: Wax Seal + Tappable Fountain Pen + Turn Page Corner */}
+      <div
+        style={{
+          width: '100%',
+          display: 'flex',
+          alignItems: 'flex-end',
+          justifyContent: 'space-between',
+          gap: '8px',
+        }}
+      >
+        {/* Crimson Wax Seal */}
+        <div
+          style={{
+            width: '44px',
+            height: '44px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          {sealStamped && (
+            <div
+              className="vs-wax-seal"
+              title="Creator's Seal"
+              style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '50%',
+                background:
+                  'radial-gradient(circle at 35% 30%, #b52b34 0%, #7d151c 65%, #4a090e 100%)',
+                boxShadow:
+                  '0 4px 10px rgba(30, 8, 8, 0.45), inset 0 2px 4px rgba(255, 190, 190, 0.35), inset 0 -2px 5px rgba(30, 0, 0, 0.6)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: '1.5px solid rgba(185, 65, 65, 0.5)',
+                color: '#f3d4c4',
+                fontFamily: '"Cinzel", serif',
+                fontSize: '15px',
+                fontWeight: 700,
+              }}
+            >
+              S
+            </div>
+          )}
+        </div>
+
+        {/* Tappable Fountain Pen (Replays Live Ink) */}
+        <button
+          type="button"
+          onClick={handleReplayInk}
+          title="Tap pen to rewrite ink"
+          style={{
+            border: 'none',
+            background: 'transparent',
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '5px',
+            padding: '4px 8px',
+            color: mutedInk,
+            fontSize: '10px',
+            fontStyle: 'italic',
+          }}
+        >
+          <svg width="26" height="14" viewBox="0 0 40 16" fill="none">
+            <path
+              d="M2 8L12 4H35C37 4 38 6 38 8C38 10 37 12 35 12H12L2 8Z"
+              fill="#2a1b12"
+              stroke="#c9a24b"
+              strokeWidth="1"
+            />
+            <path d="M2 8L11 5.5V10.5L2 8Z" fill="#d9b45a" />
+            <circle cx="8" cy="8" r="1" fill="#2a1b12" />
+          </svg>
+          <span>rewrite</span>
+        </button>
+
+        {/* Page Flip Trigger */}
+        <button
+          type="button"
+          onClick={() => handleFlipPage(1)}
+          style={{
+            padding: '6px 12px',
+            borderRadius: '4px',
+            border: '1px solid rgba(139, 30, 36, 0.35)',
+            background: 'rgba(139, 30, 36, 0.08)',
+            color: '#7c1a20',
+            fontFamily: '"Cinzel", Georgia, serif',
+            fontSize: '9px',
+            fontWeight: 700,
+            letterSpacing: '0.16em',
+            cursor: 'pointer',
+          }}
+        >
+          CONTACT ↻
+        </button>
+      </div>
+    </div>
+  );
+
+  const modalContent = (
+    <div
+      className="vs-root"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Designed and Curated by Samrat Sandilya"
+      onPointerMove={handleRootPointerMove}
+    >
+      {/* PHASE 1: POWER-CUT FLICKER */}
+      {phase === 'FLICKER' && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 80,
+            animation: 'vsPowerFlicker 0.42s linear forwards',
+          }}
+        />
+      )}
+
+      {/* PHASE 2: HYBRID CINEMA INTRO (AUTO-PLAYS /creator-intro.mp4 IF PRESENT, ELSE LIVE CANVAS INTRO) */}
+      {phase === 'INTRO' && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 70,
+            background: '#05070d',
+          }}
+        >
+          {videoAvailable ? (
+            <video
+              ref={videoRef}
+              src="/creator-intro.mp4"
+              autoPlay
+              playsInline
+              muted={audioMuted}
+              onEnded={enterDeskScene}
+              onError={() => setVideoAvailable(false)}
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+              }}
+            />
+          ) : (
+            <canvas
+              ref={introCanvasRef}
+              style={{
+                width: '100%',
+                height: '100%',
+                display: 'block',
+              }}
+            />
+          )}
+
+          {/* Subtle Skip Intro Button */}
+          <button
+            type="button"
+            onClick={enterDeskScene}
+            style={{
+              position: 'fixed',
+              bottom: '22px',
+              right: '22px',
+              zIndex: 75,
+              padding: '7px 14px',
+              borderRadius: '999px',
+              border: '1px solid rgba(255, 224, 170, 0.35)',
+              background: 'rgba(10, 12, 18, 0.6)',
+              backdropFilter: 'blur(10px)',
+              color: '#f2e4c4',
+              fontFamily: '"Cinzel", Georgia, serif',
+              fontSize: '9px',
+              letterSpacing: '0.24em',
+              cursor: 'pointer',
+            }}
+          >
+            SKIP INTRO →
+          </button>
+        </div>
+      )}
+
+      {/* PHASE 3: LIVE INTERACTIVE VINTAGE DESK & BOOK */}
+      {phase === 'DESK' && (
+        <>
+          {/* Live Atmosphere Canvas (Broken Window, City, Rain, Sunbeams, Wood Desk) */}
+          <canvas
+            ref={bgCanvasRef}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              zIndex: 1,
+              pointerEvents: 'none',
+            }}
+          />
+
+          {/* Swaying Vintage Curtain Edge on Left */}
+          <div
+            aria-hidden="true"
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              width: isMobile ? '52px' : '125px',
+              height: '52%',
+              zIndex: 4,
+              pointerEvents: 'none',
+              background: isMorning
+                ? 'linear-gradient(90deg, rgba(240,218,180,0.28) 0%, rgba(240,218,180,0.06) 65%, transparent 100%)'
+                : 'linear-gradient(90deg, rgba(160,180,205,0.14) 0%, rgba(120,135,160,0.04) 65%, transparent 100%)',
+              transformOrigin: 'top left',
+              animation: isMorning
+                ? 'none'
+                : 'vsCurtainSway 4.8s ease-in-out infinite',
+            }}
+          />
+
+          {/* Cinematic Vignette */}
+          <div
+            aria-hidden="true"
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 5,
+              pointerEvents: 'none',
+              background: isMorning
+                ? 'radial-gradient(ellipse at center, transparent 48%, rgba(26,16,8,0.48) 100%)'
+                : 'radial-gradient(ellipse at center, transparent 36%, rgba(4,4,6,0.78) 100%)',
+              transition: 'background 0.7s ease',
+            }}
+          />
+
+          {/* TOP MINIMAL HUD (ATMOSPHERE + MUTE + CLOSE) */}
+          <header className="vs-hud-top">
+            <div
+              style={{
+                pointerEvents: 'auto',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '6px 12px',
+                borderRadius: '999px',
+                background: 'rgba(14, 11, 8, 0.62)',
+                border: '1px solid rgba(212, 175, 55, 0.28)',
+                backdropFilter: 'blur(12px)',
+                color: '#ecdcb8',
+                fontFamily: '"Cinzel", Georgia, serif',
+                fontSize: isMobile ? '8px' : '9px',
+                letterSpacing: '0.2em',
+              }}
             >
               <span
                 style={{
                   width: '6px',
                   height: '6px',
-                  borderRadius: '9999px',
-                  backgroundColor: bulletTime
-                    ? '#F59E0B'
-                    : isHoldingVortex
-                    ? '#38BDF8'
-                    : '#22C55E',
+                  borderRadius: '50%',
+                  background: isMorning
+                    ? '#f5c26b'
+                    : isMoon
+                    ? '#93c5fd'
+                    : '#eab308',
                 }}
               />
-              {telemetry.fps} FPS
-            </span>
-            <span style={{ color: theme.textMuted }}>|</span>
-            <span style={{ color: theme.textMuted }}>
-              XY {telemetry.cursorX},{telemetry.cursorY}
-            </span>
-          </div>
-          <div
-            className="cm-sm-show"
-            style={{
-              alignItems: 'center',
-              gap: '10px',
-              fontSize: '9px',
-              color: theme.textMuted,
-            }}
-          >
-            <span>{telemetry.viewport}</span>
-            <span>·</span>
-            <span>DOM {telemetry.domNodes}</span>
-            <span>·</span>
-            <span>{telemetry.istTime}</span>
-          </div>
-        </div>
-
-        <div
-          style={{
-            pointerEvents: 'auto',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-          }}
-        >
-          <div
-            style={{
-              padding: '6px 12px',
-              borderRadius: '9999px',
-              fontSize: '10px',
-              letterSpacing: '0.22em',
-              textTransform: 'uppercase',
-              border: '1px solid rgba(251, 191, 36, 0.42)',
-              backgroundColor: 'rgba(245, 158, 11, 0.12)',
-              color: '#FCD34D',
-              backdropFilter: 'blur(16px)',
-              WebkitBackdropFilter: 'blur(16px)',
-              pointerEvents: 'none',
-              opacity: bulletTime ? 1 : 0,
-              transform: bulletTime ? 'scale(1)' : 'scale(0.9)',
-              filter: bulletTime ? 'blur(0px)' : 'blur(6px)',
-              transition:
-                'opacity 0.25s ease, transform 0.25s cubic-bezier(0.22,1,0.36,1), filter 0.25s ease',
-            }}
-          >
-            BULLET-TIME 0.1×
-          </div>
-
-          <MagneticButton
-            buttonRef={closeBtnRef}
-            onClick={handleImplosionClose}
-            onMouseEnter={() => audioRef.current?.playSoftHover()}
-            style={{
-              padding: '8px 16px',
-              borderRadius: '9999px',
-              border: `1px solid ${theme.glassBorder}`,
-              backgroundColor: theme.glassBg,
-              backdropFilter: 'blur(20px)',
-              WebkitBackdropFilter: 'blur(20px)',
-              color: theme.textPrimary,
-              fontSize: '10px',
-              letterSpacing: '0.24em',
-              textTransform: 'uppercase',
-            }}
-          >
-            <span>CLOSE</span>
-            <span style={{ fontSize: '12px', lineHeight: 1, opacity: 0.78 }}>
-              ✕
-            </span>
-          </MagneticButton>
-        </div>
-      </header>
-
-      {/* 6. LIQUID SLIDING PLAYGROUND CONTROLS (DESKTOP) */}
-      <aside
-        className="cm-desktop-only cm-controls-left"
-        style={uiRevealStyle(0.08)}
-      >
-        <SlidingPillGroup<ShaderMode>
-          options={['OBSIDIAN', 'BLUEPRINT', 'INK']}
-          value={shaderMode}
-          onChange={switchShader}
-          theme={theme}
-        />
-        <SlidingPillGroup<PhysicsMode>
-          options={['FLUID', 'VORTEX', 'SWARM']}
-          value={gravityOn ? null : physicsMode}
-          onChange={switchPhysics}
-          theme={theme}
-        />
-      </aside>
-
-      <aside
-        className="cm-desktop-only cm-controls-right"
-        style={{
-          ...uiRevealStyle(0.1),
-          border: `1px solid ${theme.glassBorder}`,
-          backgroundColor: theme.glassBg,
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
-        }}
-      >
-        <button
-          type="button"
-          onClick={toggleGravity}
-          style={{
-            padding: '4px 10px',
-            borderRadius: '9999px',
-            border: 'none',
-            fontSize: '9px',
-            letterSpacing: '0.2em',
-            textTransform: 'uppercase',
-            cursor: 'pointer',
-            backgroundColor: gravityOn ? theme.pillActiveBg : 'transparent',
-            color: gravityOn ? theme.pillActiveText : theme.textMuted,
-            transition: 'background-color 0.3s ease, color 0.3s ease',
-          }}
-          title="Toggle Gravity Collapse (Press G)"
-        >
-          GRAVITY {gravityOn ? 'ON' : 'OFF'}
-        </button>
-        <button
-          type="button"
-          onClick={toggleXray}
-          style={{
-            padding: '4px 10px',
-            borderRadius: '9999px',
-            border: 'none',
-            fontSize: '9px',
-            letterSpacing: '0.2em',
-            textTransform: 'uppercase',
-            cursor: 'pointer',
-            backgroundColor: xrayEnabled ? theme.pillActiveBg : 'transparent',
-            color: xrayEnabled ? theme.pillActiveText : theme.textMuted,
-            transition: 'background-color 0.3s ease, color 0.3s ease',
-          }}
-          title="Toggle CAD X-Ray Cursor Lens"
-        >
-          X-RAY
-        </button>
-        <button
-          type="button"
-          onClick={toggleAudio}
-          style={{
-            padding: '4px 10px',
-            borderRadius: '9999px',
-            border: 'none',
-            fontSize: '9px',
-            letterSpacing: '0.2em',
-            textTransform: 'uppercase',
-            cursor: 'pointer',
-            backgroundColor: !audioMuted ? theme.pillActiveBg : 'transparent',
-            color: !audioMuted ? theme.pillActiveText : theme.textMuted,
-            transition: 'background-color 0.3s ease, color 0.3s ease',
-          }}
-          title="Toggle Synthesized Audio"
-        >
-          {audioMuted ? 'MUTED' : 'SOUND'}
-        </button>
-      </aside>
-
-      {/* COMPACT MOBILE CONTROLS STRIP */}
-      <div
-        className="cm-mobile-only"
-        style={{
-          position: 'fixed',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          bottom: '104px',
-          zIndex: 40,
-          alignItems: 'center',
-          gap: '4px',
-          padding: '4px 6px',
-          borderRadius: '9999px',
-          border: `1px solid ${theme.glassBorder}`,
-          backgroundColor: theme.glassBg,
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
-          maxWidth: '94vw',
-          overflowX: 'auto',
-          opacity: introActive ? 0 : 1,
-          transition: 'opacity 0.5s ease',
-        }}
-      >
-        {(['OBSIDIAN', 'BLUEPRINT', 'INK'] as ShaderMode[]).map((mode) => (
-          <button
-            key={mode}
-            type="button"
-            onClick={() => switchShader(mode)}
-            style={{
-              padding: '4px 8px',
-              borderRadius: '9999px',
-              border: 'none',
-              fontSize: '8px',
-              letterSpacing: '0.16em',
-              textTransform: 'uppercase',
-              whiteSpace: 'nowrap',
-              cursor: 'pointer',
-              backgroundColor:
-                shaderMode === mode ? theme.pillActiveBg : 'transparent',
-              color:
-                shaderMode === mode ? theme.pillActiveText : theme.textMuted,
-            }}
-          >
-            {mode}
-          </button>
-        ))}
-        <span style={{ opacity: 0.28, fontSize: '10px' }}>|</span>
-        <button
-          type="button"
-          onClick={toggleGravity}
-          style={{
-            padding: '4px 8px',
-            borderRadius: '9999px',
-            border: 'none',
-            fontSize: '8px',
-            letterSpacing: '0.16em',
-            textTransform: 'uppercase',
-            whiteSpace: 'nowrap',
-            cursor: 'pointer',
-            backgroundColor: gravityOn ? theme.pillActiveBg : 'transparent',
-            color: gravityOn ? theme.pillActiveText : theme.textMuted,
-          }}
-        >
-          GRAV
-        </button>
-        <button
-          type="button"
-          onClick={toggleAudio}
-          style={{
-            padding: '4px 8px',
-            borderRadius: '9999px',
-            border: 'none',
-            fontSize: '8px',
-            letterSpacing: '0.16em',
-            textTransform: 'uppercase',
-            whiteSpace: 'nowrap',
-            cursor: 'pointer',
-            color: !audioMuted ? theme.pillActiveText : theme.textMuted,
-          }}
-        >
-          {audioMuted ? 'MUTE' : 'SFX'}
-        </button>
-      </div>
-
-      {/* 7. FLOATING LIQUID-GLASS COMMAND DOCK (GRAVITY COLLISION SURFACE) */}
-      <nav
-        ref={dockRef}
-        aria-label="Creator Direct Contact"
-        className="cm-dock-wrap"
-        style={{
-          opacity: introActive ? 0 : 1,
-          transform: introActive
-            ? 'translate3d(-50%, 24px, 0)'
-            : 'translate3d(-50%, 0, 0)',
-          filter: introActive ? 'blur(12px)' : 'blur(0px)',
-          transition:
-            'opacity 0.72s cubic-bezier(0.22,1,0.36,1) 0.12s, transform 0.72s cubic-bezier(0.22,1,0.36,1) 0.12s, filter 0.72s ease 0.12s',
-        }}
-      >
-        <div
-          className="cm-dock-inner"
-          style={{
-            position: 'relative',
-            overflow: 'hidden',
-            border: `1px solid ${theme.glassBorder}`,
-            backgroundColor: theme.glassBg,
-            backdropFilter: 'blur(26px)',
-            WebkitBackdropFilter: 'blur(26px)',
-            boxShadow: theme.isLight
-              ? '0 18px 50px -12px rgba(10,10,12,0.16), inset 0 1px 0 rgba(255,255,255,0.85)'
-              : '0 22px 60px -12px rgba(0,0,0,0.78), inset 0 1px 0 rgba(255,255,255,0.15)',
-            transition: 'background-color 0.45s ease, border-color 0.45s ease',
-          }}
-        >
-          {/* Gyroscope & Ambient Specular Glass Shine */}
-          <div
-            aria-hidden="true"
-            style={{
-              pointerEvents: 'none',
-              position: 'absolute',
-              inset: 0,
-              opacity: 0.42,
-              background: `linear-gradient(${105 + gyroTilt.x * 35}deg, transparent 20%, rgba(255,255,255,${theme.isLight ? '0.55' : '0.16'}) 50%, transparent 80%)`,
-            }}
-          />
-
-          {/* Direct Email Copy Button */}
-          <MagneticButton
-            onClick={handleCopyEmail}
-            onMouseEnter={runEmailScramble}
-            strength={0.2}
-            style={{
-              padding: '6px 14px',
-              borderRadius: '9999px',
-              fontSize: '11px',
-              letterSpacing: '0.12em',
-              color: theme.textPrimary,
-            }}
-            title="Click to copy email"
-          >
-            <span
-              style={{
-                position: 'relative',
-                display: 'inline-flex',
-                alignItems: 'center',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              <span
+              <span>{WORLD_LABELS[worldMode]}</span>
+              <span style={{ opacity: 0.3 }}>|</span>
+              <button
+                type="button"
+                onClick={toggleAudio}
                 style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  opacity: emailCopied ? 0 : 1,
-                  filter: emailCopied ? 'blur(5px)' : 'blur(0px)',
-                  transform: emailCopied ? 'translateY(-6px)' : 'translateY(0)',
-                  transition:
-                    'opacity 0.28s ease, filter 0.28s ease, transform 0.28s cubic-bezier(0.22,1,0.36,1)',
+                  border: 'none',
+                  background: 'transparent',
+                  color: audioMuted ? 'rgba(236,220,184,0.45)' : '#ecdcb8',
+                  fontFamily: 'inherit',
+                  fontSize: 'inherit',
+                  letterSpacing: 'inherit',
+                  cursor: 'pointer',
+                  padding: 0,
                 }}
               >
-                <span
+                {audioMuted ? 'MUTE' : 'SFX'}
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close"
+              style={{
+                pointerEvents: 'auto',
+                width: '36px',
+                height: '36px',
+                borderRadius: '50%',
+                border: '1px solid rgba(212, 175, 55, 0.32)',
+                background: 'rgba(14, 11, 8, 0.66)',
+                backdropFilter: 'blur(12px)',
+                color: '#f2e4c4',
+                fontSize: '14px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              ✕
+            </button>
+          </header>
+
+          {/* HANGING BRASS PULL-CHAIN (LIVE 3-STAGE WORLD THEME LEVER) */}
+          <div
+            className="vs-chain-anchor"
+            onPointerDown={handleChainDown}
+            onPointerMove={handleChainMove}
+            onPointerUp={handleChainUp}
+            onPointerCancel={handleChainUp}
+            title="Pull chain down to change room lighting & weather"
+            style={{
+              transformOrigin: 'top center',
+              transform: `rotate(${chainSwayDeg}deg)`,
+              transition: chainDragRef.current.active
+                ? 'none'
+                : 'transform 0.55s cubic-bezier(0.22, 1, 0.36, 1)',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                transform: `translateY(${chainPullY}px)`,
+                transition: chainDragRef.current.active
+                  ? 'none'
+                  : 'transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1)',
+              }}
+            >
+              {/* Brass Beaded Cord */}
+              <div
+                style={{
+                  width: '4px',
+                  height: isMobile ? '78px' : '112px',
+                  marginTop: '-24px',
+                  backgroundImage:
+                    'radial-gradient(circle, #e7c572 42%, #7d5b1f 75%, transparent 78%)',
+                  backgroundSize: '4px 7px',
+                  backgroundRepeat: 'repeat-y',
+                  filter: 'drop-shadow(0 3px 4px rgba(0,0,0,0.65))',
+                }}
+              />
+              {/* Weighted Brass Acorn Pull */}
+              <div
+                style={{
+                  width: '20px',
+                  height: '32px',
+                  borderRadius: '10px 10px 12px 12px',
+                  background:
+                    'linear-gradient(110deg, #6e4e18 0%, #e8c775 38%, #f8e5ac 52%, #8c6520 82%, #4a330e 100%)',
+                  border: '1px solid rgba(255, 232, 168, 0.45)',
+                  boxShadow:
+                    '0 8px 16px rgba(0, 0, 0, 0.6), inset 0 2px 3px rgba(255, 250, 225, 0.55)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <div
                   style={{
-                    width: '6px',
-                    height: '6px',
-                    borderRadius: '9999px',
-                    backgroundColor:
-                      shaderMode === 'BLUEPRINT'
-                        ? '#38BDF8'
-                        : theme.textPrimary,
+                    width: '14px',
+                    height: '2px',
+                    background: 'rgba(64, 42, 10, 0.55)',
+                    borderRadius: '2px',
                   }}
                 />
-                <span>{emailDisplay}</span>
-              </span>
+              </div>
               <span
+                style={{
+                  marginTop: '6px',
+                  fontFamily: '"Cinzel", Georgia, serif',
+                  fontSize: '7.5px',
+                  letterSpacing: '0.2em',
+                  color: 'rgba(242, 224, 182, 0.72)',
+                  textShadow: '0 1px 4px rgba(0,0,0,0.9)',
+                }}
+              >
+                PULL
+              </span>
+            </div>
+          </div>
+
+          {/* CENTERPIECE: 3D LEATHER-BOUND VINTAGE BOOK */}
+          <div className="vs-book-stage">
+            <div ref={bookRef} className="vs-book-wrap">
+              {/* Soft Contact Shadow on Wooden Desk */}
+              <div
+                aria-hidden="true"
+                style={{
+                  position: 'absolute',
+                  inset: '14px -10px -20px -10px',
+                  borderRadius: '18px',
+                  background: 'rgba(0, 0, 0, 0.65)',
+                  filter: 'blur(24px)',
+                  transform: 'translateZ(-20px)',
+                }}
+              />
+
+              {/* Hardcover Leather Backboard */}
+              <div
                 style={{
                   position: 'absolute',
                   inset: 0,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontWeight: 500,
-                  letterSpacing: '0.2em',
-                  textTransform: 'uppercase',
-                  opacity: emailCopied ? 1 : 0,
-                  filter: emailCopied ? 'blur(0px)' : 'blur(5px)',
-                  transform: emailCopied ? 'translateY(0)' : 'translateY(6px)',
-                  color:
-                    shaderMode === 'BLUEPRINT' ? '#38BDF8' : theme.textPrimary,
-                  transition:
-                    'opacity 0.28s ease, filter 0.28s ease, transform 0.28s cubic-bezier(0.22,1,0.36,1)',
+                  borderRadius: '10px',
+                  background:
+                    'linear-gradient(145deg, #4b141a 0%, #2b090d 55%, #1a0508 100%)',
+                  border: '1.5px solid rgba(212, 175, 55, 0.36)',
+                  boxShadow:
+                    '0 22px 55px rgba(0,0,0,0.68), inset 0 0 24px rgba(0,0,0,0.55)',
+                  padding: isMobile ? '10px 10px 10px 14px' : '12px',
+                  display: 'flex',
                 }}
               >
-                DIRECT LINE COPIED ✦
-              </span>
-            </span>
-          </MagneticButton>
+                {/* DESKTOP: TWO-PAGE SPREAD | MOBILE: SINGLE SPACIOUS FOLIO */}
+                {!isMobile ? (
+                  <div
+                    style={{
+                      position: 'relative',
+                      width: '100%',
+                      height: '100%',
+                      display: 'grid',
+                      gridTemplateColumns: '1fr 1fr',
+                      borderRadius: '5px',
+                      overflow: 'hidden',
+                      boxShadow: 'inset 0 0 18px rgba(40, 22, 8, 0.38)',
+                    }}
+                  >
+                    {/* LEFT PAGE (Archival Bookplate) */}
+                    <div
+                      style={{
+                        position: 'relative',
+                        background: parchmentBg,
+                        borderRight: '1px solid rgba(60, 38, 16, 0.28)',
+                        boxShadow: 'inset -18px 0 26px rgba(40, 22, 8, 0.22)',
+                        padding: '28px 26px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        textAlign: 'center',
+                        transition: 'background 0.65s ease',
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          border: '1px solid rgba(110, 74, 36, 0.26)',
+                          padding: '20px 18px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontFamily: '"Cinzel", Georgia, serif',
+                            fontSize: '9px',
+                            letterSpacing: '0.28em',
+                            color: mutedInk,
+                          }}
+                        >
+                          EX LIBRIS · GEC GODDA
+                        </div>
 
-          {/* Direct Mailto Trigger */}
-          <MagneticButton
-            href={`mailto:${CREATOR_EMAIL}`}
-            onMouseEnter={() => audioRef.current?.playSoftHover()}
-            onClick={() => audioRef.current?.playMechanicalTick(950)}
-            strength={0.25}
-            style={{
-              padding: '5px 10px',
-              borderRadius: '9999px',
-              fontSize: '9px',
-              letterSpacing: '0.2em',
-              textTransform: 'uppercase',
-              border: `1px solid ${theme.glassBorder}`,
-              color: theme.textMuted,
-            }}
-            title="Open Mail App"
-          >
-            MAIL ↗
-          </MagneticButton>
+                        <div>
+                          <div
+                            style={{
+                              fontFamily: '"Cinzel", Georgia, serif',
+                              fontSize: '30px',
+                              fontWeight: 700,
+                              letterSpacing: '0.1em',
+                              color: isMoon ? '#142033' : '#6f181f',
+                            }}
+                          >
+                            संRACHNA
+                          </div>
+                          <div
+                            style={{
+                              fontSize: '13px',
+                              fontStyle: 'italic',
+                              color: mutedInk,
+                              marginTop: '6px',
+                            }}
+                          >
+                            सृजन से निर्माण तक
+                          </div>
+                          <div
+                            style={{
+                              width: '54px',
+                              height: '1px',
+                              margin: '16px auto',
+                              background: 'rgba(139,30,36,0.45)',
+                            }}
+                          />
+                          <div
+                            style={{
+                              fontFamily: '"Cinzel", serif',
+                              fontSize: '9.5px',
+                              letterSpacing: '0.24em',
+                              color: mutedInk,
+                            }}
+                          >
+                            EDITION I · MMXXVI
+                          </div>
+                        </div>
 
-          <span
-            aria-hidden="true"
-            className="cm-dock-divider"
-            style={{ backgroundColor: theme.glassBorder }}
-          />
+                        <div
+                          style={{
+                            fontSize: '11.5px',
+                            fontStyle: 'italic',
+                            color: mutedInk,
+                          }}
+                        >
+                          {weightOnBook
+                            ? 'Pages pinned by brass weight'
+                            : 'Wind drifting through the broken window…'}
+                        </div>
+                      </div>
+                    </div>
 
-          {/* Instagram Link */}
-          <MagneticButton
-            href={CREATOR_INSTAGRAM_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            onMouseEnter={() => {
-              setInstaHovered(true);
-              audioRef.current?.playMechanicalTick(1040);
-            }}
-            onMouseLeave={() => setInstaHovered(false)}
-            strength={0.24}
-            style={{
-              padding: '6px 12px',
-              borderRadius: '9999px',
-              fontSize: '10px',
-              letterSpacing: '0.16em',
-              textTransform: 'uppercase',
-              color: theme.textPrimary,
-            }}
-          >
-            <SlotRollLabel
-              primary="INSTAGRAM ↗"
-              secondary={`${CREATOR_INSTAGRAM_HANDLE} ↗`}
-              hovered={instaHovered}
-              underlineColor={
-                shaderMode === 'BLUEPRINT' ? '#38BDF8' : theme.textPrimary
-              }
-            />
-          </MagneticButton>
+                    {/* RIGHT PAGE (Flippable between Signature & Calling Card + Wind Flutter) */}
+                    <div
+                      key={`gust-${windGustTick}`}
+                      style={{
+                        position: 'relative',
+                        background: parchmentBg,
+                        boxShadow:
+                          'inset 18px 0 26px rgba(40, 22, 8, 0.22), 4px 0 0 #d5c199, 7px 0 0 #c1aa7e',
+                        transformOrigin: 'left center',
+                        animation:
+                          windGustTick > 0 && !weightOnBook && bookOpened
+                            ? 'vsPageFlutter 1.45s ease-in-out'
+                            : 'none',
+                        transition: 'background 0.65s ease',
+                      }}
+                    >
+                      {activePage === 0
+                        ? renderSignaturePage()
+                        : renderCallingCard()}
+                    </div>
 
-          {/* LinkedIn Link */}
-          <MagneticButton
-            href={CREATOR_LINKEDIN_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            onMouseEnter={() => {
-              setLinkedinHovered(true);
-              audioRef.current?.playMechanicalTick(1120);
-            }}
-            onMouseLeave={() => setLinkedinHovered(false)}
-            strength={0.24}
-            style={{
-              padding: '6px 12px',
-              borderRadius: '9999px',
-              fontSize: '10px',
-              letterSpacing: '0.16em',
-              textTransform: 'uppercase',
-              color: theme.textPrimary,
-            }}
-          >
-            <SlotRollLabel
-              primary="LINKEDIN ↗"
-              secondary={`${CREATOR_LINKEDIN_HANDLE} ↗`}
-              hovered={linkedinHovered}
-              underlineColor={
-                shaderMode === 'BLUEPRINT' ? '#38BDF8' : theme.textPrimary
-              }
-            />
-          </MagneticButton>
-        </div>
-      </nav>
+                    {/* Center Spine Gutter */}
+                    <div
+                      aria-hidden="true"
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        bottom: 0,
+                        left: '50%',
+                        width: '18px',
+                        transform: 'translateX(-50%)',
+                        background:
+                          'linear-gradient(90deg, transparent, rgba(25, 14, 5, 0.36) 50%, transparent)',
+                        pointerEvents: 'none',
+                      }}
+                    />
+                  </div>
+                ) : (
+                  /* MOBILE SINGLE SPACIOUS FOLIO */
+                  <div
+                    key={`mgust-${windGustTick}`}
+                    style={{
+                      position: 'relative',
+                      width: '100%',
+                      height: '100%',
+                      borderRadius: '3px 6px 6px 3px',
+                      background: parchmentBg,
+                      boxShadow:
+                        'inset 16px 0 22px rgba(40, 22, 8, 0.24), 3px 0 0 #d6c298, 6px 0 0 #bfa77b',
+                      transformOrigin: 'left center',
+                      animation:
+                        windGustTick > 0 && !weightOnBook && bookOpened
+                          ? 'vsPageFlutter 1.45s ease-in-out'
+                          : 'none',
+                      transition: 'background 0.65s ease',
+                    }}
+                  >
+                    {activePage === 0
+                      ? renderSignaturePage()
+                      : renderCallingCard()}
+                  </div>
+                )}
 
-      {/* 8. REALITY-TEAR KINETIC SHUTTER + 0.8S ARCHITECTURAL TELEMETRY FLASH */}
-      <div
-        aria-hidden={!introActive}
-        style={{
-          position: 'fixed',
-          inset: 0,
-          zIndex: 60,
-          pointerEvents: 'none',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          overflow: 'hidden',
-          opacity: introActive ? 1 : 0,
-          visibility: introActive ? 'visible' : 'hidden',
-          filter: introActive ? 'blur(0px)' : 'blur(14px)',
-          transform: introActive ? 'scale(1)' : 'scale(1.04)',
-          transition:
-            'opacity 0.48s cubic-bezier(0.22,1,0.36,1), filter 0.48s ease, transform 0.48s cubic-bezier(0.22,1,0.36,1), visibility 0.48s ease',
-        }}
-      >
-        <div
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            height: '50%',
-            borderBottom: '1px solid rgba(255,255,255,0.1)',
-            backgroundColor: theme.bgHex,
-            transformOrigin: 'top center',
-            transform: shutterOpened ? 'scaleY(0)' : 'scaleY(1)',
-            transition: 'transform 0.62s cubic-bezier(0.22,1,0.36,1)',
-          }}
-        />
-        <div
-          style={{
-            position: 'absolute',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            height: '50%',
-            borderTop: '1px solid rgba(255,255,255,0.1)',
-            backgroundColor: theme.bgHex,
-            transformOrigin: 'bottom center',
-            transform: shutterOpened ? 'scaleY(0)' : 'scaleY(1)',
-            transition: 'transform 0.62s cubic-bezier(0.22,1,0.36,1)',
-          }}
-        />
-
-        <div
-          style={{
-            position: 'absolute',
-            left: 0,
-            right: 0,
-            height: '2px',
-            transform: shutterOpened ? 'scaleX(1)' : 'scaleX(0)',
-            opacity: shutterOpened ? 0 : 0.9,
-            transition:
-              'transform 0.52s cubic-bezier(0.22,1,0.36,1), opacity 0.55s ease',
-            background:
-              'linear-gradient(90deg, transparent, #38BDF8, #FFFFFF, #F43F5E, transparent)',
-            boxShadow: '0 0 28px rgba(56,189,248,0.8)',
-          }}
-        />
-
-        <div
-          style={{
-            position: 'relative',
-            zIndex: 2,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '8px',
-            textAlign: 'center',
-            padding: '0 24px',
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '14px',
-              fontSize: '10px',
-              letterSpacing: '0.34em',
-              textTransform: 'uppercase',
-            }}
-          >
-            <span>SYSTEM // SANRACHNA</span>
-            <span style={{ opacity: 0.35 }}>·</span>
-            <span>CRAFT // HAND-CODED</span>
+                {/* 3D OPENING FRONT LEATHER COVER (Swings open cleanly on entry) */}
+                <div
+                  aria-hidden="true"
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    borderRadius: '10px',
+                    background:
+                      'linear-gradient(145deg, #5e1820 0%, #360b10 55%, #1d0508 100%)',
+                    border: '2px solid rgba(212, 175, 55, 0.48)',
+                    boxShadow: 'inset 0 0 36px rgba(0,0,0,0.55)',
+                    transformOrigin: 'left center',
+                    transform: bookOpened
+                      ? 'rotateY(-165deg)'
+                      : 'rotateY(0deg)',
+                    opacity: bookOpened ? 0 : 1,
+                    pointerEvents: bookOpened ? 'none' : 'auto',
+                    transition:
+                      'transform 1.15s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.65s ease 0.55s',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#e5c16c',
+                  }}
+                >
+                  <div
+                    style={{
+                      border: '1px solid rgba(229, 193, 108, 0.45)',
+                      padding: '28px 34px',
+                      textAlign: 'center',
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontFamily: '"Cinzel", Georgia, serif',
+                        fontSize: 'clamp(22px, 4vw, 34px)',
+                        letterSpacing: '0.18em',
+                      }}
+                    >
+                      संRACHNA
+                    </div>
+                    <div
+                      style={{
+                        fontSize: '11px',
+                        letterSpacing: '0.28em',
+                        marginTop: '8px',
+                        opacity: 0.75,
+                        fontFamily: '"Cinzel", serif',
+                      }}
+                    >
+                      EDITION I · 2026
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
+
+          {/* DRAGGABLE HEAVY BRASS PAPERWEIGHT (PIN DOWN WIND-FLUTTERING PAGES) */}
+          {weightPos.initialized && (
+            <div
+              onPointerDown={handleWeightDown}
+              onPointerMove={handleWeightMove}
+              onPointerUp={handleWeightUp}
+              onPointerCancel={handleWeightUp}
+              title={
+                weightOnBook
+                  ? 'Drag off book to release pages'
+                  : 'Drag onto book (or tap) to pin fluttering pages'
+              }
+              style={{
+                position: 'fixed',
+                left: 0,
+                top: 0,
+                zIndex: 38,
+                width: isMobile ? '52px' : '60px',
+                height: isMobile ? '52px' : '60px',
+                transform: `translate3d(${weightPos.x}px, ${weightPos.y}px, 0)`,
+                borderRadius: '50%',
+                background:
+                  'radial-gradient(circle at 34% 30%, #f7e4aa 0%, #c89d42 42%, #6d4d17 82%, #3a2608 100%)',
+                border: '1.5px solid rgba(255, 232, 165, 0.48)',
+                boxShadow: weightOnBook
+                  ? '0 6px 14px rgba(0,0,0,0.58), inset 0 2px 4px rgba(255,255,255,0.4)'
+                  : '0 14px 24px rgba(0,0,0,0.68), inset 0 2px 4px rgba(255,255,255,0.45)',
+                cursor: 'grab',
+                touchAction: 'none',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#2c1c06',
+                fontFamily: '"Cinzel", Georgia, serif',
+              }}
+            >
+              <div
+                style={{
+                  width: '74%',
+                  height: '74%',
+                  borderRadius: '50%',
+                  border: '1px solid rgba(56, 36, 8, 0.45)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <span style={{ fontSize: '12px', fontWeight: 700, lineHeight: 1 }}>
+                  ✦
+                </span>
+                <span style={{ fontSize: '6.5px', letterSpacing: '0.14em', marginTop: '2px' }}>
+                  {weightOnBook ? 'PINNED' : 'WEIGHT'}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* INTERACTIVE FALLEN MAGAZINE-PAGE PAPER PLANE (TAP OR FLICK TO SLIDE) */}
+          {planeState.initialized && (
+            <div
+              onPointerDown={handlePlaneDown}
+              onPointerMove={handlePlaneMove}
+              onPointerUp={handlePlaneUp}
+              onPointerCancel={handlePlaneUp}
+              title="Flick or tap paper plane"
+              style={{
+                position: 'fixed',
+                left: 0,
+                top: 0,
+                zIndex: 34,
+                width: isMobile ? '66px' : '78px',
+                height: isMobile ? '46px' : '54px',
+                transform: `translate3d(${planeState.x}px, ${planeState.y}px, 0) rotate(${planeState.rot.toFixed(1)}deg)`,
+                cursor: 'grab',
+                touchAction: 'none',
+                filter: 'drop-shadow(0 8px 10px rgba(0,0,0,0.58))',
+              }}
+            >
+              <svg viewBox="0 0 90 54" width="100%" height="100%" fill="none">
+                <polygon
+                  points="86,16 6,6 24,25"
+                  fill={isMoon ? '#c9d4e3' : '#f1e5ca'}
+                />
+                <polygon
+                  points="86,16 24,25 14,46"
+                  fill={isMoon ? '#a5b4c9' : '#d8c59e'}
+                />
+                <polygon
+                  points="86,16 24,25 32,33"
+                  fill={isMoon ? '#8293ad' : '#b7a076'}
+                />
+                {/* Faint magazine print lines on wing */}
+                <line
+                  x1="28"
+                  y1="14"
+                  x2="58"
+                  y2="16"
+                  stroke="rgba(70,48,28,0.28)"
+                  strokeWidth="1.2"
+                />
+                <line
+                  x1="26"
+                  y1="18"
+                  x2="50"
+                  y2="19.5"
+                  stroke="rgba(70,48,28,0.22)"
+                  strokeWidth="1"
+                />
+              </svg>
+            </div>
+          )}
+
+          {/* SUBTLE BOTTOM INTERACTION WHISPER */}
           <div
+            className="vs-hint-bar"
             style={{
-              fontSize: '44px',
-              fontVariantNumeric: 'tabular-nums',
-              letterSpacing: '-0.02em',
-              fontFamily:
-                '"Instrument Serif", "Cormorant Garamond", Georgia, serif',
+              background: 'rgba(10, 8, 6, 0.5)',
+              color: 'rgba(242, 224, 184, 0.72)',
+              border: '1px solid rgba(212, 175, 55, 0.16)',
+              backdropFilter: 'blur(8px)',
             }}
           >
-            {String(introPercent).padStart(2, '0')}%
+            PULL CHAIN FOR LIGHTING · DRAG WEIGHT ON BOOK · FLICK PAPER PLANE
           </div>
-        </div>
-      </div>
+        </>
+      )}
     </div>
   );
 
