@@ -3053,9 +3053,9 @@ const creatorPassTrigger = useCreatorPassTrigger(() => {
       left: 0,
       bottom: 0,
       height: '2px',
-      width: `${Math.round(creatorTrigger.chargeRatio * 100)}%`,
+      width: `${Math.round(creatorPassTrigger.chargeRatio * 100)}%`,
       background: 'linear-gradient(90deg, #8B1E24, #D4AF37)',
-      transition: creatorTrigger.chargeRatio === 0 ? 'width 0.2s ease' : 'none',
+      transition: creatorPassTrigger.chargeRatio === 0 ? 'width 0.2s ease' : 'none',
     }}
   />
 </div>
