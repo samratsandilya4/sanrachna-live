@@ -10,11 +10,10 @@ export interface CreatorPassModalProps {
   hasIntroVideo?: boolean;
 }
 
-// Exact signature & return shape expected by App.tsx
 export function useCreatorPassTrigger(
-  holdDurationMs = 1400,
-  onUnlockCallback?: () => void,
-  _extra?: unknown
+  firstArg?: (() => void) | number,
+  secondArg?: (() => void) | number,
+  thirdArg?: unknown
 ) {
   const [isOpen, setIsOpen] = useState(false);
   const [isHolding, setIsHolding] = useState(false);
@@ -22,10 +21,25 @@ export function useCreatorPassTrigger(
 
   const rafRef = useRef<number | null>(null);
   const startTimeRef = useRef<number | null>(null);
-  const callbackRef = useRef(onUnlockCallback);
-  callbackRef.current = onUnlockCallback;
 
-  const duration = typeof holdDurationMs === 'number' && holdDurationMs > 0 ? holdDurationMs : 1400;
+  const unlockCallback =
+    typeof firstArg === 'function'
+      ? firstArg
+      : typeof secondArg === 'function'
+      ? secondArg
+      : undefined;
+
+  const callbackRef = useRef(unlockCallback);
+  callbackRef.current = unlockCallback;
+
+  const duration =
+    typeof firstArg === 'number' && firstArg >= 200
+      ? firstArg
+      : typeof secondArg === 'number' && secondArg >= 200
+      ? secondArg
+      : typeof thirdArg === 'number' && thirdArg >= 200
+      ? thirdArg
+      : 1200;
 
   const cancelHold = useCallback(() => {
     if (rafRef.current !== null) {
@@ -131,7 +145,9 @@ class AmbienceAudio {
 
   start() {
     if (this.ctx) {
-      if (this.ctx.state === 'suspended') this.ctx.resume();
+      if (this.ctx.state === 'suspended') {
+        void this.ctx.resume();
+      }
       return;
     }
     const AudioCtx =
@@ -206,14 +222,14 @@ class AmbienceAudio {
     }
     const src = this.ctx.createBufferSource();
     src.buffer = buf;
-    const hp = this.ctx.createBiquadFilter();
-    hp.type = 'bandpass';
-    hp.frequency.value = 1900;
-    hp.Q.value = 0.9;
+    const bp = this.ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = 1900;
+    bp.Q.value = 0.9;
     const gain = this.ctx.createGain();
     gain.gain.value = volume;
-    src.connect(hp);
-    hp.connect(gain);
+    src.connect(bp);
+    bp.connect(gain);
     gain.connect(this.ctx.destination);
     src.start(now);
   }
@@ -245,7 +261,7 @@ class AmbienceAudio {
 
   stop() {
     if (this.ctx) {
-      this.ctx.close();
+      void this.ctx.close();
       this.ctx = null;
       this.rainGain = null;
     }
@@ -265,6 +281,7 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
   const [chainPulling, setChainPulling] = useState(false);
   const [lightningAlpha, setLightningAlpha] = useState(0);
   const [muted, setMuted] = useState(false);
+  const [videoFailed, setVideoFailed] = useState(false);
   const [mediaRatio, setMediaRatio] = useState<number>(16 / 9);
   const [viewport, setViewport] = useState({ w: 1280, h: 720 });
   const [parallax, setParallax] = useState({ x: 0, y: 0 });
@@ -283,10 +300,28 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
     });
   }, []);
 
+  // Lock background scroll & support Escape key
+  useEffect(() => {
+    if (!isOpen) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [isOpen, onClose]);
+
   useEffect(() => {
     if (!isOpen) return;
     handoffDoneRef.current = !hasIntroVideo;
     flutterPlayedRef.current = false;
+    setVideoFailed(false);
     setPhase(hasIntroVideo ? 'intro' : 'desk');
     setShowContact(false);
     setMode('storm-lamp');
@@ -300,6 +335,7 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
       setViewport({ w, h });
       const mobile = h > w || w < 768;
       setIsMobile(mobile);
+      setVideoFailed(false);
       setMediaRatio(mobile ? ASSETS.mobile.fallbackRatio : ASSETS.desktop.fallbackRatio);
     };
     update();
@@ -328,8 +364,9 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
     audioRef.current?.setRainLevel(level);
   }, [mode]);
 
+  // Sync left-page wind lift (2.85s - 4.05s) on desktop loop video
   useEffect(() => {
-    if (!isOpen || phase !== 'desk' || isMobile) {
+    if (!isOpen || phase !== 'desk' || isMobile || videoFailed) {
       setCurlOverlap(0);
       return;
     }
@@ -358,7 +395,7 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
 
     rafId = requestAnimationFrame(syncToVideo);
     return () => cancelAnimationFrame(rafId);
-  }, [isOpen, phase, isMobile]);
+  }, [isOpen, phase, isMobile, videoFailed]);
 
   const triggerIntroHandoff = useCallback(() => {
     if (handoffDoneRef.current) return;
@@ -368,31 +405,31 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
     audioRef.current?.playThunder(0.42);
     deskVideoRef.current?.play().catch(() => {});
 
-    setTimeout(() => {
+    window.setTimeout(() => {
       setPhase('desk');
       triggerInkReveal();
     }, 90);
-    setTimeout(() => setLightningAlpha(0.18), 160);
-    setTimeout(() => setLightningAlpha(0.55), 240);
-    setTimeout(() => setLightningAlpha(0), 420);
+    window.setTimeout(() => setLightningAlpha(0.18), 160);
+    window.setTimeout(() => setLightningAlpha(0.55), 240);
+    window.setTimeout(() => setLightningAlpha(0), 420);
   }, [triggerInkReveal]);
 
   useEffect(() => {
     if (!isOpen || phase !== 'desk' || mode === 'morning') return;
-    let timerId: number;
+    let timerId = 0;
     const schedule = () => {
       const delay = (mode === 'moonlight' ? 5000 : 9500) + Math.random() * 6500;
       timerId = window.setTimeout(() => {
         setLightningAlpha(mode === 'moonlight' ? 0.6 : 0.35);
-        setTimeout(() => setLightningAlpha(0.08), 80);
-        setTimeout(() => setLightningAlpha(mode === 'moonlight' ? 0.45 : 0.25), 150);
-        setTimeout(() => setLightningAlpha(0), 340);
-        setTimeout(() => audioRef.current?.playThunder(0.32), 260);
+        window.setTimeout(() => setLightningAlpha(0.08), 80);
+        window.setTimeout(() => setLightningAlpha(mode === 'moonlight' ? 0.45 : 0.25), 150);
+        window.setTimeout(() => setLightningAlpha(0), 340);
+        window.setTimeout(() => audioRef.current?.playThunder(0.32), 260);
         schedule();
       }, delay);
     };
     schedule();
-    return () => clearTimeout(timerId);
+    return () => window.clearTimeout(timerId);
   }, [isOpen, phase, mode]);
 
   const handleMouseMove = useCallback(
@@ -409,7 +446,7 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
     audioRef.current?.start();
     audioRef.current?.playChainClick();
     setChainPulling(true);
-    setTimeout(() => setChainPulling(false), 240);
+    window.setTimeout(() => setChainPulling(false), 240);
     setMode((prev) =>
       prev === 'storm-lamp' ? 'moonlight' : prev === 'moonlight' ? 'morning' : 'storm-lamp'
     );
@@ -459,29 +496,87 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
   return (
     <div
       onMouseMove={handleMouseMove}
-      className="fixed inset-0 z-[9999] bg-[#060504] overflow-hidden select-none flex items-center justify-center transition-opacity duration-500"
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 9999,
+        backgroundColor: '#060504',
+        overflow: 'hidden',
+        userSelect: 'none',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
     >
       {/* Minimal Corner Controls */}
-      <div className="fixed top-4 right-4 z-50 flex items-center gap-2.5">
+      <div
+        style={{
+          position: 'fixed',
+          top: '16px',
+          right: '16px',
+          zIndex: 50,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+        }}
+      >
         {phase === 'intro' && (
           <button
+            type="button"
             onClick={triggerIntroHandoff}
-            className="px-2.5 h-8 rounded-full text-[11px] uppercase tracking-[0.18em] text-[#d9c7a3]/65 hover:text-[#f5e5c4] bg-black/30 backdrop-blur-[2px] transition-colors"
+            style={{
+              height: '34px',
+              padding: '0 12px',
+              borderRadius: '999px',
+              border: '1px solid rgba(217, 199, 163, 0.28)',
+              background: 'rgba(0, 0, 0, 0.38)',
+              color: 'rgba(245, 229, 196, 0.85)',
+              fontSize: '11px',
+              letterSpacing: '0.18em',
+              textTransform: 'uppercase',
+              cursor: 'pointer',
+            }}
           >
             Skip
           </button>
         )}
         <button
+          type="button"
           onClick={toggleMute}
           aria-label={muted ? 'Unmute ambience' : 'Mute ambience'}
-          className="w-8 h-8 rounded-full flex items-center justify-center text-[#d9c7a3]/65 hover:text-[#f5e5c4] bg-black/30 backdrop-blur-[2px] transition-colors text-xs"
+          style={{
+            width: '34px',
+            height: '34px',
+            borderRadius: '50%',
+            border: '1px solid rgba(217, 199, 163, 0.25)',
+            background: 'rgba(0, 0, 0, 0.35)',
+            color: 'rgba(245, 229, 196, 0.85)',
+            fontSize: '12px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
         >
           {muted ? '✕♪' : '♪'}
         </button>
         <button
+          type="button"
           onClick={onClose}
           aria-label="Close"
-          className="w-8 h-8 rounded-full flex items-center justify-center text-[#d9c7a3]/70 hover:text-[#f5e5c4] bg-black/30 backdrop-blur-[2px] transition-colors text-sm"
+          style={{
+            width: '34px',
+            height: '34px',
+            borderRadius: '50%',
+            border: '1px solid rgba(217, 199, 163, 0.25)',
+            background: 'rgba(0, 0, 0, 0.35)',
+            color: 'rgba(245, 229, 196, 0.9)',
+            fontSize: '14px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
         >
           ✕
         </button>
@@ -489,7 +584,17 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
 
       {/* Optional Phase 1: Intro Flight Video */}
       {phase === 'intro' && (
-        <div className="fixed inset-0 z-30 bg-black flex items-center justify-center">
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 30,
+            backgroundColor: '#000',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
           <video
             ref={introVideoRef}
             src={ASSETS.intro}
@@ -505,12 +610,12 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
             }}
             onEnded={triggerIntroHandoff}
             onError={triggerIntroHandoff}
-            className="w-full h-full object-cover"
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
           />
         </div>
       )}
 
-      {/* Aspect-Locked Living Desk Video Stage */}
+      {/* Aspect-Locked Living Desk Stage */}
       <div
         style={{
           width: `${stageW}px`,
@@ -521,34 +626,63 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
           transition: 'transform 0.35s cubic-bezier(0.22, 1, 0.36, 1)',
         }}
       >
-        <video
-          ref={deskVideoRef}
-          key={cfg.video}
-          src={cfg.video}
-          poster={cfg.poster}
-          autoPlay
-          loop
-          muted
-          playsInline
-          preload="auto"
-          onLoadedMetadata={(e) => {
-            const v = e.currentTarget;
-            if (v.videoWidth && v.videoHeight) {
-              setMediaRatio(v.videoWidth / v.videoHeight);
-            }
-          }}
-          style={{
-            filter: lightingFilter,
-            transition: 'filter 0.75s cubic-bezier(0.22, 1, 0.36, 1)',
-          }}
-          className="w-full h-full object-cover pointer-events-none"
-        />
+        {!videoFailed ? (
+          <video
+            ref={deskVideoRef}
+            key={cfg.video}
+            src={cfg.video}
+            poster={cfg.poster}
+            autoPlay
+            loop
+            muted
+            playsInline
+            preload="auto"
+            onLoadedMetadata={(e) => {
+              const v = e.currentTarget;
+              if (v.videoWidth && v.videoHeight) {
+                setMediaRatio(v.videoWidth / v.videoHeight);
+              }
+            }}
+            onError={() => setVideoFailed(true)}
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              pointerEvents: 'none',
+              filter: lightingFilter,
+              transition: 'filter 0.75s cubic-bezier(0.22, 1, 0.36, 1)',
+            }}
+          />
+        ) : (
+          <img
+            src={cfg.poster}
+            alt="Sanrachna vintage desk"
+            draggable={false}
+            onLoad={(e) => {
+              const img = e.currentTarget;
+              if (img.naturalWidth && img.naturalHeight) {
+                setMediaRatio(img.naturalWidth / img.naturalHeight);
+              }
+            }}
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              pointerEvents: 'none',
+              filter: lightingFilter,
+              transition: 'filter 0.75s cubic-bezier(0.22, 1, 0.36, 1)',
+            }}
+          />
+        )}
 
         {/* Golden Morning Sunbeam Grade */}
         <div
-          className="absolute inset-0 pointer-events-none transition-opacity duration-1000"
           style={{
+            position: 'absolute',
+            inset: 0,
+            pointerEvents: 'none',
             opacity: mode === 'morning' ? 0.52 : 0,
+            transition: 'opacity 1s ease',
             background:
               'linear-gradient(128deg, rgba(255,214,132,0.5) 10%, rgba(255,190,95,0.16) 46%, transparent 75%)',
             mixBlendMode: 'screen',
@@ -557,14 +691,16 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
 
         {/* Subtle 35mm Vignette */}
         <div
-          className="absolute inset-0 pointer-events-none"
           style={{
+            position: 'absolute',
+            inset: 0,
+            pointerEvents: 'none',
             background:
               'radial-gradient(ellipse at center, transparent 52%, rgba(5,4,3,0.62) 100%)',
           }}
         />
 
-        {/* RIGHT PAGE ONLY — Flat Ink Layer with Live Left-Page Curl Occlusion */}
+        {/* RIGHT PAGE — Flat Ink Layer with Live Left-Page Curl Occlusion */}
         {phase === 'desk' && (
           <div
             style={{
@@ -577,13 +713,21 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
               transformOrigin: 'center center',
               mixBlendMode: 'multiply',
               clipPath: `inset(0% 0% 0% ${occludedLeftPct}%)`,
+              pointerEvents: 'none',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              padding: '6%',
+              color: '#1f130a',
+              boxSizing: 'border-box',
             }}
-            className="pointer-events-none flex flex-col justify-between p-[6%] text-[#1f130a]"
           >
             {curlOverlap > 0.02 && (
               <div
-                className="absolute inset-0 pointer-events-none"
                 style={{
+                  position: 'absolute',
+                  inset: 0,
+                  pointerEvents: 'none',
                   background: `linear-gradient(95deg, rgba(20,11,5,${(
                     curlOverlap * 0.42
                   ).toFixed(2)}) 0%, rgba(20,11,5,${(curlOverlap * 0.14).toFixed(
@@ -598,71 +742,148 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
                 style={{
                   opacity: inkVisible ? 0.9 : 0,
                   clipPath: inkVisible ? 'inset(0 0% 0 0)' : 'inset(0 100% 0 0)',
-                  transition: 'opacity 1.3s ease-out, clip-path 1.6s cubic-bezier(0.22, 1, 0.36, 1)',
+                  transition:
+                    'opacity 1.3s ease-out, clip-path 1.6s cubic-bezier(0.22, 1, 0.36, 1)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  textAlign: 'center',
+                  margin: 'auto 0',
                 }}
-                className="flex flex-col items-center justify-center text-center my-auto"
               >
                 <span
-                  style={{ fontFamily: "'Cormorant Garamond', Georgia, serif" }}
-                  className="italic text-[clamp(8px,1.05vw,14px)] tracking-wide opacity-80"
+                  style={{
+                    fontFamily: "'Cormorant Garamond', Georgia, serif",
+                    fontStyle: 'italic',
+                    fontSize: 'clamp(8px, 1.05vw, 14px)',
+                    letterSpacing: '0.04em',
+                    opacity: 0.8,
+                  }}
                 >
                   Designed &amp; Curated by
                 </span>
 
                 <h2
-                  style={{ fontFamily: "'Great Vibes', cursive" }}
-                  className="text-[clamp(18px,3.2vw,46px)] leading-[1.06] text-[#180e07] my-[2%]"
+                  style={{
+                    fontFamily: "'Great Vibes', cursive",
+                    fontSize: 'clamp(18px, 3.2vw, 46px)',
+                    lineHeight: 1.06,
+                    color: '#180e07',
+                    margin: '2% 0',
+                    fontWeight: 400,
+                  }}
                 >
                   Samrat Sandilya
                 </h2>
 
-                <div className="w-[70%] h-[1px] bg-[#24150a]/45 my-[2%]" />
+                <div
+                  style={{
+                    width: '70%',
+                    height: '1px',
+                    backgroundColor: 'rgba(36, 21, 10, 0.45)',
+                    margin: '2% 0',
+                  }}
+                />
 
                 <span
-                  style={{ fontFamily: "'Cormorant Garamond', Georgia, serif" }}
-                  className="text-[clamp(6px,0.75vw,10px)] uppercase tracking-[0.24em] opacity-75"
+                  style={{
+                    fontFamily: "'Cormorant Garamond', Georgia, serif",
+                    fontSize: 'clamp(6px, 0.75vw, 10px)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.24em',
+                    opacity: 0.75,
+                  }}
                 >
                   Built From Scratch · संRACHNA
                 </span>
               </div>
             ) : (
               <div
-                style={{ fontFamily: "'Cormorant Garamond', Georgia, serif" }}
-                className="flex flex-col justify-center my-auto space-y-[4%] text-left pl-[6%] pointer-events-auto"
+                style={{
+                  fontFamily: "'Cormorant Garamond', Georgia, serif",
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  margin: 'auto 0',
+                  gap: '6px',
+                  textAlign: 'left',
+                  paddingLeft: '6%',
+                  pointerEvents: 'auto',
+                }}
               >
-                <p className="text-[clamp(7px,0.85vw,11px)] uppercase tracking-[0.22em] opacity-75">
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: 'clamp(7px, 0.85vw, 11px)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.22em',
+                    opacity: 0.75,
+                  }}
+                >
                   Correspondence
                 </p>
                 <a
                   href="mailto:samratsandilya4@gmail.com"
-                  className="block italic text-[clamp(9px,1.1vw,15px)] underline decoration-[#26160b]/40 hover:opacity-100 opacity-85"
+                  style={{
+                    color: '#1f130a',
+                    fontStyle: 'italic',
+                    fontSize: 'clamp(9px, 1.1vw, 15px)',
+                    textDecoration: 'underline',
+                    opacity: 0.88,
+                  }}
                 >
                   Email ↗
-                </a>
-                <a
-                  href="https://github.com/"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="block italic text-[clamp(9px,1.1vw,15px)] underline decoration-[#26160b]/40 hover:opacity-100 opacity-85"
-                >
-                  GitHub ↗
                 </a>
                 <a
                   href="https://www.linkedin.com/in/samrat-sandilya"
                   target="_blank"
                   rel="noreferrer"
-                  className="block italic text-[clamp(9px,1.1vw,15px)] underline decoration-[#26160b]/40 hover:opacity-100 opacity-85"
+                  style={{
+                    color: '#1f130a',
+                    fontStyle: 'italic',
+                    fontSize: 'clamp(9px, 1.1vw, 15px)',
+                    textDecoration: 'underline',
+                    opacity: 0.88,
+                  }}
                 >
                   LinkedIn ↗
+                </a>
+                <a
+                  href="https://www.instagram.com/samrat.tiwary"
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    color: '#1f130a',
+                    fontStyle: 'italic',
+                    fontSize: 'clamp(9px, 1.1vw, 15px)',
+                    textDecoration: 'underline',
+                    opacity: 0.88,
+                  }}
+                >
+                  Instagram ↗
                 </a>
               </div>
             )}
 
-            {/* Bottom Row: Wax Seal + Contact Corner Toggle */}
-            <div className="flex items-end justify-between pointer-events-auto pt-1">
+            {/* Bottom Row: Crimson Wax Seal + Contact Corner Toggle */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'flex-end',
+                justifyContent: 'space-between',
+                pointerEvents: 'auto',
+                paddingTop: '4px',
+              }}
+            >
               <div
-                className="w-[clamp(20px,2.8vw,36px)] h-[clamp(20px,2.8vw,36px)] rounded-full flex items-center justify-center"
                 style={{
+                  width: 'clamp(20px, 2.8vw, 36px)',
+                  height: 'clamp(20px, 2.8vw, 36px)',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                   background:
                     'radial-gradient(circle at 35% 32%, #7c1f1f 0%, #4d0e0e 65%, #2b0606 100%)',
                   boxShadow:
@@ -671,17 +892,31 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
                 }}
               >
                 <span
-                  style={{ fontFamily: "'Cormorant Garamond', serif" }}
-                  className="text-[#c98b83]/85 font-semibold text-[clamp(9px,1.2vw,16px)]"
+                  style={{
+                    fontFamily: "'Cormorant Garamond', serif",
+                    color: 'rgba(201, 139, 131, 0.88)',
+                    fontWeight: 600,
+                    fontSize: 'clamp(9px, 1.2vw, 16px)',
+                  }}
                 >
                   S
                 </span>
               </div>
 
               <button
+                type="button"
                 onClick={handleContactToggle}
-                style={{ fontFamily: "'Cormorant Garamond', Georgia, serif" }}
-                className="text-[clamp(7px,0.85vw,11px)] uppercase tracking-[0.2em] text-[#22140a]/85 hover:text-[#0d0703] cursor-pointer px-1 py-0.5"
+                style={{
+                  fontFamily: "'Cormorant Garamond', Georgia, serif",
+                  fontSize: 'clamp(7px, 0.85vw, 11px)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.2em',
+                  color: 'rgba(34, 20, 10, 0.88)',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '2px 4px',
+                }}
               >
                 {showContact ? '← Return' : 'Contact ↻'}
               </button>
@@ -693,37 +928,58 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
         {phase === 'desk' && (
           <>
             <button
+              type="button"
               onClick={handleChainPull}
               title="Pull brass chain"
+              aria-label="Pull brass chain to change lighting"
               style={{
+                position: 'absolute',
                 left: `${cfg.chain.left}%`,
                 top: `${cfg.chain.top}%`,
                 width: `${cfg.chain.width}%`,
                 height: `${cfg.chain.height}%`,
+                zIndex: 20,
+                cursor: 'grab',
+                background: 'transparent',
+                border: 'none',
+                outline: 'none',
               }}
-              className="absolute z-20 cursor-grab active:cursor-grabbing bg-transparent focus:outline-none"
             />
             <button
+              type="button"
               onClick={handlePenTap}
               title="Rewrite ink"
+              aria-label="Replay calligraphy ink animation"
               style={{
+                position: 'absolute',
                 left: `${cfg.pen.left}%`,
                 top: `${cfg.pen.top}%`,
                 width: `${cfg.pen.width}%`,
                 height: `${cfg.pen.height}%`,
+                zIndex: 20,
+                cursor: 'pointer',
+                background: 'transparent',
+                border: 'none',
+                outline: 'none',
               }}
-              className="absolute z-20 cursor-pointer bg-transparent focus:outline-none"
             />
             <button
+              type="button"
               onClick={handlePlaneTap}
               title="Paper plane"
+              aria-label="Rustle paper plane"
               style={{
+                position: 'absolute',
                 left: `${cfg.plane.left}%`,
                 top: `${cfg.plane.top}%`,
                 width: `${cfg.plane.width}%`,
                 height: `${cfg.plane.height}%`,
+                zIndex: 20,
+                cursor: 'pointer',
+                background: 'transparent',
+                border: 'none',
+                outline: 'none',
               }}
-              className="absolute z-20 cursor-pointer bg-transparent focus:outline-none"
             />
           </>
         )}
@@ -731,9 +987,13 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
 
       {/* Global Lightning Flash Overlay */}
       <div
-        className="fixed inset-0 z-40 pointer-events-none transition-opacity duration-75"
         style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 40,
+          pointerEvents: 'none',
           opacity: lightningAlpha,
+          transition: 'opacity 75ms linear',
           background:
             'radial-gradient(circle at 42% 28%, rgba(225,238,255,0.98) 0%, rgba(145,182,235,0.45) 48%, transparent 82%)',
           mixBlendMode: 'screen',
