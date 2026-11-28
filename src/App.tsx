@@ -3037,7 +3037,7 @@ const creatorPassTrigger = useCreatorPassTrigger(() => {
   />
 )}
       <div
-  {...creatorTrigger.bind}
+  {...creatorPassTrigger.bind}
   style={{
     position: 'relative',
     cursor: 'pointer',
