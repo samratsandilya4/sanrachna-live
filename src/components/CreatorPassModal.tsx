@@ -747,7 +747,7 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
     rot: -24,
     initialized: false,
   });
-  const planePhysicsRef = useRef({
+    const planePhysicsRef = useRef({
     x: 0,
     y: 0,
     vx: 0,
@@ -758,6 +758,8 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
     lastX: 0,
     lastY: 0,
     moved: false,
+    initialized: false,
+  });
   });
 
   // Refs
@@ -815,6 +817,7 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
         planePhysicsRef.current.x = px;
         planePhysicsRef.current.y = py;
         planePhysicsRef.current.rot = -22;
+        planePhysicsRef.current.initialized = true;
         setPlaneState({ x: px, y: py, rot: -22, initialized: true });
       }
     };
