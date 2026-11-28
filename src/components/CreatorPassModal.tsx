@@ -497,7 +497,10 @@ class VintageAudioEngine {
           b0 = 0.997 * b0 + white * 0.029;
           b1 = 0.985 * b1 + white * 0.032;
           b2 = 0.95 * b2 + white * 0.048;
-          data[i] = Math.max(-1, Math.min(1, (b0 + b1 + b2 + white * 0.14) * 1.6));
+          data[i] = Math.max(
+            -1,
+            Math.min(1, (b0 + b1 + b2 + white * 0.14) * 1.6)
+          );
         }
         this.noiseBuffer = buf;
       }
@@ -575,7 +578,6 @@ class VintageAudioEngine {
     if (!ctx) return;
     const now = ctx.currentTime;
 
-    // Metallic brass clink + crisp toggle katak
     const freqs = [2450, 1480];
     freqs.forEach((f, idx) => {
       const osc = ctx.createOscillator();
@@ -707,18 +709,15 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
   const [audioMuted, setAudioMuted] = useState(false);
   const [videoAvailable, setVideoAvailable] = useState(true);
 
-  // Book & ink state
   const [bookOpened, setBookOpened] = useState(false);
   const [activePage, setActivePage] = useState<0 | 1>(0);
   const [inkReplayKey, setInkReplayKey] = useState(0);
   const [sealStamped, setSealStamped] = useState(false);
   const [windGustTick, setWindGustTick] = useState(0);
 
-  // Interactive Calling Card & Copy Stamp
   const [cardPullY, setCardPullY] = useState(0);
   const [emailCopied, setEmailCopied] = useState(false);
 
-  // Pull-Chain Physics
   const [chainPullY, setChainPullY] = useState(0);
   const [chainSwayDeg, setChainSwayDeg] = useState(0);
   const chainDragRef = useRef({
@@ -728,7 +727,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
     moved: false,
   });
 
-  // Brass Paperweight Drag State
   const [weightPos, setWeightPos] = useState({ x: 0, y: 0, initialized: false });
   const [weightOnBook, setWeightOnBook] = useState(false);
   const weightDragRef = useRef({
@@ -740,14 +738,13 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
     moved: false,
   });
 
-  // Fallen Paper Plane Physics State (desk prop)
   const [planeState, setPlaneState] = useState({
     x: 0,
     y: 0,
     rot: -24,
     initialized: false,
   });
-    const planePhysicsRef = useRef({
+  const planePhysicsRef = useRef({
     x: 0,
     y: 0,
     vx: 0,
@@ -760,9 +757,7 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
     moved: false,
     initialized: false,
   });
-  });
 
-  // Refs
   const bgCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const introCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -792,7 +787,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
     weightOnBookRef.current = weightOnBook;
   }, [weightOnBook]);
 
-  // Ensure fonts, CSS, and responsive flag
   useEffect(() => {
     ensureVintageAssets();
     const checkViewport = () => {
@@ -842,7 +836,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
     }, 420);
   }, []);
 
-  // Lifecycle when modal opens
   useEffect(() => {
     if (!isOpen) return;
 
@@ -888,7 +881,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
-  // Periodic Wind Gusts on the Desk (flutters page corner & sways chain unless pinned)
   useEffect(() => {
     if (!isOpen || phase !== 'DESK') return;
 
@@ -908,7 +900,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
         audioRef.current?.playPaperFlip(true);
       }
 
-      // Occasional distant lightning flash
       if (Math.random() < (worldRef.current === 'MOON_LIGHTNING' ? 0.72 : 0.36)) {
         lightningFlashRef.current = 1;
         if (Math.random() < 0.6) {
@@ -921,8 +912,7 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
   }, [isOpen, phase]);
 
   /* ==========================================================================
-     FALLBACK PROCEDURAL CINEMATIC INTRO CANVAS (STORMY CITY -> PLANE -> WINDOW -> DESK)
-     Plays seamlessly if /creator-intro.mp4 is not uploaded yet!
+     FALLBACK PROCEDURAL CINEMATIC INTRO CANVAS
      ========================================================================== */
 
   useEffect(() => {
@@ -940,7 +930,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
     canvas.style.width = `${w}px`;
     canvas.style.height = `${h}px`;
 
-    // Procedural stormy city rooftops
     const buildings = Array.from({ length: 26 }, (_, i) => ({
       x: (i / 25) * w * 1.15 - w * 0.08,
       bw: 36 + ((i * 37) % 68),
@@ -976,15 +965,11 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
       ctx.save();
       ctx.scale(dpr, dpr);
 
-      // Lightning spikes at 0.08 and 0.54
       const flash1 = Math.max(0, 1 - Math.abs(t - 0.09) * 18);
       const flash2 = Math.max(0, 1 - Math.abs(t - 0.55) * 14) * 0.85;
       const flash = Math.min(1, flash1 + flash2);
-
-      // Zoom camera progressively toward the broken window (t: 0 -> 0.72) then dive to desk (0.72 -> 1)
       const cityZoom = 1 + Math.pow(Math.min(1, t / 0.75), 2.2) * 2.4;
 
-      // Storm Sky
       const skyGrad = ctx.createLinearGradient(0, 0, 0, h);
       skyGrad.addColorStop(
         0,
@@ -997,7 +982,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
       ctx.fillStyle = skyGrad;
       ctx.fillRect(0, 0, w, h);
 
-      // Jagged Lightning Bolt in Distance
       if (flash > 0.25) {
         ctx.strokeStyle = `rgba(225, 240, 255, ${flash * 0.92})`;
         ctx.lineWidth = 2.2;
@@ -1013,7 +997,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
         ctx.stroke();
       }
 
-      // City Skyline Layer (zooms past as we fly toward the old house)
       ctx.save();
       ctx.translate(w / 2, h * 0.52);
       ctx.scale(cityZoom, cityZoom);
@@ -1036,7 +1019,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
         });
       });
 
-      // Center Vintage House with Glowing Broken Window
       const houseW = Math.min(w * 0.38, 280);
       const houseH = h * 0.44;
       const hx = w / 2 - houseW / 2;
@@ -1054,7 +1036,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
       ctx.closePath();
       ctx.fill();
 
-      // Warm Glowing Vintage Window
       const winW = houseW * 0.38;
       const winH = houseH * 0.34;
       const wx = w / 2 - winW / 2;
@@ -1074,13 +1055,11 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
       ctx.fillStyle = winGlow;
       ctx.fillRect(wx - winW, wy - winH, winW * 3, winH * 3);
 
-      // Window Frame + Broken Glass Shards
       ctx.fillStyle = '#261a10';
       ctx.fillRect(wx, wy, winW, winH);
       ctx.fillStyle = 'rgba(255, 198, 118, 0.78)';
       ctx.fillRect(wx + 4, wy + 4, winW - 8, winH - 8);
 
-      // Broken jagged dark cutout inside window
       ctx.fillStyle = '#1b1109';
       ctx.beginPath();
       ctx.moveTo(wx + winW * 0.22, wy + winH * 0.18);
@@ -1090,7 +1069,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
       ctx.closePath();
       ctx.fill();
 
-      // Window Mullions
       ctx.strokeStyle = '#1a120b';
       ctx.lineWidth = 3;
       ctx.strokeRect(wx, wy, winW, winH);
@@ -1103,7 +1081,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
 
       ctx.restore();
 
-      // Flying Folded Magazine Paper Aeroplane (arcs from lower-left -> broken window -> desk)
       const planeP = Math.min(1, Math.max(0, (t - 0.08) / 0.82));
       const px =
         w * 0.14 +
@@ -1114,9 +1091,7 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
         Math.sin(planeP * Math.PI) * h * 0.38 +
         Math.pow(planeP, 3) * h * 0.26;
       const pScale =
-        planeP < 0.65
-          ? 1.5 - planeP * 0.9
-          : 0.92 + (planeP - 0.65) * 1.4;
+        planeP < 0.65 ? 1.5 - planeP * 0.9 : 0.92 + (planeP - 0.65) * 1.4;
       const pRot = -0.45 + planeP * 0.72;
 
       ctx.save();
@@ -1124,7 +1099,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
       ctx.rotate(pRot);
       ctx.scale(pScale, pScale);
 
-      // Folded vintage parchment paper plane
       ctx.fillStyle = '#efe5d0';
       ctx.beginPath();
       ctx.moveTo(34, 0);
@@ -1150,7 +1124,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
       ctx.fill();
       ctx.restore();
 
-      // Slanted Rain Streaks
       ctx.strokeStyle =
         flash > 0.3
           ? 'rgba(215, 232, 255, 0.45)'
@@ -1170,7 +1143,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
         ctx.stroke();
       }
 
-      // Smooth warm transition into wooden desk at end of intro (t > 0.78)
       if (t > 0.78) {
         const fade = (t - 0.78) / 0.22;
         ctx.fillStyle = `rgba(18, 12, 8, ${fade.toFixed(3)})`;
@@ -1191,7 +1163,7 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
   }, [isOpen, phase, videoAvailable, enterDeskScene]);
 
   /* ==========================================================================
-     LIVE DESK ATMOSPHERE CANVAS (BROKEN WINDOW + STORMY CITY + WOODEN DESK + SUNBEAMS)
+     LIVE DESK ATMOSPHERE CANVAS
      ========================================================================== */
 
   useEffect(() => {
@@ -1257,7 +1229,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
 
       const horizonY = h * 0.44;
 
-      // 1. Vintage Room Wall & Window Backdrop
       const wallGrad = ctx.createLinearGradient(0, 0, 0, horizonY + 30);
       if (mode === 'GOLDEN_MORNING') {
         wallGrad.addColorStop(0, '#2a2118');
@@ -1272,7 +1243,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
       ctx.fillStyle = wallGrad;
       ctx.fillRect(0, 0, w, horizonY + 30);
 
-      // 2. Broken Vintage Window Opening (Centered behind desk)
       const winW = Math.min(w * 0.72, 680);
       const winH = horizonY * 0.86;
       const winX = w / 2 - winW / 2 - px * 10;
@@ -1283,7 +1253,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
       ctx.rect(winX, winY, winW, winH);
       ctx.clip();
 
-      // Outside Sky
       const skyGrad = ctx.createLinearGradient(0, winY, 0, winY + winH);
       if (mode === 'GOLDEN_MORNING') {
         skyGrad.addColorStop(0, '#6e5842');
@@ -1305,7 +1274,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
       ctx.fillStyle = skyGrad;
       ctx.fillRect(winX, winY, winW, winH);
 
-      // Distant City Silhouette visible through the broken window
       const cityFloor = winY + winH;
       cityTowers.forEach((b, idx) => {
         const bx = winX + b.xFrac * winW - px * 6;
@@ -1331,7 +1299,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
         }
       });
 
-      // Lightning Fork Outside Window
       if (flash > 0.22 && mode !== 'GOLDEN_MORNING') {
         ctx.strokeStyle = `rgba(232, 245, 255, ${flash * 0.9})`;
         ctx.lineWidth = 1.8;
@@ -1347,7 +1314,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
         ctx.stroke();
       }
 
-      // Rain Streaks Outside Window (in storm modes)
       if (mode !== 'GOLDEN_MORNING') {
         ctx.strokeStyle =
           mode === 'MOON_LIGHTNING'
@@ -1371,7 +1337,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
         }
       }
 
-      // Cracked Vintage Glass Shards along window edges
       ctx.fillStyle =
         mode === 'GOLDEN_MORNING'
           ? 'rgba(255, 238, 200, 0.16)'
@@ -1382,7 +1347,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
           : `rgba(204, 232, 255, ${0.28 + flash * 0.4})`;
       ctx.lineWidth = 1;
 
-      // Top-left broken shard
       ctx.beginPath();
       ctx.moveTo(winX, winY);
       ctx.lineTo(winX + winW * 0.28, winY);
@@ -1392,7 +1356,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
       ctx.fill();
       ctx.stroke();
 
-      // Top-right broken shard
       ctx.beginPath();
       ctx.moveTo(winX + winW, winY);
       ctx.lineTo(winX + winW * 0.72, winY);
@@ -1402,7 +1365,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
       ctx.fill();
       ctx.stroke();
 
-      // Bottom-left jagged shard
       ctx.beginPath();
       ctx.moveTo(winX, winY + winH);
       ctx.lineTo(winX + winW * 0.22, winY + winH);
@@ -1411,7 +1373,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
       ctx.fill();
       ctx.stroke();
 
-      // Window Wooden Frame & Mullions
       ctx.strokeStyle = '#1b120b';
       ctx.lineWidth = 10;
       ctx.strokeRect(winX, winY, winW, winH);
@@ -1425,7 +1386,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
 
       ctx.restore();
 
-      // 3. Textured Vintage Wooden Desk Surface
       const deskGrad = ctx.createLinearGradient(0, horizonY, 0, h);
       if (mode === 'GOLDEN_MORNING') {
         deskGrad.addColorStop(0, '#3a2719');
@@ -1443,7 +1403,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
       ctx.fillStyle = deskGrad;
       ctx.fillRect(0, horizonY, w, h - horizonY);
 
-      // Subtle Wood Grain Planks
       ctx.strokeStyle =
         mode === 'MOON_LIGHTNING'
           ? 'rgba(130, 165, 210, 0.05)'
@@ -1464,7 +1423,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
         ctx.stroke();
       }
 
-      // Desk Top Edge Bevel
       ctx.fillStyle =
         mode === 'GOLDEN_MORNING'
           ? 'rgba(255, 214, 150, 0.14)'
@@ -1473,7 +1431,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
           : 'rgba(240, 185, 110, 0.1)';
       ctx.fillRect(0, horizonY, w, 2);
 
-      // 4. Lighting Pools (Warm Tungsten Lamp / Lightning / Golden Morning Sunbeams)
       if (mode === 'STORM_LAMP') {
         const lampGlow = ctx.createRadialGradient(
           w * 0.5 + px * 24,
@@ -1489,7 +1446,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
         ctx.fillStyle = lampGlow;
         ctx.fillRect(0, 0, w, h);
       } else if (mode === 'GOLDEN_MORNING') {
-        // Volumetric diagonal morning sunbeams through the broken window
         ctx.save();
         const beamGrad = ctx.createLinearGradient(
           winX + winW * 0.2,
@@ -1514,7 +1470,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
         ctx.fillRect(0, 0, w, h);
       }
 
-      // 5. Floating Dust Motes in Light
       for (let i = 0; i < dust.length; i++) {
         const d = dust[i];
         d.x = (d.x + d.vx + 1) % 1;
@@ -1557,7 +1512,12 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
     const stepPlane = () => {
       rafId = requestAnimationFrame(stepPlane);
       const p = planePhysicsRef.current;
-      if (!p.dragging && (Math.abs(p.vx) > 0.08 || Math.abs(p.vy) > 0.08 || Math.abs(p.vrot) > 0.08)) {
+      if (
+        !p.dragging &&
+        (Math.abs(p.vx) > 0.08 ||
+          Math.abs(p.vy) > 0.08 ||
+          Math.abs(p.vrot) > 0.08)
+      ) {
         const w = window.innerWidth;
         const h = window.innerHeight;
         p.x += p.vx;
@@ -1592,7 +1552,7 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
   }, [isOpen, phase]);
 
   /* ==========================================================================
-     INTERACTIVE HANDLERS: PULL-CHAIN, PAPERWEIGHT, PAPER PLANE, CALLING CARD
+     INTERACTIVE HANDLERS
      ========================================================================== */
 
   const cycleWorldMode = useCallback(() => {
@@ -1673,8 +1633,14 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
     const dy = e.clientY - weightDragRef.current.startY;
     if (Math.hypot(dx, dy) > 6) weightDragRef.current.moved = true;
     setWeightPos({
-      x: Math.max(8, Math.min(window.innerWidth - 68, weightDragRef.current.origX + dx)),
-      y: Math.max(64, Math.min(window.innerHeight - 68, weightDragRef.current.origY + dy)),
+      x: Math.max(
+        8,
+        Math.min(window.innerWidth - 68, weightDragRef.current.origX + dx)
+      ),
+      y: Math.max(
+        64,
+        Math.min(window.innerHeight - 68, weightDragRef.current.origY + dy)
+      ),
       initialized: true,
     });
   };
@@ -1684,7 +1650,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
     weightDragRef.current.active = false;
     const bookRect = bookRef.current?.getBoundingClientRect();
 
-    // Quick tap toggles placing/removing paperweight on the book corner
     if (!weightDragRef.current.moved && bookRect) {
       if (!weightOnBook) {
         setWeightPos({
@@ -1742,7 +1707,10 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
     const dy = e.clientY - p.lastY;
     if (Math.hypot(dx, dy) > 4) p.moved = true;
     p.x = Math.max(16, Math.min(window.innerWidth - 78, p.x + dx));
-    p.y = Math.max(window.innerHeight * 0.44, Math.min(window.innerHeight - 64, p.y + dy));
+    p.y = Math.max(
+      window.innerHeight * 0.44,
+      Math.min(window.innerHeight - 64, p.y + dy)
+    );
     p.vx = dx * 0.85;
     p.vy = dy * 0.85;
     p.vrot = dx * 0.45;
@@ -1756,7 +1724,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
     if (!p.dragging) return;
     p.dragging = false;
     if (!p.moved) {
-      // Flick impulse on tap
       p.vx = (Math.random() > 0.5 ? 1 : -1) * (5 + Math.random() * 5);
       p.vy = -(2 + Math.random() * 4);
       p.vrot = (Math.random() > 0.5 ? 1 : -1) * 9;
@@ -1846,7 +1813,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
   const inkColor = isMoon ? '#0e1726' : '#1f150c';
   const mutedInk = isMoon ? 'rgba(14,23,38,0.68)' : 'rgba(54,36,20,0.68)';
 
-  /* Reusable Calling Card Block */
   const renderCallingCard = () => (
     <div
       style={{
@@ -1873,7 +1839,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
         DIRECT CORRESPONDENCE
       </div>
 
-      {/* Paper Pocket + Tucked Pullable Vintage Calling Card */}
       <div
         style={{
           position: 'relative',
@@ -1900,7 +1865,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
             cursor: 'pointer',
           }}
         >
-          {/* Red Ink Stamp Overlay when Email Copied */}
           {emailCopied && (
             <div
               className="vs-stamp-copied"
@@ -1957,7 +1921,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
             </div>
           </div>
 
-          {/* Email Tap-to-Stamp Row */}
           <div
             style={{
               display: 'flex',
@@ -2008,7 +1971,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
             </a>
           </div>
 
-          {/* Instagram & LinkedIn */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
             <a
               href={CREATOR_INSTAGRAM_URL}
@@ -2027,7 +1989,14 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
                 fontWeight: 600,
               }}
             >
-              <span style={{ fontFamily: '"Cinzel", serif', fontSize: '9.5px', letterSpacing: '0.14em', color: mutedInk }}>
+              <span
+                style={{
+                  fontFamily: '"Cinzel", serif',
+                  fontSize: '9.5px',
+                  letterSpacing: '0.14em',
+                  color: mutedInk,
+                }}
+              >
                 INSTAGRAM
               </span>
               <span>{CREATOR_INSTAGRAM_HANDLE} ↗</span>
@@ -2050,7 +2019,14 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
                 fontWeight: 600,
               }}
             >
-              <span style={{ fontFamily: '"Cinzel", serif', fontSize: '9.5px', letterSpacing: '0.14em', color: mutedInk }}>
+              <span
+                style={{
+                  fontFamily: '"Cinzel", serif',
+                  fontSize: '9.5px',
+                  letterSpacing: '0.14em',
+                  color: mutedInk,
+                }}
+              >
                 LINKEDIN
               </span>
               <span>{CREATOR_LINKEDIN_HANDLE} ↗</span>
@@ -2058,7 +2034,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
           </div>
         </div>
 
-        {/* Stitched Parchment Pocket Lip at Bottom */}
         <div
           aria-hidden="true"
           style={{
@@ -2076,7 +2051,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
         />
       </div>
 
-      {/* Turn Back Button */}
       <button
         type="button"
         onClick={() => handleFlipPage(0)}
@@ -2098,7 +2072,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
     </div>
   );
 
-  /* Reusable Live Wet-Ink Calligraphy Page */
   const renderSignaturePage = () => (
     <div
       style={{
@@ -2113,7 +2086,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
         textAlign: 'center',
       }}
     >
-      {/* Top Archival Ornament */}
       <div
         style={{
           width: '100%',
@@ -2127,12 +2099,23 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
           color: mutedInk,
         }}
       >
-        <span style={{ flex: 1, height: '1px', background: 'rgba(92,62,32,0.22)' }} />
+        <span
+          style={{
+            flex: 1,
+            height: '1px',
+            background: 'rgba(92,62,32,0.22)',
+          }}
+        />
         <span>FOLIO I · संRACHNA</span>
-        <span style={{ flex: 1, height: '1px', background: 'rgba(92,62,32,0.22)' }} />
+        <span
+          style={{
+            flex: 1,
+            height: '1px',
+            background: 'rgba(92,62,32,0.22)',
+          }}
+        />
       </div>
 
-      {/* Live Wet-Ink Calligraphy Reveal */}
       <div key={inkReplayKey} style={{ margin: 'auto 0', padding: '6px 0' }}>
         <div
           className="vs-ink-sub"
@@ -2152,7 +2135,9 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
             className="vs-ink-name"
             data-text="Samrat Sandilya"
             style={{
-              fontSize: isMobile ? 'clamp(38px, 11vw, 50px)' : 'clamp(46px, 4.8vw, 60px)',
+              fontSize: isMobile
+                ? 'clamp(38px, 11vw, 50px)'
+                : 'clamp(46px, 4.8vw, 60px)',
               color: inkColor,
               textShadow: isMoon
                 ? '0 1px 12px rgba(190,225,255,0.2)'
@@ -2185,7 +2170,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
         </div>
       </div>
 
-      {/* Bottom Row: Wax Seal + Tappable Fountain Pen + Turn Page Corner */}
       <div
         style={{
           width: '100%',
@@ -2195,7 +2179,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
           gap: '8px',
         }}
       >
-        {/* Crimson Wax Seal */}
         <div
           style={{
             width: '44px',
@@ -2232,7 +2215,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
           )}
         </div>
 
-        {/* Tappable Fountain Pen (Replays Live Ink) */}
         <button
           type="button"
           onClick={handleReplayInk}
@@ -2263,7 +2245,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
           <span>rewrite</span>
         </button>
 
-        {/* Page Flip Trigger */}
         <button
           type="button"
           onClick={() => handleFlipPage(1)}
@@ -2294,7 +2275,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
       aria-label="Designed and Curated by Samrat Sandilya"
       onPointerMove={handleRootPointerMove}
     >
-      {/* PHASE 1: POWER-CUT FLICKER */}
       {phase === 'FLICKER' && (
         <div
           style={{
@@ -2306,7 +2286,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
         />
       )}
 
-      {/* PHASE 2: HYBRID CINEMA INTRO (AUTO-PLAYS /creator-intro.mp4 IF PRESENT, ELSE LIVE CANVAS INTRO) */}
       {phase === 'INTRO' && (
         <div
           style={{
@@ -2342,7 +2321,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
             />
           )}
 
-          {/* Subtle Skip Intro Button */}
           <button
             type="button"
             onClick={enterDeskScene}
@@ -2368,10 +2346,8 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
         </div>
       )}
 
-      {/* PHASE 3: LIVE INTERACTIVE VINTAGE DESK & BOOK */}
       {phase === 'DESK' && (
         <>
-          {/* Live Atmosphere Canvas (Broken Window, City, Rain, Sunbeams, Wood Desk) */}
           <canvas
             ref={bgCanvasRef}
             style={{
@@ -2384,7 +2360,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
             }}
           />
 
-          {/* Swaying Vintage Curtain Edge on Left */}
           <div
             aria-hidden="true"
             style={{
@@ -2405,7 +2380,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
             }}
           />
 
-          {/* Cinematic Vignette */}
           <div
             aria-hidden="true"
             style={{
@@ -2420,7 +2394,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
             }}
           />
 
-          {/* TOP MINIMAL HUD (ATMOSPHERE + MUTE + CLOSE) */}
           <header className="vs-hud-top">
             <div
               style={{
@@ -2495,7 +2468,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
             </button>
           </header>
 
-          {/* HANGING BRASS PULL-CHAIN (LIVE 3-STAGE WORLD THEME LEVER) */}
           <div
             className="vs-chain-anchor"
             onPointerDown={handleChainDown}
@@ -2522,7 +2494,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
                   : 'transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1)',
               }}
             >
-              {/* Brass Beaded Cord */}
               <div
                 style={{
                   width: '4px',
@@ -2535,7 +2506,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
                   filter: 'drop-shadow(0 3px 4px rgba(0,0,0,0.65))',
                 }}
               />
-              {/* Weighted Brass Acorn Pull */}
               <div
                 style={{
                   width: '20px',
@@ -2575,10 +2545,8 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
             </div>
           </div>
 
-          {/* CENTERPIECE: 3D LEATHER-BOUND VINTAGE BOOK */}
           <div className="vs-book-stage">
             <div ref={bookRef} className="vs-book-wrap">
-              {/* Soft Contact Shadow on Wooden Desk */}
               <div
                 aria-hidden="true"
                 style={{
@@ -2591,7 +2559,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
                 }}
               />
 
-              {/* Hardcover Leather Backboard */}
               <div
                 style={{
                   position: 'absolute',
@@ -2606,7 +2573,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
                   display: 'flex',
                 }}
               >
-                {/* DESKTOP: TWO-PAGE SPREAD | MOBILE: SINGLE SPACIOUS FOLIO */}
                 {!isMobile ? (
                   <div
                     style={{
@@ -2620,7 +2586,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
                       boxShadow: 'inset 0 0 18px rgba(40, 22, 8, 0.38)',
                     }}
                   >
-                    {/* LEFT PAGE (Archival Bookplate) */}
                     <div
                       style={{
                         position: 'relative',
@@ -2715,7 +2680,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
                       </div>
                     </div>
 
-                    {/* RIGHT PAGE (Flippable between Signature & Calling Card + Wind Flutter) */}
                     <div
                       key={`gust-${windGustTick}`}
                       style={{
@@ -2736,7 +2700,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
                         : renderCallingCard()}
                     </div>
 
-                    {/* Center Spine Gutter */}
                     <div
                       aria-hidden="true"
                       style={{
@@ -2753,7 +2716,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
                     />
                   </div>
                 ) : (
-                  /* MOBILE SINGLE SPACIOUS FOLIO */
                   <div
                     key={`mgust-${windGustTick}`}
                     style={{
@@ -2778,7 +2740,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
                   </div>
                 )}
 
-                {/* 3D OPENING FRONT LEATHER COVER (Swings open cleanly on entry) */}
                 <div
                   aria-hidden="true"
                   style={{
@@ -2837,7 +2798,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
             </div>
           </div>
 
-          {/* DRAGGABLE HEAVY BRASS PAPERWEIGHT (PIN DOWN WIND-FLUTTERING PAGES) */}
           {weightPos.initialized && (
             <div
               onPointerDown={handleWeightDown}
@@ -2886,17 +2846,24 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
                   justifyContent: 'center',
                 }}
               >
-                <span style={{ fontSize: '12px', fontWeight: 700, lineHeight: 1 }}>
+                <span
+                  style={{ fontSize: '12px', fontWeight: 700, lineHeight: 1 }}
+                >
                   ✦
                 </span>
-                <span style={{ fontSize: '6.5px', letterSpacing: '0.14em', marginTop: '2px' }}>
+                <span
+                  style={{
+                    fontSize: '6.5px',
+                    letterSpacing: '0.14em',
+                    marginTop: '2px',
+                  }}
+                >
                   {weightOnBook ? 'PINNED' : 'WEIGHT'}
                 </span>
               </div>
             </div>
           )}
 
-          {/* INTERACTIVE FALLEN MAGAZINE-PAGE PAPER PLANE (TAP OR FLICK TO SLIDE) */}
           {planeState.initialized && (
             <div
               onPointerDown={handlePlaneDown}
@@ -2930,7 +2897,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
                   points="86,16 24,25 32,33"
                   fill={isMoon ? '#8293ad' : '#b7a076'}
                 />
-                {/* Faint magazine print lines on wing */}
                 <line
                   x1="28"
                   y1="14"
@@ -2951,7 +2917,6 @@ export const CreatorPassModal: React.FC<CreatorPassModalProps> = ({
             </div>
           )}
 
-          {/* SUBTLE BOTTOM INTERACTION WHISPER */}
           <div
             className="vs-hint-bar"
             style={{
