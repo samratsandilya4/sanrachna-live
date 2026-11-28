@@ -10,14 +10,22 @@ export interface CreatorPassModalProps {
   hasIntroVideo?: boolean;
 }
 
-// Hold-to-charge trigger hook used in App.tsx
-export function useCreatorPassTrigger(holdDurationMs = 1400) {
+// Exact signature & return shape expected by App.tsx
+export function useCreatorPassTrigger(
+  holdDurationMs = 1400,
+  onUnlockCallback?: () => void,
+  _extra?: unknown
+) {
   const [isOpen, setIsOpen] = useState(false);
   const [isHolding, setIsHolding] = useState(false);
-  const [holdProgress, setHoldProgress] = useState(0);
+  const [chargeRatio, setChargeRatio] = useState(0);
 
   const rafRef = useRef<number | null>(null);
   const startTimeRef = useRef<number | null>(null);
+  const callbackRef = useRef(onUnlockCallback);
+  callbackRef.current = onUnlockCallback;
+
+  const duration = typeof holdDurationMs === 'number' && holdDurationMs > 0 ? holdDurationMs : 1400;
 
   const cancelHold = useCallback(() => {
     if (rafRef.current !== null) {
@@ -26,7 +34,7 @@ export function useCreatorPassTrigger(holdDurationMs = 1400) {
     }
     startTimeRef.current = null;
     setIsHolding(false);
-    setHoldProgress(0);
+    setChargeRatio(0);
   }, []);
 
   const startHold = useCallback(() => {
@@ -37,26 +45,27 @@ export function useCreatorPassTrigger(holdDurationMs = 1400) {
     const tick = (now: number) => {
       if (startTimeRef.current === null) return;
       const elapsed = now - startTimeRef.current;
-      const progress = Math.min(elapsed / holdDurationMs, 1);
-      setHoldProgress(progress);
+      const ratio = Math.min(elapsed / duration, 1);
+      setChargeRatio(ratio);
 
-      if (progress >= 1) {
+      if (ratio >= 1) {
         cancelHold();
         setIsOpen(true);
+        callbackRef.current?.();
       } else {
         rafRef.current = requestAnimationFrame(tick);
       }
     };
 
     rafRef.current = requestAnimationFrame(tick);
-  }, [cancelHold, holdDurationMs]);
+  }, [cancelHold, duration]);
 
   useEffect(() => cancelHold, [cancelHold]);
 
   const openModal = useCallback(() => setIsOpen(true), []);
   const closeModal = useCallback(() => setIsOpen(false), []);
 
-  const triggerProps = {
+  const bind = {
     onMouseDown: startHold,
     onMouseUp: cancelHold,
     onMouseLeave: cancelHold,
@@ -73,9 +82,11 @@ export function useCreatorPassTrigger(holdDurationMs = 1400) {
     openModal,
     closeModal,
     isHolding,
-    holdProgress,
-    triggerProps,
-    handlers: triggerProps,
+    chargeRatio,
+    holdProgress: chargeRatio,
+    bind,
+    triggerProps: bind,
+    handlers: bind,
   };
 }
 
