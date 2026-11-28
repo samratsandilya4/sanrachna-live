@@ -1432,6 +1432,8 @@ const creatorPassTrigger = useCreatorPassTrigger(() => {
       window.location.pathname.toLowerCase() === '/studio' ||
       window.location.pathname.toLowerCase() === '/studio/'
   );
+  const [creatorPassOpen, setCreatorPassOpen] = useState(false);
+const creatorTrigger = useCreatorPassTrigger(() => setCreatorPassOpen(true), 1200);
   const [guidelinesOpen, setGuidelinesOpen] = useState<boolean>(
     () =>
       typeof window !== 'undefined' &&
@@ -3036,6 +3038,29 @@ const creatorPassTrigger = useCreatorPassTrigger(() => {
     isDarkMode={isDarkMode}
   />
 )}
+      <div
+  {...creatorTrigger.bind}
+  style={{
+    position: 'relative',
+    cursor: 'pointer',
+    userSelect: 'none',
+    paddingBottom: '4px',
+  }}
+  title="Press & hold to open Creator Desk"
+>
+  © 2026 <strong style={{ color: '#D4AF37' }}>संRACHNA Magazine</strong> — Government Engineering College, Godda.
+  <span
+    style={{
+      position: 'absolute',
+      left: 0,
+      bottom: 0,
+      height: '2px',
+      width: `${Math.round(creatorTrigger.chargeRatio * 100)}%`,
+      background: 'linear-gradient(90deg, #8B1E24, #D4AF37)',
+      transition: creatorTrigger.chargeRatio === 0 ? 'width 0.2s ease' : 'none',
+    }}
+  />
+</div>
     </>
   );
 }
