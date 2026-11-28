@@ -1432,8 +1432,6 @@ const creatorPassTrigger = useCreatorPassTrigger(() => {
       window.location.pathname.toLowerCase() === '/studio' ||
       window.location.pathname.toLowerCase() === '/studio/'
   );
-  const [creatorPassOpen, setCreatorPassOpen] = useState(false);
-const creatorTrigger = useCreatorPassTrigger(() => setCreatorPassOpen(true), 1200);
   const [guidelinesOpen, setGuidelinesOpen] = useState<boolean>(
     () =>
       typeof window !== 'undefined' &&
